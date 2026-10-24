@@ -11,9 +11,18 @@ NFM_DATA static const float sine_table[NFM_SINE_SIZE + 1] = {
 #include "nfm_sine.inc"
 };
 
-/* the empty asm keeps the compiler from turning this back into a memset call */
+/* The empty asm keeps the compiler from turning this back into a memset call. Word stores only where
+ * both ends are aligned: the FM-1's CPU traps an unaligned one (a track's steps are bytes). */
 NFM_CODE void nfm_zero(void *p, unsigned n)
 {
+    if ((((uintptr_t)p) | n) & 3u) {
+        uint8_t *b = (uint8_t *)p;
+        for (; n; --n) {
+            *b++ = 0u;
+            __asm__ volatile("" ::: "memory");
+        }
+        return;
+    }
     uint32_t *w = (uint32_t *)p;
     for (n >>= 2; n; --n) {
         *w++ = 0u;
@@ -34,6 +43,7 @@ NFM_CODE static inline float sin_cyc(float x)
     float f = wrap1(x) * (float)NFM_SINE_SIZE;
     int i = (int)f;
     float t = f - (float)i;
+    i &= NFM_SINE_SIZE - 1;   /* wrap1 of a tiny negative x rounds to 1.0: the table's end */
     return sine_table[i] + (sine_table[i + 1] - sine_table[i]) * t;
 }
 

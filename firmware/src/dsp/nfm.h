@@ -151,7 +151,7 @@ typedef struct {
 enum { NFM_INS_FILTER = 1, NFM_INS_DRIVE = 2 };
 
 void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed);
-/* Zero n bytes (a multiple of 4, 4-aligned) without calling libc memset. */
+/* Zero n bytes without calling libc memset (words when aligned). */
 void nfm_zero(void *p, unsigned n);
 
 /* The base patch. value is 0..1; out-of-range values are clamped. */
