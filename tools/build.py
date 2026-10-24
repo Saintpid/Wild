@@ -341,6 +341,8 @@ def main():
     global PRODUCT, VERSION
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", metavar="X.Y[.Z]", help="release build: identity FM-1_8XXYYZZ, version string X.Y[.Z]")
+    ap.add_argument("--id", metavar="N", type=int, help="identity FM-1_N (801..999): M-UPGRADE takes only short "
+                    "numbers, and only one higher than the device's")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
     name = "n001se.fwsc"
@@ -354,6 +356,11 @@ def main():
         PRODUCT = "FM-1_8%02d%02d%02d" % (int(m[1]), int(m[2]), int(m[3] or 0))
         VERSION = a.release.upper() if "BETA" in a.release.upper() else a.release.upper() + " BETA"
         name = f"n001se-{a.release}.fwsc"
+    if a.id:
+        if not 801 <= a.id <= 999:
+            raise SystemExit("--id: 801..999")
+        PRODUCT = f"FM-1_{a.id}"
+        name = name[:-5] + f"-{a.id}.fwsc"
     fm1pkg_make.SDK = a.sdk
     for rel, sha in SDK_SHA256.items():          # fail early without the SDK
         if hashlib.sha256(fm1pkg_make.sdk_file(rel)).hexdigest() != sha:
