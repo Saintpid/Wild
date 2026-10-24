@@ -1,58 +1,53 @@
-# the project survives a restart: SAVE, then autosave after a quiet moment
-tap GLO
+# saving: the patterns, the lengths, the sounds and the settings come back after a power cycle;
+# never a flash write while it plays; SAVE held resets
+wait 200
+# track 2 (snare): a metal sound, one bar, a hit on step 6 (w5), Edge 80
+tap OCT+
+tap ENV
+tap ENV
+spin K1 4
+tapkey b10
 tap HOME
-spin K1 3
-expect par0 3
+spin K1 -1
+wait 10
+expect len 16
+tapkey w5
+tap ENV
+spin K3 30
+expect tpar10 80
+wait 30
+expect kind1 5
+expect step5 1
+# playing: SAVE refuses, and nothing saves by itself
+tap PLAY
 tap SAVE
+expect store_writes 0
+wait 5000
+expect store_writes 0
+tap PLAY
+# stopped and quiet: it saves by itself
+wait 6000
 expect store_writes 1
 expect dirty 0
 reboot
-expect par0 3
-# a change saves itself four seconds after the last touch, once the tines are quiet
-spin K4 -30
-expect par3 25
+wait 200
+expect track 0
+tap OCT+
+expect kind1 5
+expect len 16
+expect step5 1
+expect tpar10 80
+expect tpar6 5
+shot restored.png
+# SAVE held: RESET?, SAVE again: the starting set
+press SAVE
+wait 1600
+release SAVE
+tap SAVE
+wait 30
+expect kind1 1
+expect len 32
+expect tpar10 50
 expect dirty 1
-wait 3000
-expect store_writes 1
-wait 2000
+tap SAVE
 expect store_writes 2
-expect dirty 0
-reboot
-expect par3 25
-# a scale and a key on the Tine layout: A minor pentatonic, A3 in the middle, C4 left of it
-tap SEL
-spin K2 3
-spin K3 9
-expect par17 3
-expect par18 9
-expect white8 5700
-expect white7 6000
-tap SAVE
-reboot
-expect par18 9
-# live grains don't hold autosave back (they never stop spawning while Grains is up)...
-tap LFO
-spin K1 30
-expect par12 30
-wait 6000
-expect dirty 0
-# ...frozen ones do: an erase would cut the drone
-tapkey w7
-tap PLAY
-expect frozen 3
-tap HOME
-spin K2 5
-wait 6000
-expect dirty 1
-tap PLAY
-wait 6000
-expect dirty 0
-# a project saved by the version before Color and Pattern (format 1): its settings kept, the new ones at
-# their defaults (Glide 30, not the 0 its spare bytes hold; Tempo 96)
-oldproject
-reboot
-expect par0 2
-expect par36 30
-expect par35 96
-expect par30 0
-expect par38 0

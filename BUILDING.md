@@ -4,9 +4,9 @@ The build makes three files in `build/`:
 
 | File | What |
 | --- | --- |
-| `fimba.bin` | the firmware app |
+| `n001se.bin` | the firmware app |
 | `loader/ota.bin` | the update loader |
-| `fimba.fwsc` | the installable package (app + loader) |
+| `n001se.fwsc` | the installable package (app + loader) |
 
 ## Prerequisites (macOS)
 
@@ -85,23 +85,21 @@ tests/run_tests.sh
 ```
 
 Runs, on the build machine: the maths library against libm; the instrument
-(`tests/host/kalimba_test.c`, linked without libm as on the device: scales and layouts, every
-material's pitch to a few cents, decay order, damping and the pedal, one voice per tine, rolls, the
-delay's echo times, grains and freeze, the hole and the buzzers); flash storage; Felucca's update-path
-tests against `build/fimba.fwsc` (when it exists); and the whole app in the simulator
+(`tests/host/n001se_test.c`, linked without libm as on the device: every kind of sound finite and in range, exact hit counts, save and restore, 16 bars to `build/host/n001se_16bars.wav`); flash storage; Felucca's update-path
+tests against `build/n001se.fwsc` (when it exists); and the whole app in the simulator
 (`tests/scenarios/*.kal`), with its screenshots and audio in `build/scenarios/`. One WAV per tine
 material lands in `build/host/materials/`.
 
 `host/build_host.sh` builds the simulator alone (`gen_font.py` needs Pillow; `PYTHON=` picks the
-interpreter); `build/host/kalimba_host SCRIPT OUTDIR` runs one script (the command list is at the top
-of `host/kalimba_host.c`).
+interpreter); `build/host/n001se_host SCRIPT OUTDIR` runs one script (the command list is at the top
+of `host/n001se_host.c`).
 
 ## Install
 
 From the command line (with the `requirements.txt` packages):
 
 ```
-python3 tools/fm1_install.py build/fimba.fwsc
+python3 tools/fm1_install.py build/n001se.fwsc
 python3 tools/fm1_install.py --info          # identity of the connected FM-1
 ```
 
@@ -130,7 +128,7 @@ The check, against FoMni's own package built with the same toolchain:
 ```
 git clone --depth 1 https://github.com/charlesvestal/fm1-fomni build/fomni-ref
 (cd build/fomni-ref && ./build.sh)
-python3 tools/check_fwsc.py build/fimba.fwsc --app build/fimba.bin --ref build/fomni-ref/build/omni.fwsc
+python3 tools/check_fwsc.py build/n001se.fwsc --app build/n001se.bin --ref build/fomni-ref/build/omni.fwsc
 ```
 
 `tests/run_tests.sh` runs it too, whenever `build/fomni-ref` is there.

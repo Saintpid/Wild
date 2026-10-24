@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* FiMba-1 platform interface (FoMni's, from X0X's): everything the app needs from the hardware.
+/* n001se platform (FiMba-1's) interface (FoMni's, from X0X's): everything the app needs from the hardware.
  *
  * The device implementation (plat_fm1.c) wraps Felucca's HAL and panel map; the
- * host implementation (host/kalimba_host.c) is a simulator fed by a script, which is
+ * host implementation (host/n001se_host.c) is a simulator fed by a script, which is
  * what lets the whole app — UI, sequencer, engines — run and be tested on a Mac.
  * Drawing goes through Felucca's lcd_fill / lcd_blit (lcd.c on the device, a
  * framebuffer on the host) and gfx.c on top. */

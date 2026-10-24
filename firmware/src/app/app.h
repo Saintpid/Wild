@@ -1,26 +1,25 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* FiMba-1 app: the project (everything that is saved) and the app's entry points. Included by the unity
- * build after gfx.c (drawing helpers in scope) and by the host simulator. (FoMni's app.h, reshaped.) */
+/* n001se app: the project (everything that is saved) and the app's entry points. Included by the unity
+ * build after gfx.c (drawing helpers in scope) and by the host simulator. (FiMba-1's app.h, from FoMni's.) */
 #pragma once
 #include <stdint.h>
 #include "plat.h"
-#include "../dsp/kalimba.h"
-#include "../dsp/fastmath.h"                /* the UI draws with it (tine lengths) */
+#include "../dsp/n001se.h"
 
 #ifndef OM_VERSION                       /* a release build passes its own (tools/build.py --release) */
 #define OM_VERSION "DEV"
 #endif
-#define PROJ_MAGIC 0x41424C4Bu           /* "KLBA": never a FoMni project */
-/* The format counts the settings a project holds: a newer version reads an older project's values and
- * gives the settings it lacks their defaults (its spare bytes, zeros, are never taken for settings).
- * Add a setting at the end of P_*, bump the format, and add its count here. */
-#define PROJ_FORMAT 4u                    /* 4: Theme; 3: Worn; 2: Color and Pattern; 1: the first */
-#define PROJ_NPAR_OF(f) ((f) == 1u ? P_TRANSPOSE + 1 : (f) == 2u ? P_TUNING + 1 : (f) == 3u ? P_WORN + 1 : P_NPARAMS)
+#define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
+/* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value
+ * at the end of G_* / T_*, bump the format and say here how many the older one had. */
+#define PROJ_FORMAT 1u
 
 typedef struct {
     uint32_t magic, format;
-    int16_t par[P_NPARAMS];              /* kalimba.h P_* */
-    uint8_t rsv[32];                     /* room to grow: an older, shorter project loads (zeros here) */
+    int16_t g[G_NPARAMS];                /* n001se.h G_* */
+    int16_t t[NE_TRACKS][T_NPARAMS];     /* n001se.h T_*, per track */
+    ne_state_t st;                       /* the patterns and the sounds, as saved */
+    uint8_t rsv[32];                     /* room to grow */
 } project_t;
 
 extern project_t proj;

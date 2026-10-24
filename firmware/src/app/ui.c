@@ -1,99 +1,62 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* FiMba-1 UI: the panel and the screen. Part of the unity build (after gfx.c and project.c); the host
- * simulator includes it too. (The frame of it, knobs, bands and autosave, is FoMni's ui.c.)
+/* n001se UI: the panel and the screen. Part of the unity build (after gfx.c and project.c); the host
+ * simulator includes it too. (The frame of it, knobs, bands and autosave, is FiMba-1's and FoMni's ui.c.)
  *
- *   Layout Tine    the white keys are the tines in the kalimba's V (Scale, Key); the black keys follow
- *                  Black: Chords (a thumb roll of the scale's chords), Sharps (the white key's tine a
- *                  semitone up) or Perform (palm mute, hole, freeze, octave down / up while held,
- *                  six materials)
- *   Layout Mirror  Tine right for left: the lowest tine left of the middle, the next up on its right
- *   Layout Keyboard every key, white and black, plays its printed note (F3 on the lowest), shifted
- *                  by Transpose (and the octave): a chromatic kalimba with a tine per key
- *   PLAY freeze the grains     REC palm mute (every tine)     ARP tap: the mbira pattern on / off, over
- *                  the chord a chord key picks (Tine, Chords), or the keys held (Keyboard), or MIDI's;
- *                  held: the Pattern page
- *   OCT- / OCT+    the octave
- *   HOME ENV FX LFO SEL SEQ GLO   the pages (pressed again: the button's next page): HOME Tine,
- *                  Character; ENV Body; FX Space, Color; LFO Grain, Spread; SEL Keys, Play; SEQ Pattern;
- *                  GLO Setup. EDIT steps through them all.
- *   SELECT material   ALGORITHM scale   PRESETS key (Tine) / transpose (Keyboard)   KNOB 1-4 the page's values
- *   SAVE           saves (it also saves by itself, a few seconds after a change, when quiet) */
+ *   SEQ mode (SEQ lit)  the 16 white keys are the 16 steps of one bar of the selected track: lit = a hit,
+ *                  the dim one walking = where it plays. A key sets its step; pressed on a hit, it clears
+ *                  it when let go, unless a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
+ *                  KNOB 2 its note.
+ *   LIVE mode      the white keys play the sounds: four keys a sound, each a step up the scale
+ *   black 1-8      the bars: lit = within the track, bright = playing. A bar pressed shows (and edits)
+ *                  that bar and stays; pressed again, the view follows the playhead again.
+ *   black 9-11     mute the track, a new pattern for it, a new sound for it
+ *   PLAY start / stop    REC new patterns for every unmuted track    SEQ the mode
+ *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page   PRESETS the tempo
+ *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
+ *   SAVE           saves (it also saves by itself, after a change, once stopped and quiet); held: reset
+ *
+ * The screen: the four tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
+ * in it the beats count 1 2 3 4 to the next round. */
 
-/* The pages, by the button that shows them: a button with more than one page flips to its next page
- * when pressed again (the header's dots show which); EDIT steps through all of them in this order */
-enum { V_TINE, V_CHARACTER, V_BODY, V_SPACE, V_COLOR, V_GRAIN, V_SPREAD, V_KEYS, V_PLAY, V_PATTERN, V_SETUP, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Tine", "Character", "Body", "Space", "Color", "Grain", "Spread",
-                                              "Keys", "Play", "Pattern", "Setup"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_ENV, B_FX, B_FX, B_LFO, B_LFO, B_SEL, B_SEL, B_SEQ, B_GLO};
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_FX, V_DRIFT, V_GROOVE, V_SETUP, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "FX", "Drift", "Groove", "Setup"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_LFO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
+#define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
-    {P_MATERIAL, P_HARD, P_DECAY, P_TONE},
-    {P_WORN, P_GLIDE, P_TUNING, P_RELEASE},          /* the instrument's character: its wear, its pitch, its ring */
-    {P_BODY, P_BUZZ, P_WAH, P_WAHRATE},
-    {P_REVERB, P_SIZE, P_DELAY, P_TIME},
-    {P_TAPE, P_LOFI, P_CHORUS, P_FILTER},
-    {P_GRAIN, P_GSIZE, P_GDENS, P_GPITCH},
-    {P_GSPRAY, P_FEEDBACK, P_WIDTH, K_NONE},
-    {P_LAYOUT, P_SCALE, P_KEY, P_BLACK},
-    {P_STRUM, P_OCTAVE, K_NONE, K_NONE},
-    {P_PATTERN, P_PTEMPO, K_NONE, K_NONE},
-    {P_TUNE, P_MIDICH, P_MIDIOUT, P_THEME},
+    {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
+    {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
+    {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
+    {KT | T_KIND, KT | T_FLUID, K_NONE, K_NONE},
+    {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
+    {G_CHAOS, G_MOTION, K_NONE, K_NONE},
+    {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
+    {G_LEVEL, G_MIDICH, K_NONE, K_NONE},
 };
-#define ARP_HOLD_MS 500u               /* ARP held this long: the Pattern page (a tap: the pattern on / off) */
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
 
-/* the Keys page follows the layout: Keyboard has no scale, key or black-key mode, but a transpose */
-static const uint8_t KEYS_KEYBOARD[4] = {P_LAYOUT, P_TRANSPOSE, P_OCTAVE, K_NONE};
-
-#define NWHITE KM_NWHITE
-#define NBLACK KM_NBLACK
+#define NWHITE 16
+#define NBLACK 11
 static const uint8_t WHITE_K[NWHITE] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 static const uint8_t BLACK_K[NBLACK] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25};
-/* the white key left of each black key (its Sharps tine is that one, a semitone up) */
-static const uint8_t BLACK_LEFT[NBLACK] = {0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14};
+enum { BK_MUTE = 8, BK_PATTERN = 9, BK_SOUND = 10 };
+static const int8_t LIVE_NOTE[4] = {0, 3, 7, 10};   /* LIVE: the four keys of a sound, up its scale */
 
-/* Perform: what each black key does */
-enum { PF_MUTE, PF_HOLE, PF_FREEZE, PF_OCTDN, PF_OCTUP, PF_MAT0 };
-static const char *const PF_NAME[NBLACK] = {"Mut", "Hol", "Frz", "O-", "O+", "St", "Br", "Bz", "Al", "Bm", "Gl"};
-
-/* the screen's colours (Setup: Theme). Light: a kalimba's, pale wood, dark ink. Dark: near-black, cream
- * and amber, and one accent: the bars and chips go cream and brown, so amber only means sounding or
- * touched. In both the tines keep their metal, and the ink on them stays dark. */
-typedef struct {
-    uint16_t bg, panel, line, dim, text, white, wood, wood_d, hole, bridge, acc, acc_t, blue, blue_t, ink, gourd;
-} theme_t;
-static const theme_t THEMES[THEME_N] = {
-    {RGB(246, 238, 224), RGB(232, 220, 200), RGB(212, 196, 172), RGB(150, 132, 110), RGB(64, 48, 36),
-     RGB(255, 255, 255), RGB(196, 142, 92), RGB(150, 100, 60), RGB(70, 44, 26), RGB(92, 66, 46),
-     RGB(226, 104, 60), RGB(246, 204, 180), RGB(52, 140, 160), RGB(194, 226, 230), RGB(64, 48, 36),
-     RGB(176, 120, 64)},
-    {RGB(28, 22, 16), RGB(40, 32, 24), RGB(78, 63, 48), RGB(154, 138, 116), RGB(230, 211, 179),
-     RGB(28, 22, 16), RGB(58, 42, 30), RGB(40, 29, 21), RGB(16, 12, 9), RGB(118, 98, 76),
-     RGB(217, 119, 47), RGB(86, 48, 22), RGB(230, 211, 179), RGB(48, 39, 30), RGB(28, 22, 16),
-     RGB(70, 48, 30)},
-};
-#define THEME (&THEMES[(unsigned)proj.par[P_THEME] < THEME_N ? proj.par[P_THEME] : 0])
-#define K_BG (THEME->bg)
-#define K_PANEL (THEME->panel)
-#define K_LINE (THEME->line)
-#define K_DIM (THEME->dim)
-#define K_TEXT (THEME->text)
-#define K_WHITE (THEME->white)                 /* text on the accent */
-#define K_WOOD (THEME->wood)
-#define K_WOOD_D (THEME->wood_d)
-#define K_HOLE (THEME->hole)
-#define K_BRIDGE (THEME->bridge)
-#define K_ACC (THEME->acc)
-#define K_ACC_T (THEME->acc_t)
-#define K_BLUE (THEME->blue)
-#define K_BLUE_T (THEME->blue_t)
-#define K_INK (THEME->ink)                     /* on the tines */
-static const uint16_t MAT_COL[MAT_N] = {RGB(196, 204, 214), RGB(226, 186, 92), RGB(204, 128, 82), RGB(226, 230, 236),
-                                        RGB(232, 210, 150), RGB(186, 232, 240)};
+/* colours: near black, grey ink, one colour per track; red is only the phrase's last bar */
+#define K_BG RGB(16, 16, 18)
+#define K_PANEL RGB(32, 32, 36)
+#define K_LINE RGB(58, 58, 64)
+#define K_DIM RGB(118, 118, 126)
+#define K_TEXT RGB(232, 232, 236)
+#define K_ACC RGB(255, 186, 72)
+#define K_RED RGB(229, 72, 77)
+static const uint16_t TRACK_COL[NE_TRACKS] = {RGB(255, 132, 64), RGB(96, 196, 255), RGB(246, 216, 84),
+                                              RGB(178, 140, 255)};
 
 static struct {
-    uint8_t view;
+    uint8_t view, track, live;
+    uint8_t view_bar, bar_lock;        /* the bar the keys show; locked: chosen, else the playhead's */
     uint32_t btn, keys, btn_used;
     uint32_t enc_t[NE];
     uint8_t dirty;
@@ -104,19 +67,14 @@ static struct {
     uint32_t touch_until;
     uint32_t frame;
     uint32_t sig[3];
-    int8_t oct_shift;                  /* Perform: OCT- / OCT+ black keys held */
-    uint8_t pat_on;                    /* the pattern running (ARP) */
-    uint8_t pool_n;                    /* notes in its chord (0: none given yet) */
-    int16_t kpool[KM_NPOOL];           /* the chord held keys / MIDI notes are building */
-    uint8_t midi_held;                 /* MIDI notes held (a new chord starts when they are all up) */
-    uint8_t pool_fresh;                /* this scan's keys start a new chord (none were held before it) */
-    uint32_t arp_t;                    /* when ARP went down (held: the Pattern page) */
     uint32_t save_t;                   /* when SAVE went down (held: reset to the defaults?) */
     uint32_t reset_ask;                /* until when "RESET?" waits for SAVE (0: not asking) */
-    uint8_t frozen;
-    int16_t key_cents[NKEYS][4];       /* what each key plucked (to damp it, and its MIDI note off) */
-    uint8_t key_n[NKEYS];
-    uint8_t midi_note[NKEYS][4];
+    int8_t held_step;                  /* a step key held (its step), -1 none */
+    uint8_t held_was_on, held_edited;
+    uint8_t held_vel;                  /* ...its velocity and note as edited (the engine's lag a block) */
+    int8_t held_note;
+    uint8_t voices;                    /* the CPU guard's voice limit now */
+    float meter[NE_TRACKS];
 } ui;
 
 static void say(const char *a, const char *b)
@@ -163,26 +121,54 @@ static void s_cpy(char *d, const char *s)
 }
 
 /* ------------------------------------------------------------ values --- */
-static void say_param(int k)
+static const ne_param_t *kinfo(int k) { return k & KT ? ne_tparam_info(k & ~KT) : ne_param_info(k); }
+static int kval(int k) { return k & KT ? proj.t[ui.track][k & ~KT] : proj.g[k]; }
+static void ktext(int k, int v, char *t)
+{
+    if (k & KT)
+        ne_tparam_text(k & ~KT, v, t);
+    else
+        ne_param_text(k, v, t);
+}
+static void say_knob(int k)
 {
     char t[16];
-    km_param_text(k, proj.par[k], t);
-    say(km_param_info(k)->name, t);
+    ktext(k, kval(k), t);
+    say(kinfo(k)->name, t);
+}
+
+static void tpar_set(int t, int p, int v)
+{
+    const ne_param_t *i = ne_tparam_info(p);
+    v = v < i->lo ? i->lo : v > i->hi ? i->hi : v;
+    if (v == proj.t[t][p])
+        return;
+    proj.t[t][p] = (int16_t)v;
+    ne_tset(t, p, v);
+    /* the hit range stays a range: the other end follows */
+    if (p == T_HITLO && proj.t[t][T_HITHI] < v)
+        tpar_set(t, T_HITHI, v);
+    if (p == T_HITHI && proj.t[t][T_HITLO] > v)
+        tpar_set(t, T_HITLO, v);
+    mark_dirty();
 }
 
 static void knob_set(int k, int v)
 {
-    const km_param_t *p = km_param_info(k);
-    v = v < p->lo ? p->lo : v > p->hi ? p->hi : v;
-    if (v == proj.par[k])
+    const ne_param_t *p = kinfo(k);
+    if (k & KT) {
+        tpar_set(ui.track, k & ~KT, v);
         return;
-    proj.par[k] = (int16_t)v;
-    km_set(k, v);
+    }
+    v = v < p->lo ? p->lo : v > p->hi ? p->hi : v;
+    if (v == proj.g[k])
+        return;
+    proj.g[k] = (int16_t)v;
+    ne_set(k, v);
     mark_dirty();
 }
 
-/* knob acceleration by speed: a slow turn is one step a detent, a quick one up to 6 (Time, Grain ms:
- * hundreds of steps) */
+/* knob acceleration by speed: a slow turn is one step a detent, a quick one up to 8 */
 static uint8_t accel_off;              /* the host simulator's "spin": exact steps */
 static int32_t accel(int role, int32_t s, int range)
 {
@@ -196,231 +182,167 @@ static int32_t accel(int role, int32_t s, int range)
     return s * (int32_t)m;
 }
 
-/* a knob that does nothing now: the wah on a body without a sound hole */
-static int knob_off(int k) { return (k == P_WAH || k == P_WAHRATE) && !km_body_hole(proj.par[P_BODY]); }
-
 static void turn(int role, int k, int32_t e)
 {
-    const km_param_t *p = km_param_info(k);
+    const ne_param_t *p;
     if (!e || k == K_NONE)
         return;
-    if (knob_off(k)) {
-        say("NO HOLE", "BOX OR GOURD");
-        return;
-    }
-    knob_set(k, proj.par[k] + accel(role, e, p->hi - p->lo));
-}
-
-/* ------------------------------------------------------------- tines --- */
-static int octave_now(void) { return proj.par[P_OCTAVE] + ui.oct_shift; }
-static int keyboard(void) { return proj.par[P_LAYOUT] == LAY_KEYBOARD; }
-/* Keyboard layout: the note of key k (0..26), as printed, transposed */
-/* just intonation over the key (Tine) or the C key (Keyboard, transposed); Equal: as it is */
-static int tonic_now(void) { return keyboard() ? 6000 + 100 * proj.par[P_TRANSPOSE] : km_tonic_cents(proj.par[P_KEY], 0); }
-static int tune(int c) { return proj.par[P_TUNING] == TUNE_JUST ? km_just_cents(c, tonic_now()) : c; }
-static int key_cents(int k) { return tune(km_keyboard_cents(proj.par[P_TRANSPOSE], octave_now(), k)); }
-static int key_pan(int k) { return (k - 13) * 100 / 13; }       /* across the keyboard, left to right */
-static int white_equal(int w)                       /* (before the tuning: a Sharps key adds its semitone here) */
-{
-    if (keyboard())
-        return km_keyboard_cents(proj.par[P_TRANSPOSE], octave_now(), WHITE_K[w & 15]);
-    return km_white_cents(proj.par[P_LAYOUT], proj.par[P_SCALE], proj.par[P_KEY], octave_now(), w);
-}
-static int white_cents(int w) { return tune(white_equal(w)); }
-static int white_pan(int w) { return keyboard() ? key_pan(WHITE_K[w & 15]) : (int)(km_white_pos(w) * 100.0f); }
-static int view_knob(int i)
-{
-    return ui.view == V_KEYS && keyboard() ? KEYS_KEYBOARD[i] : VIEW_KNOB[ui.view][i];
-}
-static int midi_ch(void) { return proj.par[P_MIDICH] ? proj.par[P_MIDICH] - 1 : 0; }
-static uint8_t cents_note(int c) { int n = (c + 50) / 100; return (uint8_t)(n < 0 ? 0 : n > 127 ? 127 : n); }
-
-static void note_out(int on, uint8_t n, uint8_t vel)
-{
-    uint32_t st;
-    if (!proj.par[P_MIDIOUT])
-        return;
-    st = (on ? 0x90u : 0x80u) | (uint32_t)midi_ch();
-    plat_midi_out(st >> 4 | st << 8 | (uint32_t)n << 16 | (uint32_t)(on ? vel : 0) << 24);
-}
-
-/* key k plucks a tine (or a roll of them): remembered so its release can damp it */
-static void key_pluck(int k, int cents, int vel, int pan, int delay)
-{
-    uint8_t i = ui.key_n[k];
-    km_pluck(cents, vel, pan, delay);
-    if (i < 4u) {
-        ui.key_cents[k][i] = (int16_t)cents;
-        ui.midi_note[k][i] = cents_note(cents);
-        ui.key_n[k] = (uint8_t)(i + 1u);
-    }
-    note_out(1, cents_note(cents), (uint8_t)vel);
-}
-
-static void key_release(int k)
-{
-    uint32_t i;
-    for (i = 0; i < ui.key_n[k]; i++) {
-        if (proj.par[P_RELEASE])
-            km_damp(ui.key_cents[k][i]);
-        note_out(0, ui.midi_note[k][i], 0);
-    }
-    ui.key_n[k] = 0;
-}
-
-static void set_freeze(int on)
-{
-    ui.frozen = (uint8_t)on;
-    km_freeze(on);
-    say("GRAINS", on ? "FROZEN" : "LIVE");
+    p = kinfo(k);
+    knob_set(k, kval(k) + accel(role, e, p->hi - p->lo));
 }
 
 /* ------------------------------------------------------------ pattern --- */
-static void pool_set(const int *c, int n)
+static const nseq_track *trk(int t) { return &ne_seq()->track[t]; }
+static int playing(void) { return ne_seq()->playing; }
+static int track_bars(int t) { return (trk(t)->length + NE_BAR - 1) / NE_BAR; }
+static int play_step(int t) { return playing() && trk(t)->last >= 0 ? trk(t)->last : -1; }
+static int play_bar(int t) { int s = play_step(t); return s < 0 ? -1 : s / NE_BAR; }
+static int shown_bar(void)
 {
-    km_pool(c, n);
-    ui.pool_n = (uint8_t)n;
+    int b;
+    if (ui.bar_lock)
+        return ui.view_bar;
+    b = play_bar(ui.track);
+    return b < 0 ? ui.view_bar : b;
 }
-static int chord_of(int b, int c[4])                /* black key b's chord, tuned: a triad, or a seventh */
+static int step_on(int t, int s) { return s < trk(t)->length && trk(t)->step[s].on; }
+
+static void select_track(int t)
 {
-    int n = km_chord_cents(proj.par[P_SCALE], proj.par[P_KEY], octave_now(), b, c), i;
-    if (n == 4 && b < 7)
-        n = 3;                                       /* (the roll's octave: the pattern finds its own) */
-    for (i = 0; i < n; i++)
-        c[i] = tune(c[i]);
-    return n;
-}
-static void pattern(int on)
-{
-    ui.pat_on = (uint8_t)on;
-    km_pattern(on);
-    if (on && !ui.pool_n) {                          /* nothing chosen yet: the key's own chord */
-        int c[4], n;
-        if (keyboard()) {
-            c[0] = key_cents(7);
-            c[1] = key_cents(11);
-            c[2] = key_cents(14);
-            n = 3;
-        } else {
-            n = chord_of(0, c);
-        }
-        pool_set(c, n);
-    }
+    ui.track = (uint8_t)((t + NE_TRACKS) % NE_TRACKS);
+    if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
+        ui.bar_lock = 0;
     {
-        char t[16];
-        if (on)
-            km_param_text(P_PATTERN, proj.par[P_PATTERN], t);
-        say("PATTERN", on ? t : "OFF");
+        char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + ui.track), 0};
+        say(a, ne_kind_name(ne_fm()->slot[ui.track].kind));
     }
-}
-/* a note held toward the pattern's chord: the first of a new hand of notes starts a new chord */
-static void pool_hold(int cents, int first)
-{
-    int i, c[KM_NPOOL];
-    if (first)
-        ui.pool_n = 0;
-    if (ui.pool_n >= KM_NPOOL)
-        return;
-    ui.kpool[ui.pool_n] = (int16_t)cents;
-    for (i = 0; i <= ui.pool_n; i++)
-        c[i] = ui.kpool[i];
-    pool_set(c, ui.pool_n + 1);
 }
 
 static void white_down(int w)
 {
-    if (ui.pat_on && keyboard()) {                   /* Keyboard: the keys held are the pattern's chord */
-        pool_hold(white_cents(w), ui.pool_fresh);
-        ui.pool_fresh = 0;
+    int t = ui.track, s;
+    if (ui.live) {
+        ne_hit(w >> 2, 112, LIVE_NOTE[w & 3]);
         return;
     }
-    key_pluck(WHITE_K[w], white_cents(w), 100, white_pan(w), 0);
+    s = shown_bar() * NE_BAR + w;
+    if (s >= trk(t)->length) {
+        char b[16];
+        itoa_u((uint32_t)trk(t)->length, b);
+        say("PAST THE END", b);
+        return;
+    }
+    ui.held_step = (int8_t)s;
+    ui.held_edited = 0;
+    ui.held_was_on = (uint8_t)step_on(t, s);
+    ui.held_vel = ui.held_was_on ? trk(t)->step[s].vel : 100u;
+    ui.held_note = ui.held_was_on ? trk(t)->step[s].note : 0;
+    if (!ui.held_was_on) {
+        ne_step(t, s, 1, 100, 0);
+        mark_dirty();
+    }
+}
+
+static void white_up(int w)
+{
+    int t = ui.track;
+    if (ui.live || ui.held_step < 0 || ui.held_step % NE_BAR != w)
+        return;
+    if (ui.held_was_on && !ui.held_edited) {
+        ne_step(t, ui.held_step, 0, ui.held_vel, ui.held_note);
+        mark_dirty();
+    }
+    ui.held_step = -1;
+}
+
+/* a held step: KNOB 1 its velocity, KNOB 2 its note */
+static void step_edit(int knob, int32_t e)
+{
+    int t = ui.track, s = ui.held_step, vel = ui.held_vel, note = ui.held_note;
+    char b[16];
+    if (knob == 0) {
+        vel += (int)accel(EN_K1, e, 127) * 4;
+        vel = vel < 1 ? 1 : vel > 127 ? 127 : vel;
+        itoa_u((uint32_t)vel, b);
+        say("VELOCITY", b);
+    } else if (knob == 1) {
+        note += (int)e;
+        note = note < -12 ? -12 : note > 12 ? 12 : note;
+        if (note < 0) {
+            b[0] = '-';
+            itoa_u((uint32_t)-note, b + 1);
+        } else {
+            b[0] = '+';
+            itoa_u((uint32_t)note, b + 1);
+        }
+        say("NOTE", b);
+    } else {
+        return;
+    }
+    ui.held_vel = (uint8_t)vel;
+    ui.held_note = (int8_t)note;
+    ne_step(t, s, 1, vel, note);
+    ui.held_edited = 1;
+    mark_dirty();
 }
 
 static void black_down(int b)
 {
-    int k = BLACK_K[b];
-    if (keyboard()) {                                /* its own note (or, with the pattern, toward its chord) */
-        if (ui.pat_on)
-            pool_hold(key_cents(k), ui.pool_fresh), ui.pool_fresh = 0;
-        else
-            key_pluck(k, key_cents(k), 100, key_pan(k), 0);
+    int t = ui.track;
+    if (b < NE_BARS) {
+        char s[16] = "BAR ";
+        if (b >= track_bars(t)) {
+            itoa_u((uint32_t)track_bars(t), s + 4);
+            s_cpy(s + s_len(s), track_bars(t) == 1 ? " BAR" : " BARS");
+            say("TRACK HAS", s + 4);
+            return;
+        }
+        if (ui.bar_lock && ui.view_bar == b) {
+            ui.bar_lock = 0;                         /* again: follow the playhead */
+            say("FOLLOW", "PLAYHEAD");
+            return;
+        }
+        ui.view_bar = (uint8_t)b;
+        ui.bar_lock = 1;
+        itoa_u((uint32_t)b + 1u, s + 4);
+        say(s, "SHOWN");
         return;
     }
-    switch (proj.par[P_BLACK]) {
-    case BLK_CHORDS: {
-        int c[4], n, i;
-        if (ui.pat_on) {                             /* the pattern takes up the chord */
-            n = chord_of(b, c);
-            pool_set(c, n);
-            break;
-        }
-        n = km_chord_cents(proj.par[P_SCALE], proj.par[P_KEY], octave_now(), b, c);
-        for (i = 0; i < n; i++)                      /* a thumb across the tines: low to high, side to side */
-            key_pluck(k, tune(c[i]), i ? 92 : 100, (i & 1) ? 55 : -55, i * proj.par[P_STRUM]);
-        break;
-    }
-    case BLK_SHARPS: {
-        int w = BLACK_LEFT[b];
-        key_pluck(k, tune(white_equal(w) + 100), 100, white_pan(w), 0);
-        break;
-    }
-    default:                                         /* Perform */
-        if (b == PF_MUTE) {
-            km_damp_all();
-        } else if (b == PF_HOLE) {
-            km_hole(HOLE_KEY, 127);
-        } else if (b == PF_FREEZE) {
-            set_freeze(!ui.frozen);
-        } else if (b == PF_OCTDN || b == PF_OCTUP) {
-            ui.oct_shift = (int8_t)(b == PF_OCTDN ? -1 : 1);
-        } else {
-            knob_set(P_MATERIAL, b - PF_MAT0);
-            say_param(P_MATERIAL);
-        }
-        break;
+    if (b == BK_MUTE) {
+        tpar_set(t, T_MUTE, !proj.t[t][T_MUTE]);
+        say("TRACK", proj.t[t][T_MUTE] ? "MUTED" : "ON");
+    } else if (b == BK_PATTERN) {
+        ne_generate(t);
+        mark_dirty();
+        say("NEW PATTERN", ne_kind_name(proj.t[t][T_KIND]));
+    } else if (b == BK_SOUND) {
+        ne_new_sound(t, proj.t[t][T_KIND]);
+        mark_dirty();
+        say("NEW SOUND", ne_kind_name(proj.t[t][T_KIND]));
     }
 }
 
-static void black_up(int b)
-{
-    if (!keyboard() && proj.par[P_BLACK] == BLK_PERFORM) {
-        if (b == PF_HOLE)
-            km_hole(HOLE_KEY, 0);
-        else if (b == PF_OCTDN || b == PF_OCTUP)
-            ui.oct_shift = 0;
-    }
-    key_release(BLACK_K[b]);
-}
-
-/* ------------------------------------------------------------ buttons --- */
 static void set_view(int v)
 {
     ui.view = (uint8_t)v;
     ui.touched = -1;
 }
 
-/* back to the defaults: every sound setting, the pattern stopped and the grains let go. The Setup page
- * (tuning, MIDI, the theme) is about the room and the rig, not the sound: it stays. Saved as any change
- * is, a few seconds on (autosave), or at once with SAVE. */
 static void reset_defaults(void)
 {
-    static const uint8_t KEEP[4] = {P_TUNE, P_MIDICH, P_MIDIOUT, P_THEME};
-    int16_t keep[4];
-    int i;
-    for (i = 0; i < 4; i++)
-        keep[i] = proj.par[KEEP[i]];
-    if (ui.pat_on)
-        pattern(0);
-    set_freeze(0);
+    int16_t keep = proj.g[G_MIDICH];
+    int t;
     project_defaults();
-    for (i = 0; i < 4; i++)
-        proj.par[KEEP[i]] = keep[i];
-    project_apply();
+    proj.g[G_MIDICH] = keep;
+    ne_play(0);
+    project_apply();                                 /* the starting set's settings, then its sounds */
+    for (t = 0; t < NE_TRACKS; t++) {
+        ne_new_sound(t, proj.t[t][T_KIND]);
+        ne_generate(t);
+    }
     mark_dirty();
     say("RESET", "TO DEFAULTS");
 }
-
 static void reset_ask(int on)
 {
     ui.reset_ask = on ? plat_ms() + RESET_ASK_MS : 0u;
@@ -435,125 +357,114 @@ static void reset_ask(int on)
 static void button(int b)
 {
     int v;
-    if (ui.reset_ask) {                             /* "RESET?": SAVE resets, any other button keeps */
-        ui.reset_ask = 0u;
-        if (b == B_SAVE)
-            reset_defaults();
-        else
-            say("KEPT", 0);
-        return;
-    }
-    if (VIEW_BTN[ui.view] == b) {                   /* pressed again: its next page, or round to its first */
-        v = ui.view + 1;
-        if (v >= NVIEWS || VIEW_BTN[v] != b)
-            for (v = ui.view; v > 0 && VIEW_BTN[v - 1] == b; v--)
-                ;
-        set_view(v);
-        return;
-    }
-    for (v = 0; v < NVIEWS; v++)
-        if (VIEW_BTN[v] == b) {
-            set_view(v);
-            return;
-        }
     switch (b) {
-    case B_EDIT: set_view((ui.view + 1) % NVIEWS); break;
-    case B_PLAY: set_freeze(!ui.frozen); break;
+    case B_PLAY:
+        ne_play(!playing());
+        if (!playing())
+            ui.bar_lock = 0;
+        break;
     case B_REC:
-        km_damp_all();
-        say("PALM", "MUTE");
+        ne_generate(-1);
+        mark_dirty();
+        say("NEW PATTERNS", "ALL TRACKS");
         break;
-    case B_ARP: pattern(!ui.pat_on); break;
-    case B_OCTDN: case B_OCTUP:
-        knob_set(P_OCTAVE, proj.par[P_OCTAVE] + (b == B_OCTUP ? 1 : -1));
-        say_param(P_OCTAVE);
+    case B_SEQ:
+        ui.live = !ui.live;
+        ui.held_step = -1;
+        say("MODE", ui.live ? "LIVE" : "SEQ");
         break;
+    case B_OCTDN: select_track(ui.track - 1); break;
+    case B_OCTUP: select_track(ui.track + 1); break;
     case B_SAVE:
+        if (ui.reset_ask) {
+            ui.reset_ask = 0;
+            reset_defaults();
+            break;
+        }
+        if (playing()) {                             /* a flash write silences the audio a moment */
+            say("STOP FIRST", "TO SAVE");
+            break;
+        }
         if (project_save() == 0) {
             ui.dirty = 0;
             say("SAVED", 0);
         } else {
-            say("NOT SAVED", "FLASH ERROR");
+            say("SAVE", "FAILED");
         }
         break;
-    default: break;
+    default:
+        for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
+            if (VIEW_BTN[v] == b) {
+                if (VIEW_BTN[ui.view] == b && ui.view + 1 < NVIEWS && VIEW_BTN[ui.view + 1] == b)
+                    v = ui.view + 1;
+                set_view(v);
+                break;
+            }
+        break;
     }
 }
 
-/* ------------------------------------------------------------- MIDI in --- */
-/* where a MIDI note's tine sits: the white key that plays it now, else alternate sides by pitch */
-static int midi_pan(int cents)
-{
-    int w;
-    if (keyboard()) {
-        for (w = 0; w < NKEYS; w++)
-            if (key_cents(w) == cents)
-                return key_pan(w);
-    } else {
-        for (w = 0; w < NWHITE; w++)
-            if (white_cents(w) == cents)
-                return white_pan(w);
-    }
-    return ((cents / 100) & 1) ? 40 : -40;
-}
-
+/* ------------------------------------------------------------- MIDI --- */
+/* Notes follow nseq's map: C1 D1.. (36..39) a new pattern for track 1..4, C2 (48) for all, C3..C5
+ * (60..84) the root of the pitched tracks. Controllers (as n001se in FM1 Open): 102..106 the sounds'
+ * macros (all tracks), 107 108 chaos and motion, 109..112 filter, drive, delay, reverb, 113 swing,
+ * 114 loose, 115 max hits, 7 / 116 level, 117 new sounds (all), 118 new patterns (all), 120 / 123 stop. */
 static void midi_cc(uint32_t cc, uint32_t v)
 {
-    switch (cc) {
-    case 1: km_hole(HOLE_MIDI, (int)v); break;              /* mod wheel: a finger over the hole */
-    case 64: km_sustain(v >= 64u); break;
-    case 72: knob_set(P_DECAY, (int)(v * 100u / 127u)); break;
-    case 73: knob_set(P_HARD, (int)(v * 100u / 127u)); break;
-    case 74: knob_set(P_TONE, (int)(v * 100u / 127u)); break;
-    case 91: knob_set(P_REVERB, (int)(v * 100u / 127u)); break;
-    case 93: knob_set(P_GRAIN, (int)(v * 100u / 127u)); break;
-    case 94: knob_set(P_DELAY, (int)(v * 100u / 127u)); break;
-    case 120: case 123: km_damp_all(); break;               /* all sound / notes off */
-    default: break;
+    static const uint8_t MAC[5] = {T_DEV, T_STRESS, T_SPIKE, T_BLEED, T_FLUID};
+    static const uint8_t FXG[4] = {G_FILTER, G_DRIVE, G_DELAY, G_REVERB};
+    int pc = (int)(v * 100u / 127u), t;
+    if (cc >= 102u && cc <= 106u) {
+        for (t = 0; t < NE_TRACKS; t++)
+            tpar_set(t, MAC[cc - 102u], pc);
+    } else if (cc == 107u || cc == 108u) {
+        knob_set(cc == 107u ? G_CHAOS : G_MOTION, pc);
+    } else if (cc >= 109u && cc <= 112u) {
+        knob_set(FXG[cc - 109u], pc);
+    } else if (cc == 113u || cc == 114u) {
+        knob_set(cc == 113u ? G_SWING : G_LOOSE, pc);
+    } else if (cc == 115u) {
+        knob_set(G_POLY, 1 + (int)(v * 4u / 128u));
+    } else if (cc == 7u || cc == 116u) {
+        knob_set(G_LEVEL, pc);
+    } else if (cc == 117u && v >= 64u) {
+        for (t = 0; t < NE_TRACKS; t++)
+            if (!proj.t[t][T_MUTE])
+                ne_new_sound(t, proj.t[t][T_KIND]);
+        mark_dirty();
+    } else if (cc == 118u && v >= 64u) {
+        ne_generate(-1);
+        mark_dirty();
+    } else if (cc == 120u || cc == 123u) {
+        ne_play(0);
     }
 }
 
-/* MIDI in (USB and the TRS jack: one queue). Notes pluck the tine of their pitch (Tuning and Tune
- * applied), velocity is how hard; note off damps it when Release is Damp (the pedal holds it). With the
- * pattern on, the notes held are its chord instead. Clock (any channel) leads the pattern. Channel:
- * Setup's MIDI ch (Omni: all). */
 static void midi_in(void)
 {
     uint32_t pkt;
     while (plat_midi_in(&pkt)) {
         uint32_t st = (pkt >> 8) & 0xFFu, d1 = (pkt >> 16) & 0x7Fu, d2 = (pkt >> 24) & 0x7Fu, type = st & 0xF0u;
-        if (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu) {   /* clock: the pattern follows it */
-            km_clock(st == 0xF8u ? KM_CLK_TICK : st == 0xFAu ? KM_CLK_START : st == 0xFBu ? KM_CLK_CONTINUE : KM_CLK_STOP);
+        if (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu) {   /* clock: tempo, start, stop */
+            ne_clock(st == 0xF8u ? NE_CLK_TICK : st == 0xFAu ? NE_CLK_START : st == 0xFBu ? NE_CLK_CONTINUE : NE_CLK_STOP);
             continue;
         }
         if (st >= 0xF0u)
             continue;                                       /* sysex and the rest: not ours */
-        if (proj.par[P_MIDICH] && (st & 0x0Fu) + 1u != (uint32_t)proj.par[P_MIDICH])
+        if (proj.g[G_MIDICH] && (st & 0x0Fu) + 1u != (uint32_t)proj.g[G_MIDICH])
             continue;
         if (type == 0x90u && d2) {
-            int c = tune((int)d1 * 100);
-            if (ui.pat_on)                                  /* the pattern's chord, as held */
-                pool_hold(c, ui.midi_held++ == 0u);
-            else
-                km_pluck(c, (int)d2, midi_pan(c), 0);
-        } else if (type == 0x80u || type == 0x90u) {
-            if (ui.midi_held)
-                ui.midi_held--;
-            if (proj.par[P_RELEASE] && !ui.pat_on)
-                km_damp(tune((int)d1 * 100));
+            ne_midi_note((int)d1, (int)d2);
+            if (d1 >= 36u && d1 <= 48u)
+                mark_dirty();
         } else if (type == 0xB0u) {
             midi_cc(d1, d2);
-        } else if (type == 0xC0u) {
-            knob_set(P_MATERIAL, (int)(d1 % MAT_N));
-        } else if (type == 0xD0u) {
-            km_hole(HOLE_PRESS, (int)d1);
-        } else if (type == 0xE0u) {
-            km_bend((int)(d2 << 7 | d1) - 8192);
         }
         ui.act_t = plat_ms();
     }
 }
 
+/* ------------------------------------------------------------- input --- */
 static void input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys(), ch, i;
@@ -566,19 +477,13 @@ static void input(void)
             continue;
         if (btn & m) {
             ui.btn_used &= ~m;
-            if (i == B_ARP)
-                ui.arp_t = plat_ms();
             if (i == B_SAVE)
                 ui.save_t = plat_ms();
-            if (i == B_PLAY || i == B_REC)             /* the playing buttons act on the press */
+            if (i == B_PLAY)                         /* on the press: in time */
                 button((int)i);
-        } else if (!(ui.btn_used & m) && i != B_PLAY && i != B_REC) {
+        } else if (!(ui.btn_used & m) && i != B_PLAY) {
             button((int)i);
         }
-    }
-    if ((btn >> B_ARP & 1u) && !(ui.btn_used >> B_ARP & 1u) && plat_ms() - ui.arp_t >= ARP_HOLD_MS) {
-        set_view(V_PATTERN);                         /* ARP held: the pattern's settings (no toggle on release) */
-        ui.btn_used |= 1u << B_ARP;
     }
     if ((btn >> B_SAVE & 1u) && !(ui.btn_used >> B_SAVE & 1u) && !ui.reset_ask &&
         plat_ms() - ui.save_t >= SAVE_HOLD_MS) {
@@ -588,47 +493,36 @@ static void input(void)
     if (ui.reset_ask && (int32_t)(plat_ms() - ui.reset_ask) >= 0)
         reset_ask(0);                                /* not answered: kept */
     ch = keys ^ ui.keys;
-    if (ui.reset_ask && (ch & keys))                 /* a key while "RESET?" asks: kept (and it plays) */
+    if (ui.reset_ask && (ch & keys))
         reset_ask(0);
-    ui.pool_fresh = !ui.keys;                    /* (several keys down in one scan: one new chord) */
     ui.keys = keys;
-    for (i = 0; i < NBLACK; i++)                       /* black first: an octave key held changes the tines */
-        if (ch >> BLACK_K[i] & 1u) {
-            if (keys >> BLACK_K[i] & 1u)
-                black_down((int)i);
-            else
-                black_up((int)i);
-        }
+    for (i = 0; i < NBLACK; i++)
+        if ((ch & keys) >> BLACK_K[i] & 1u)
+            black_down((int)i);
     for (i = 0; i < NWHITE; i++)
         if (ch >> WHITE_K[i] & 1u) {
             if (keys >> WHITE_K[i] & 1u)
                 white_down((int)i);
             else
-                key_release(WHITE_K[i]);
+                white_up((int)i);
         }
     if (btn || keys || ch)
         ui.act_t = plat_ms();
     midi_in();
-    if ((e = plat_enc(EN_SELECT)) != 0) {
-        knob_set(P_MATERIAL, proj.par[P_MATERIAL] + (e > 0 ? 1 : -1));
-        say_param(P_MATERIAL);
-    }
-    if ((e = plat_enc(EN_ALGO)) != 0) {
-        knob_set(P_SCALE, proj.par[P_SCALE] + (e > 0 ? 1 : -1));
-        say_param(P_SCALE);
-    }
+    if ((e = plat_enc(EN_SELECT)) != 0)
+        select_track(ui.track + (e > 0 ? 1 : -1));
+    if ((e = plat_enc(EN_ALGO)) != 0)
+        set_view((ui.view + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS);
     if ((e = plat_enc(EN_PRESET)) != 0) {
-        if (keyboard()) {
-            knob_set(P_TRANSPOSE, proj.par[P_TRANSPOSE] + (e > 0 ? 1 : -1));
-            say_param(P_TRANSPOSE);
-        } else {
-            knob_set(P_KEY, (proj.par[P_KEY] + (e > 0 ? 1 : 11)) % 12);
-            say_param(P_KEY);
-        }
+        knob_set(G_TEMPO, proj.g[G_TEMPO] + (int)accel(EN_PRESET, e, 140));
+        say_knob(G_TEMPO);
     }
     for (i = 0; i < 4; i++)
         if ((e = plat_enc(EN_K1 + (int)i)) != 0) {
-            turn(EN_K1 + (int)i, view_knob((int)i), e);
+            if (ui.held_step >= 0 && !ui.live)
+                step_edit((int)i, e);
+            else
+                turn(EN_K1 + (int)i, VIEW_KNOB[ui.view][i], e);
             ui.touched = (int8_t)i;
             ui.touch_until = plat_ms() + 1200u;
             ui.act_t = plat_ms();
@@ -636,12 +530,17 @@ static void input(void)
 }
 
 /* ------------------------------------------------------------- screen --- */
-/* three bands: the header (28 px), the instrument (144), the knobs (68) */
+/* three bands: the header (28 px), the tracks and the phrase (144), the knobs (68) */
 #define HDR_H 28
 #define MAIN_Y 28
 #define MAIN_H 144
 #define KNB_Y 172
 #define KNB_H 68
+#define ROW_H 26
+#define GRID_X 62
+#define CELL_W 11
+#define PH_X 8                         /* the phrase: eight bars of PH_W, then the count */
+#define PH_W 23
 
 static uint32_t hash(uint32_t h, uint32_t v) { return (h ^ v) * 16777619u; }
 
@@ -661,31 +560,28 @@ static void cv_round(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint
     }
 }
 
-static void cv_disc(int32_t cx, int32_t cy, int32_t r, uint16_t c)
-{
-    int32_t y, x;
-    for (y = -r; y <= r; y++) {
-        for (x = 0; x * x + y * y <= r * r; x++)
-            ;
-        cv_rect(cx - x + 1, cy + y, 2 * x - 1, 1, c);
-    }
-}
-
 static void text_c(int32_t cx, int32_t y, const felucca_font_t *f, const char *s, uint16_t c)
 {
     cv_text(cx - text_w(f, s) / 2, y, f, s, c);
 }
 
+static uint16_t mix(uint16_t a, uint16_t b, int t)   /* t 0..16: a -> b */
+{
+    int r = ((a >> 11) * (16 - t) + (b >> 11) * t) / 16, g = (((a >> 5) & 63) * (16 - t) + ((b >> 5) & 63) * t) / 16,
+        bl = ((a & 31) * (16 - t) + (b & 31) * t) / 16;
+    return (uint16_t)(r << 11 | g << 5 | bl);
+}
+
+/* the global step playing now (-1: stopped): the phrase counts from the start */
+static int phrase_step(void) { return playing() && ne_seq()->steps ? (int)((ne_seq()->steps - 1u) % (8u * NE_BAR)) : -1; }
+
 static void draw_header(void)
 {
     char t[24];
     int msg = plat_ms() < ui.msg_until;
-    uint32_t h = hash(hash(2166136261u, ui.view | (uint32_t)ui.frozen << 8 | (uint32_t)proj.par[P_RELEASE] << 9 |
-                                            (uint32_t)proj.par[P_THEME] << 14 |
-                                            (uint32_t)ui.pat_on << 12 | (uint32_t)(ui.pat_on && km_pat_pulse % 3u == 0u) << 13 |
-                                            (uint32_t)ui.dirty << 10 | (uint32_t)msg << 11),
-                      (uint32_t)proj.par[P_KEY] | (uint32_t)proj.par[P_SCALE] << 4 | (uint32_t)proj.par[P_MATERIAL] << 12 |
-                          (uint32_t)proj.par[P_LAYOUT] << 16 | (uint32_t)(proj.par[P_TRANSPOSE] + 12) << 18);
+    uint32_t h = hash(hash(2166136261u, ui.view | (uint32_t)ui.live << 8 | (uint32_t)playing() << 9 |
+                                            (uint32_t)ui.dirty << 10 | (uint32_t)msg << 11 | (uint32_t)ne_ext << 12),
+                      (uint32_t)ne_bpm_x10);
     if (msg)
         h = hash(hash(h, (uint32_t)ui.msg[0][0] << 8 | ui.msg[0][1]), ui.msg_until);
     if (ui.view == V_SETUP)
@@ -700,6 +596,20 @@ static void draw_header(void)
     } else {
         int32_t x = 232, w;
         cv_text(10, 6, &FONT_B, VIEW_NAME[ui.view], K_TEXT);
+        {   /* the tempo, "112" or "121.5 EXT" (MIDI clock) */
+            uint32_t b = ne_bpm_x10;
+            itoa_u(b / 10u, t);
+            if (ne_ext) {
+                w = s_len(t);
+                t[w++] = '.';
+                t[w++] = (char)('0' + b % 10u);
+                s_cpy(t + w, " EXT");
+            }
+            x -= text_w(&FONT_S, t);
+            cv_text(x, 6, &FONT_S, t, K_TEXT);
+            x -= text_w(&FONT_XS, "BPM") + 4;
+            cv_text(x, 8, &FONT_XS, "BPM", K_DIM);
+        }
         if (ui.view == V_SETUP) {                     /* the audio load, for a check on the hardware */
             itoa_u(plat_cpu_pct(), t);
             w = s_len(t);
@@ -710,33 +620,8 @@ static void draw_header(void)
                 t[w++] = 'X';
                 itoa_u(plat_xruns(), t + w);
             }
-            cv_text(x - text_w(&FONT_S, t), 6, &FONT_S, t, K_DIM);
-            x -= text_w(&FONT_S, t) + 6;
-            x -= text_w(&FONT_S, "CPU");
-            cv_text(x, 6, &FONT_S, "CPU", K_DIM);
-            for (w = 0; OM_VERSION[w] && OM_VERSION[w] != ' ' && w < 15; w++)   /* the version: "0.4.1", "DEV" */
-                t[w] = OM_VERSION[w];
-            t[w] = 0;
-            x -= text_w(&FONT_S, t) + 12;
+            x -= text_w(&FONT_S, t) + 10;
             cv_text(x, 6, &FONT_S, t, K_DIM);
-        } else if (keyboard()) {                     /* "Keyboard", "Keyboard +2" */
-            s_cpy(t, "Keyboard");
-            if (proj.par[P_TRANSPOSE]) {
-                w = s_len(t);
-                t[w++] = ' ';
-                km_param_text(P_TRANSPOSE, proj.par[P_TRANSPOSE], t + w);
-            }
-            x -= text_w(&FONT_S, t);
-            cv_text(x, 6, &FONT_S, t, K_TEXT);
-        } else {
-            char s[16];
-            km_param_text(P_KEY, proj.par[P_KEY], t);
-            km_param_text(P_SCALE, proj.par[P_SCALE], s);
-            w = s_len(t);
-            t[w++] = ' ';
-            s_cpy(t + w, s);
-            x -= text_w(&FONT_S, t);
-            cv_text(x, 6, &FONT_S, t, K_TEXT);
         }
         x = 18 + text_w(&FONT_B, VIEW_NAME[ui.view]);
         {   /* the button's pages, when it has more than one: a dot each, this one filled */
@@ -751,23 +636,10 @@ static void draw_header(void)
                 x += n * 9 + 2;
             }
         }
-        if (ui.frozen) {
-            w = text_w(&FONT_XS, "FRZ") + 10;
-            cv_round(x, 6, w, 16, 6, K_BLUE_T);
-            cv_text(x + 5, 7, &FONT_XS, "FRZ", K_BLUE);
-            x += w + 4;
-        }
-        if (ui.pat_on) {                             /* the pattern: bright on the beat */
-            int beat = km_pat_pulse % 3u == 0u;
-            w = text_w(&FONT_XS, "PAT") + 10;
-            cv_round(x, 6, w, 16, 6, beat ? K_ACC : K_ACC_T);
-            cv_text(x + 5, 7, &FONT_XS, "PAT", beat ? K_WHITE : K_ACC);
-            x += w + 4;
-        }
-        if (proj.par[P_RELEASE]) {
-            w = text_w(&FONT_XS, "DAMP") + 10;
-            cv_round(x, 6, w, 16, 6, K_ACC_T);
-            cv_text(x + 5, 7, &FONT_XS, "DAMP", K_ACC);
+        if (ui.live) {
+            w = text_w(&FONT_XS, "LIVE") + 10;
+            cv_round(x, 6, w, 16, 6, K_ACC);
+            cv_text(x + 5, 7, &FONT_XS, "LIVE", K_BG);
             x += w + 4;
         }
         if (ui.dirty)
@@ -776,153 +648,142 @@ static void draw_header(void)
     cv_blit(0, 0);
 }
 
-static uint16_t mix(uint16_t a, uint16_t b, int t)   /* t 0..16: a -> b */
+/* one track: its name, its bar of 16 steps (the bar shown, for the selected track; the bar it plays,
+ * for the others), the playhead */
+static void draw_track(int t, int32_t y)
 {
-    int r = ((a >> 11) * (16 - t) + (b >> 11) * t) / 16, g = (((a >> 5) & 63) * (16 - t) + ((b >> 5) & 63) * t) / 16,
-        bl = ((a & 31) * (16 - t) + (b & 31) * t) / 16;
-    return (uint16_t)(r << 11 | g << 5 | bl);
-}
-
-/* how loud the tine at `cents` rings now (0..1) */
-static float tine_level(int cents)
-{
-    int v;
-    float l = 0.0f;
-    for (v = 0; v < KM_NVOICE; v++)
-        if (km_voice_cents[v] == cents && km_voice_level[v] > l)
-            l = km_voice_level[v];
-    return l * 2.5f > 1.0f ? 1.0f : l * 2.5f;
-}
-
-/* the kalimba from above: the board, the sound hole (smaller as a finger covers it), the bridge, and
- * the tines hanging from it, as long as a tine of that pitch would be (a cantilever: f ~ 1 / L^2) */
-static void draw_kalimba(void)
-{
-    int w, cmin = 99999, body = proj.par[P_BODY];
-    uint16_t metal = MAT_COL[proj.par[P_MATERIAL] % MAT_N];
-    int32_t y0 = 8, bridge = 14, tx;
-    for (w = 0; w < NWHITE; w++)
-        if (white_cents(w) < cmin)
-            cmin = white_cents(w);
-    if (keyboard() && key_cents(0) < cmin)
-        cmin = key_cents(0);
-    if (body != BODY_NONE)
-        cv_round(2, y0 - 6, 236, 104, 6, body == BODY_GOURD ? THEME->gourd : K_WOOD);
-    if (body == BODY_BOX || body == BODY_GOURD) {
-        int32_t r = 6 + (int32_t)(km_hole_open * 12.0f);
-        cv_disc(120, 82, r + 2, K_WOOD_D);
-        cv_disc(120, 82, r, K_HOLE);
+    const nseq_track *tr = trk(t);
+    int sel = t == ui.track, muted = tr->mute, bar = sel ? shown_bar() : play_bar(t), ps = play_step(t), s;
+    uint16_t col = muted ? K_DIM : TRACK_COL[t];
+    char name[16];
+    if (bar < 0)
+        bar = 0;
+    if (sel)
+        cv_round(2, y, 236, ROW_H - 2, 5, K_PANEL);
+    {   /* the meter: the sound's level, a bar left of the name */
+        int m = (int)(ui.meter[t] * 18.0f);
+        cv_rect(6, y + 4, 3, 16, K_LINE);
+        if (m > 0)
+            cv_rect(6, y + 20 - (m > 16 ? 16 : m), 3, m > 16 ? 16 : m, col);
     }
-    cv_rect(8, y0 + bridge - 4, 224, 5, K_BRIDGE);
-    for (w = 0; w < NWHITE; w++) {
-        int c = white_cents(w);
-        float lv = tine_level(c), len = 84.0f * fm_exp2f((float)(cmin - c) * (1.0f / 2400.0f));
-        int t = (int)(lv * 16.0f + 0.5f), amp = (int)(lv * 3.0f), yy, h = (int)len < 26 ? 26 : (int)len;
-        uint16_t col = mix(metal, K_ACC, t > 16 ? 16 : t);
-        tx = 10 + w * 14;
-        if (amp && (ui.frame & 1u))
-            amp = -amp;
-        for (yy = 0; yy < h; yy++) {                  /* the free end swings as it rings */
-            int d = yy * amp / h;
-            cv_rect(tx + 1 + d, y0 + bridge + yy, 8, 1, col);
+    name[0] = (char)('1' + t);
+    name[1] = ' ';
+    s_cpy(name + 2, ne_kind_name(ne_fm()->slot[t].kind));
+    cv_text(13, y + 1, &FONT_S, name, muted ? K_DIM : sel ? K_TEXT : mix(K_TEXT, K_DIM, 8));
+    {   /* "2 bars", or the steps when the length is not whole bars; R / D: it owns the reverb / delay */
+        char b[12];
+        int32_t x;
+        if (tr->length % NE_BAR) {
+            itoa_u(tr->length, b);
+            s_cpy(b + s_len(b), "st");
+        } else {
+            itoa_u((uint32_t)track_bars(t), b);
+            s_cpy(b + s_len(b), "b");
         }
-        cv_rect(tx + 1, y0 + bridge, 8, 1, K_BRIDGE);
-        {   /* room for one letter: an accidental is in its colour */
-            const char *nm = KM_NOTE_NAME[((c + 50) / 100) % 12];
-            char n[2] = {nm[0], 0};
-            text_c(tx + 5, y0 + bridge + h - 14, &FONT_XS, n, nm[1] ? K_ACC : K_INK);
-        }
-        if (((c - 100 * (keyboard() ? 0 : proj.par[P_KEY])) % 1200 + 1200) % 1200 == 0)
-            cv_round(tx + 3, y0 + bridge + 6, 4, 4, 2, K_INK);   /* the tonic (Keyboard: the Cs), engraved */
+        x = cv_text(13, y + 14, &FONT_XS, b, K_DIM);
+        if (ne_fx_owner(1) == t)
+            x = cv_text(x + 4, y + 14, &FONT_XS, "R", K_ACC) ;
+        if (ne_fx_owner(0) == t)
+            cv_text(x + 4, y + 14, &FONT_XS, "D", K_ACC);
     }
-    if (keyboard()) {   /* the black keys' tines: a second, narrower row in the gaps, as a chromatic kalimba */
-        uint16_t dark = mix(metal, K_INK, 6);
-        int b;
-        for (b = 0; b < NBLACK; b++) {
-            int c = key_cents(BLACK_K[b]), yy;
-            float lv = tine_level(c), len = 84.0f * fm_exp2f((float)(cmin - c) * (1.0f / 2400.0f));
-            int t = (int)(lv * 16.0f + 0.5f), amp = (int)(lv * 2.0f), h = (int)len < 22 ? 22 : (int)len - 4;
-            uint16_t col = mix(dark, K_ACC, t > 16 ? 16 : t);
-            tx = 10 + BLACK_LEFT[b] * 14 + 10;
-            if (amp && (ui.frame & 1u))
-                amp = -amp;
-            for (yy = 0; yy < h; yy++)
-                cv_rect(tx + yy * amp / h, y0 + bridge + yy, 4, 1, col);
-        }
-    }
-}
-
-static void draw_black(int32_t y0)
-{
-    int b;
-    for (b = 0; b < NBLACK; b++) {
-        char t[12];
-        int32_t x = 4 + b * 20 + ((b >= 3) + (b >= 5) + (b >= 8) + (b >= 10)) * 3;   /* grouped as the keys are */
-        int on = (ui.keys >> BLACK_K[b] & 1u) != 0;
-        uint16_t bg = K_BLUE_T, fg = K_TEXT;
-        switch (keyboard() ? BLK_SHARPS : proj.par[P_BLACK]) {
-        case BLK_CHORDS: km_chord_name(proj.par[P_SCALE], proj.par[P_KEY], b, t); break;
-        case BLK_SHARPS: {                            /* (Keyboard: the key's own note) */
-            int c = keyboard() ? key_cents(BLACK_K[b]) : white_cents(BLACK_LEFT[b]) + 100;
-            const char *n = KM_NOTE_NAME[((c + 50) / 100) % 12];
-            s_cpy(t, n);
-            break;
-        }
-        default:
-            s_cpy(t, PF_NAME[b]);
-            if (b >= PF_MAT0 && proj.par[P_MATERIAL] == b - PF_MAT0)
-                on = 1;
-            if (b == PF_FREEZE && ui.frozen)
-                on = 1;
-            break;
+    for (s = 0; s < NE_BAR; s++) {
+        int st = bar * NE_BAR + s;
+        int32_t x = GRID_X + s * CELL_W + (s / 4) * 1;
+        int past = st >= tr->length, on = !past && tr->step[st].on, here = st == ps;
+        uint16_t c;
+        if (past) {
+            cv_rect(x + 3, y + 11, 3, 2, K_LINE);
+            continue;
         }
         if (on) {
-            bg = K_BLUE;
-            fg = K_WHITE;
-        }
-        cv_round(x, y0, 18, 26, 5, bg);
-        if (text_w(&FONT_XS, t) > 18 && t[2]) {       /* two lines: "Bd" "im", "Am" "7" */
-            char a[3] = {t[0], t[1], 0};
-            text_c(x + 9, y0 + 1, &FONT_XS, a, fg);
-            text_c(x + 9, y0 + 12, &FONT_XS, t + 2, fg);
+            int v = tr->step[st].vel;
+            c = here ? K_TEXT : mix(K_PANEL, col, 6 + v * 10 / 127);
+            cv_round(x, y + 3, 9, 18, 3, c);
+            if (tr->step[st].note)                    /* a pitched hit: a notch at its height */
+                cv_rect(x + 2, y + 11 - tr->step[st].note / 2, 5, 1, K_BG);
         } else {
-            text_c(x + 9, y0 + 6, &FONT_XS, t, fg);
+            cv_round(x, y + 3, 9, 18, 3, here ? K_DIM : sel ? K_LINE : mix(K_BG, K_LINE, 10));
+        }
+    }
+}
+
+/* the phrase: eight bars, the eighth red; in the eighth, the beats count 1 2 3 4 */
+static void draw_phrase(int32_t y)
+{
+    int ps = phrase_step(), bar = ps < 0 ? -1 : ps / NE_BAR, b;
+    int32_t x0 = PH_X, w = PH_W - 3, gap = 3;
+    for (b = 0; b < 8; b++) {
+        int32_t x = x0 + b * (w + gap);
+        uint16_t base = b == 7 ? mix(K_BG, K_RED, 6) : K_LINE, fill = b == 7 ? K_RED : K_TEXT;
+        cv_round(x, y, w, 10, 3, base);
+        if (bar > b)
+            cv_round(x, y, w, 10, 3, b == 7 ? K_RED : mix(K_LINE, K_TEXT, 7));
+        else if (bar == b) {
+            if (b == 7)
+                cv_round(x, y, w, 10, 3, K_RED);    /* the last bar: red and steady */
+            else
+                cv_round(x, y, 3 + (w - 3) * (ps % NE_BAR + 1) / NE_BAR, 10, 3, fill);
+        }
+    }
+    {   /* 1 2 3 4: the beat now, big; the ones before it small */
+        int32_t x = x0 + 8 * PH_W + 3, i;
+        if (bar == 7) {
+            int beat = (ps % NE_BAR) / 4;
+            for (i = 0; i < 4; i++) {
+                char d[2] = {(char)('1' + i), 0};
+                if (i == beat)
+                    cv_text(x + i * 10, y - 7, &FONT_M, d, K_RED);
+                else
+                    cv_text(x + i * 10 + 1, y - 2, &FONT_XS, d, i < beat ? mix(K_RED, K_BG, 8) : K_LINE);
+                if (i == beat)
+                    break;
+            }
+        } else {
+            cv_text(x, y - 2, &FONT_XS, "1234", K_LINE);
         }
     }
 }
 
 static void draw_main(void)
 {
-    uint32_t h = hash(2166136261u, (uint32_t)proj.par[P_LAYOUT] | (uint32_t)proj.par[P_SCALE] << 4 |
-                                       (uint32_t)proj.par[P_KEY] << 8 | (uint32_t)(octave_now() + 4) << 12 |
-                                       (uint32_t)proj.par[P_BLACK] << 16 | (uint32_t)proj.par[P_MATERIAL] << 20 |
-                                       (uint32_t)proj.par[P_BODY] << 24 | (uint32_t)ui.frozen << 28 |
-                                       (uint32_t)proj.par[P_THEME] << 30) ^
-                 (uint32_t)(proj.par[P_TRANSPOSE] + 12) * 2654435761u;
-    int v;
-    int ringing = 0;
-    for (v = 0; v < KM_NVOICE; v++) {
-        h = hash(h, (uint32_t)(km_voice_level[v] * 40.0f) | (uint32_t)(uint16_t)km_voice_cents[v] << 8);
-        ringing |= km_voice_level[v] > 0.01f;
+    uint32_t h = hash(2166136261u, ui.track | (uint32_t)shown_bar() << 4 | (uint32_t)playing() << 8 |
+                                       (uint32_t)phrase_step() << 9);
+    int t, s;
+    for (t = 0; t < NE_TRACKS; t++) {
+        const nseq_track *tr = trk(t);
+        h = hash(h, (uint32_t)tr->last | (uint32_t)tr->length << 16 | (uint32_t)tr->mute << 24 |
+                        (uint32_t)(ne_fm()->slot[t].kind & 7) << 25);
+        h = hash(h, (uint32_t)(ui.meter[t] * 18.0f) | (uint32_t)(ne_fx_owner(0) + 1) << 8 | (uint32_t)(ne_fx_owner(1) + 1) << 12);
+        for (s = 0; s < tr->length; s++)
+            if (tr->step[s].on)
+                h = hash(h, (uint32_t)s | (uint32_t)tr->step[s].vel << 8 | (uint32_t)(uint8_t)tr->step[s].note << 16);
     }
-    h = hash(hash(h, (uint32_t)(km_hole_open * 20.0f)), ui.keys);
-    if (ringing)
-        h = hash(h, ui.frame & 1u);                  /* the tines swing: every frame while they ring */
     if (h == ui.sig[1])
         return;
     ui.sig[1] = h;
     cv_begin(240, MAIN_H, K_BG);
-    draw_kalimba();
-    draw_black(114);
+    for (t = 0; t < NE_TRACKS; t++)
+        draw_track(t, 4 + t * ROW_H);
+    {   /* the bar numbers over the phrase, for the black keys: the one shown outlined */
+        int b, bars = track_bars(ui.track), sb = shown_bar();
+        for (b = 0; b < 8; b++) {
+            char d[2] = {(char)('1' + b), 0};
+            int32_t x = PH_X + b * PH_W;
+            text_c(x + (PH_W - 3) / 2, 110, &FONT_XS, d, b >= bars ? K_LINE : b == sb ? K_TEXT : K_DIM);
+            if (b == sb && ui.bar_lock)
+                cv_rect(x + (PH_W - 3) / 2 - 5, 124, 10, 1, K_TEXT);
+        }
+    }
+    draw_phrase(130);
     cv_blit(0, MAIN_Y);
 }
 
 static void draw_knobs(void)
 {
-    uint32_t h = hash(2166136261u, ui.view | (uint32_t)ui.touched << 8 | (uint32_t)proj.par[P_THEME] << 16), i;
+    uint32_t h = hash(2166136261u, ui.view | (uint32_t)ui.touched << 8 | (uint32_t)ui.track << 16), i;
     int now_touch = plat_ms() < ui.touch_until;
     for (i = 0; i < 4; i++)
-        h = hash(h, view_knob((int)i) == K_NONE ? 0xFFFFu : (uint32_t)proj.par[view_knob((int)i)] | (uint32_t)view_knob((int)i) << 16);
+        h = hash(h, VIEW_KNOB[ui.view][i] == K_NONE ? 0xFFFFu : (uint32_t)kval(VIEW_KNOB[ui.view][i]) | (uint32_t)VIEW_KNOB[ui.view][i] << 16);
     h = hash(h, (uint32_t)now_touch);
     if (h == ui.sig[2])
         return;
@@ -930,24 +791,20 @@ static void draw_knobs(void)
     cv_begin(240, KNB_H, K_BG);
     cv_round(4, 2, 232, KNB_H - 6, 6, K_PANEL);
     for (i = 0; i < 4; i++) {
-        int k = view_knob((int)i), lo, hi, v;
+        int k = VIEW_KNOB[ui.view][i], lo, hi, v;
         int32_t x = (int32_t)i * 60, cx = x + 30, bw;
         int hot = now_touch && ui.touched == (int)i;
+        uint16_t bar = k != K_NONE && (k & KT) ? TRACK_COL[ui.track] : K_TEXT;
         char t[16];
         if (i)
             cv_rect(x, 14, 1, KNB_H - 30, K_LINE);
         if (k == K_NONE)
             continue;
-        if (knob_off(k)) {                           /* no hole to cover: the name greyed, no value, no bar */
-            text_c(cx, 6, &FONT_XS, km_param_info(k)->name, K_LINE);
-            text_c(cx, 26, &FONT_B, "--", K_LINE);
-            continue;
-        }
-        lo = km_param_info(k)->lo;
-        hi = km_param_info(k)->hi;
-        v = proj.par[k];
-        text_c(cx, 6, &FONT_XS, km_param_info(k)->name, hot ? K_TEXT : K_DIM);
-        km_param_text(k, v, t);
+        lo = kinfo(k)->lo;
+        hi = kinfo(k)->hi;
+        v = kval(k);
+        text_c(cx, 6, &FONT_XS, kinfo(k)->name, hot ? K_TEXT : K_DIM);
+        ktext(k, v, t);
         {   /* the value: big, unless it has lower case (the big face has none) or is long */
             const char *q = t;
             int lower = 0;
@@ -960,82 +817,99 @@ static void draw_knobs(void)
         }
         bw = hi > lo ? (int32_t)(44 * (v - lo) / (hi - lo)) : 0;
         cv_round(cx - 22, 50, 44, 6, 3, K_LINE);
-        if (lo < 0) {                                /* centred values: a bar from the middle */
-            int32_t m = cx - 22 + 44 * (0 - lo) / (hi - lo), e = cx - 22 + bw;
-            cv_round(e < m ? e : m, 50, (e < m ? m - e : e - m) + 6, 6, 3, hot ? K_ACC : K_BLUE);
-        } else if (bw) {
-            cv_round(cx - 22, 50, bw < 6 ? 6 : bw, 6, 3, hot ? K_ACC : K_BLUE);
-        }
+        if (bw)
+            cv_round(cx - 22, 50, bw < 6 ? 6 : bw, 6, 3, hot ? K_ACC : bar);
     }
     cv_blit(0, KNB_Y);
 }
 
-/* the middle of the kalimba, marked by a dim LED: the key under the lowest tine (Tine: key 9, Mirror:
- * key 8); in the Keyboard layout, the key that plays middle C, if one does. -1: none */
-static int center_key(void)
-{
-    int i;
-    if (!keyboard())
-        return WHITE_K[proj.par[P_LAYOUT] == LAY_MIRROR ? 7 : 8];
-    for (i = 0; i < NKEYS; i++)
-        if (km_keyboard_cents(proj.par[P_TRANSPOSE], octave_now(), i) == 6000)
-            return i;
-    return -1;
-}
-
+/* the lights. SEQ: the white keys the bar's hits (bright), the playhead (dim walking; dark on a hit);
+ * black 1-8 the track's bars (dim), the one playing bright, a chosen one blinking; black 9 lit when
+ * muted. LIVE: the white keys light with their sound. */
 static void leds(void)
 {
-    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, i;
-    if (ui.frozen)
+    uint32_t b = 1u << VIEW_BTN[ui.view], k = 0, d = 0, i;
+    int t = ui.track, sb = shown_bar(), pb = play_bar(t), ps = play_step(t), blink = (plat_ms() / 160u) & 1u;
+    if (playing())
         b |= 1u << B_PLAY;
-    if (ui.pat_on && km_pat_pulse % 3u != 0u)        /* the pattern: lit, dark on each beat */
-        b |= 1u << B_ARP;
-    if (keyboard()) {
-        for (i = 0; i < NKEYS; i++)                  /* the tines that ring, every key */
-            if (tine_level(key_cents((int)i)) > 0.08f)
-                k |= 1u << i;
-    } else {
+    if (!ui.live)
+        b |= 1u << B_SEQ;
+    if (ui.live) {
         for (i = 0; i < NWHITE; i++)
-            if (tine_level(white_cents((int)i)) > 0.08f)
+            if (ui.meter[i >> 2] > 0.15f)
+                d |= 1u << WHITE_K[i];
+    } else {
+        for (i = 0; i < NWHITE; i++) {
+            int s = sb * NE_BAR + (int)i;
+            if (step_on(t, s))
                 k |= 1u << WHITE_K[i];
+            if (s == ps) {
+                if (k >> WHITE_K[i] & 1u)
+                    k &= ~(1u << WHITE_K[i]);        /* the playhead on a hit: dark a moment */
+                else
+                    d |= 1u << WHITE_K[i];
+            }
+        }
     }
+    for (i = 0; i < NE_BARS; i++) {
+        if ((int)i >= track_bars(t))
+            continue;
+        if ((int)i == pb)
+            k |= 1u << BLACK_K[i];
+        else if (ui.bar_lock && (int)i == sb && blink)
+            k |= 1u << BLACK_K[i];
+        else
+            d |= 1u << BLACK_K[i];
+    }
+    if (proj.t[t][T_MUTE])
+        k |= 1u << BLACK_K[BK_MUTE];
     k |= ui.keys;
-    if (!keyboard() && proj.par[P_BLACK] == BLK_PERFORM) {
-        if (ui.frozen)
-            k |= 1u << BLACK_K[PF_FREEZE];
-        k |= 1u << BLACK_K[PF_MAT0 + proj.par[P_MATERIAL]];
-    }
-    plat_leds(b, k, center_key() >= 0 ? 1u << center_key() : 0u);
+    plat_leds(b, k, d);
 }
 
-/* AUTOSAVE: a few seconds after a change, when nothing rings and nothing is touched: a flash erase
- * silences the audio for a moment, so it waits for the output itself to be quiet (reverb and echo
- * tails too: cutting one was a click) */
+/* AUTOSAVE: a while after a change, once stopped and quiet (a flash erase silences the audio a moment,
+ * so never while it plays: a live set does not stop for it) */
 #define AUTOSAVE_QUIET 4000u
 static void autosave(void)
 {
-    uint32_t now = plat_ms(), i;
-    /* frozen grains are a drone that never ends: no erase under it. Live grains only replay what the
-     * tines just played, so they don't count as sound (with Grains up they never stop spawning) */
-    if (!ui.dirty || ui.btn || ui.keys || now - ui.act_t < AUTOSAVE_QUIET || ui.frozen || km_out_level > 0.0005f)
+    uint32_t now = plat_ms();
+    if (!ui.dirty || playing() || ui.btn || ui.keys || now - ui.act_t < AUTOSAVE_QUIET || ne_out_level > 0.0005f)
         return;
-    for (i = 0; i < KM_NVOICE; i++)
-        if (km_voice_level[i] > 0.0f)
-            return;
     if (project_save() == 0)
         ui.dirty = 0;
+}
+
+/* the CPU guard: over 85 % of the audio budget, new hits share fewer voices; back under 60 %, all */
+static void cpu_guard(void)
+{
+    uint32_t c = plat_cpu_pct();
+    uint8_t want = c > 85u ? 4u : c < 60u ? NFM_VOICES : ui.voices;
+    if (want != ui.voices) {
+        ui.voices = want;
+        ne_voices(want);
+    }
 }
 
 void ui_init(void)
 {
     memset(&ui, 0, sizeof ui);
     ui.touched = -1;
+    ui.held_step = -1;
+    ui.voices = NFM_VOICES;
     lcd_fill(0, 0, 240, 240, K_BG);
 }
 
 void ui_frame(void)
 {
+    int t;
     input();
+    for (t = 0; t < NE_TRACKS; t++) {               /* the meters: up at once, down slowly */
+        float l = ne_track_level[t] * 2.0f;
+        ui.meter[t] = l > ui.meter[t] ? (l > 1.0f ? 1.0f : l) : ui.meter[t] * 0.82f;
+        if (ui.meter[t] < 0.02f)
+            ui.meter[t] = 0.0f;
+    }
+    cpu_guard();
     autosave();
     draw_header();
     draw_main();

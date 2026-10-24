@@ -1,0 +1,129 @@
+# the sequencer on the keys: white keys the steps of the bar shown, black keys 1-8 the bars,
+# 9-11 mute / new pattern / new sound; a held step's velocity and note on KNOB 1 and 2
+wait 200
+# the hat (track 3, one bar): OCT+ twice
+tap OCT+
+tap OCT+
+expect track 2
+expect len 16
+# bar 2 of a one-bar track: refused, the view stays
+tapkey b1
+expect lock 0
+expect bar 0
+# track 4 (perc, 2 bars by default; its length may be drawn): SELECT
+turn SELECT 1
+expect track 3
+tap OCT-
+tap OCT-
+tap OCT-
+expect track 0
+# the kick: two bars. Bar 2 shown and locked
+tapkey b1
+expect lock 1
+expect bar 1
+# a hit on step 2 of bar 2 (step 17): set on the press
+expect step17 0
+tapkey w1
+wait 20
+expect step17 1
+expect vel17 100
+expect dirty 1
+# held, KNOB 1 turns its velocity, KNOB 2 its note; let go, it stays
+key w1 down
+wait 20
+spin K1 -5
+spin K2 3
+wait 20
+key w1 up
+wait 20
+expect step17 1
+expect vel17 80
+expect note17 3
+# tapped again (nothing turned): cleared
+tapkey w1
+wait 20
+expect step17 0
+# the bar key again: follow the playhead
+tapkey b1
+expect lock 0
+# black 9: mute, lit
+tapkey b8
+wait 20
+expect mute 1
+expect tpar7 1
+leds
+tapkey b8
+wait 20
+expect mute 0
+# black 10: a new pattern; Hits min up to 7 pushes max to 7: exactly 7
+spin K2 4
+expect tpar2 7
+expect tpar3 7
+tapkey b9
+wait 20
+expect hits 7
+# the range keeps its order: min over max pushes max
+spin K2 3
+expect tpar3 10
+# black 11: a new sound, same kind
+tapkey b10
+wait 20
+expect kind0 0
+# the Tone page: KIND, then a new sound of that kind
+tap ENV
+tap ENV
+expect view 3
+spin K1 5
+expect tpar6 5
+tapkey b10
+wait 20
+expect kind0 5
+shot tone.png
+# play, hear the new metal sound, see the step lights walk
+tap PLAY
+wav seq.wav
+wait 2200
+leds
+shot playing.png
+wait 2200
+wavstop
+expect peak_db_min -30
+# the pages, by their buttons and the ALGORITHM encoder
+tap HOME
+expect view 0
+tap EDIT
+expect view 1
+tap ENV
+expect view 2
+tap FX
+expect view 4
+shot fx.png
+tap LFO
+expect view 5
+tap GLO
+expect view 6
+shot groove.png
+tap GLO
+expect view 7
+turn ALGO 1
+expect view 0
+turn ALGO -1
+expect view 7
+# tempo on PRESETS
+turn PRESET 8
+expect gpar0 120
+expect bpm 1200
+# LIVE: the white keys play the sounds
+tap SEQ
+expect live 1
+tapkey w0
+tapkey w4
+tapkey w8
+wait 30
+expect voices >1
+shot live.png
+tap SEQ
+expect live 0
+tap PLAY
+expect playing 0
+expect dropped 0
