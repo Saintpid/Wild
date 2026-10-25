@@ -92,8 +92,11 @@ NFM_CODE void nfx_route(nfx *fx, const float amt[NFX_EFFECTS], int *filter, floa
 {
     *filter = fx->on[NFX_FILTER] && rndf(&fx->rng) < amt[NFX_FILTER] * fx->amount[NFX_FILTER];
     *drive = fx->on[NFX_DRIVE] ? amt[NFX_DRIVE] * fx->amount[NFX_DRIVE] : 0.0f;
-    send[0] = fx->on[NFX_DELAY] ? amt[NFX_DELAY] : 0.0f;
-    send[1] = fx->on[NFX_REVERB] ? amt[NFX_REVERB] : 0.0f;
+    /* the sends move: hit by hit (step by step) any level up to the one set, now and then none */
+    for (int w = 0; w < 2; ++w) {
+        float a = fx->on[w ? NFX_REVERB : NFX_DELAY] ? amt[w ? NFX_REVERB : NFX_DELAY] : 0.0f;
+        send[w] = a > 0.0f && rndf(&fx->rng) >= 0.3f ? a * (0.15f + 0.85f * rndf(&fx->rng)) : 0.0f;
+    }
 }
 
 NFM_CODE int nfx_trigger(nfx *fx, nfm_engine *e, int slot, float vel, float transpose)

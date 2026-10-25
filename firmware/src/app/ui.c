@@ -396,8 +396,9 @@ static void set_view(int v);
 static void list_open(int which);
 static void list_go(void);
 
-/* a new sound: its Tune back to 0 (the engine does the same). The acid line's sound is its settings:
- * new ones by chance, within what makes acid (resonant, a strong envelope) */
+/* a new sound. The acid line's sound is its settings: new ones by chance, within what makes acid
+ * (resonant, a strong envelope), any wave. The acid line, perc, click and metal also land in an octave
+ * by chance (Tune -24, -12, 0, +12 or +24); the others at their own pitch (Tune 0). */
 static uint32_t ui_rng = 0x9e3779b9u;
 static int rnd_in(int lo, int hi)
 {
@@ -415,12 +416,19 @@ static void new_sound(int t)
         knob_set(KA | A_ENVMOD, rnd_in(30, 90));
         knob_set(KA | A_DECAY, rnd_in(15, 70));
         knob_set(KA | A_ACCENT, rnd_in(30, 90));
-        knob_set(KA | A_WAVE, rnd_in(0, 3) == 0);
-        knob_set(KA | A_TUNE, 0);
+        knob_set(KA | A_WAVE, rnd_in(0, NACID_WAVES - 1));
+        knob_set(KA | A_TUNE, 12 * rnd_in(-2, 2));
         return;
     }
-    ne_new_sound(t, proj.t[t][T_KIND]);
+    ne_new_sound(t, proj.t[t][T_KIND]);              /* (the engine's Tune: 0) */
     proj.t[t][T_TUNE] = 0;
+    {
+        int k = proj.t[t][T_KIND];
+        if (k == NFM_KIND_PERC || k == NFM_KIND_CLICK || k == NFM_KIND_METAL) {
+            ui_rng ^= plat_ms();
+            tpar_set(t, T_TUNE, 12 * rnd_in(-2, 2));
+        }
+    }
 }
 
 static void say_bar(int b)
@@ -568,7 +576,7 @@ static void reset_defaults(void)
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
     for (t = 0; t < NE_TRACKS; t++) {
-        new_sound(t);
+        ne_new_sound(t, proj.t[t][T_KIND]);          /* (the starting set: at their own pitch) */
         ne_generate(t);
     }
     mark_dirty();

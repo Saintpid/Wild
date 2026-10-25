@@ -531,8 +531,8 @@ static void aset(int p, int v)
     }
 }
 
-/* the acid line's effects: its sends and drive as set, the moving filter by chance a bar at a time
- * (bar: a new chance for the filter, else it stays as it is) */
+/* the acid line's effects: its drive as set, its sends by chance step by step (up to the levels set),
+ * the moving filter by chance a bar at a time (bar: a new chance for the filter, else it stays) */
 static void acid_route(int bar)
 {
     float amt[NFX_EFFECTS], drive, send[2];
@@ -553,8 +553,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (step == 0u)
         nacid_reset(&acid);
     acid.root = seq.root;
-    if (acid.pos % NACID_BAR == 0 || acid.pos >= acid.length)
-        acid_route(1);
+    acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
     nacid_step(&acid, delay, step_len);
     glitch_step(step, delay, step_len);
 }

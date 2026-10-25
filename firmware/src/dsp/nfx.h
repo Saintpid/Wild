@@ -3,7 +3,8 @@
  * Each sound (slot) has its own four amounts: FILTER, the share of its hits
  * that go through a moving filter (chosen by chance, hit by hit); DRIVE, how
  * much warm saturation all its hits get (an insert per voice, loudness
- * matched); DELAY and REVERB, its send levels to the two shared effects. The
+ * matched); DELAY and REVERB, the most it sends to the two shared effects:
+ * each hit sends any level up to it, by chance, and now and then none. The
  * effects' global amounts scale all of it: the filter's and drive's share and
  * strength, the delay's and reverb's return.
  *

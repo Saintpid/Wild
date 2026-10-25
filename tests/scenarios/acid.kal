@@ -44,9 +44,10 @@ expect apar7 1
 leds
 tapkey b8
 expect apar7 0
-# black 11: a new sound (its settings drawn), black 10: a new pattern
+# black 11: a new sound (its settings drawn, any wave, an octave: Tune -24..+24 in 12s), black 10: a new pattern
 tapkey b10
-expect apar14 0
+expect apar14 >-25
+expect apar14 <25
 tapkey b9
 wait 20
 expect anotes >3
