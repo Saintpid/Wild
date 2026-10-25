@@ -103,6 +103,7 @@ typedef struct {
     float walk[NFM_PARAMS];   /* current per-hit offset (the random walk) */
     int8_t kind;
     uint8_t choke;            /* 1: a new hit fades out the previous one */
+    float tune;               /* semitones added to every hit (a drawn sound, retuned) */
 } nfm_slot;
 
 typedef struct {

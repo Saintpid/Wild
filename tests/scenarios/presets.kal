@@ -1,0 +1,85 @@
+# presets: SAVE opens the list (a slot by SELECT, OCT-/+, PRESETS or a white key), SAVE again saves;
+# black 4 opens it to load, black 4 again loads; Program Change loads. And the Master page on black 3.
+wait 200
+# the Master page and back
+tap FX
+expect view 4
+tapkey b2
+expect view 8
+spin K1 -40
+expect gpar12 60
+spin K4 70
+expect gpar15 100
+shot master.png
+tapkey b2
+expect view 4
+# play with the glue at 100: loud, never over 0 dBFS
+tap PLAY
+wav glue.wav
+wait 3000
+wavstop
+expect peak_db_max -0.2
+expect peak_db_min -8
+tap PLAY
+# a state to keep: Hi cut 60, Tune +5 on the kick
+tap ENV
+tap ENV
+spin K3 5
+expect tpar14 5
+# SAVE: the list on slot 001; down 2 by SELECT, up 1 by OCT+: 004 ... white key 3: 003
+tap SAVE
+expect list 1
+expect slot 0
+turn SELECT 2
+expect slot 2
+tap OCT+
+expect slot 3
+tapkey w2
+expect slot 2
+shot savelist.png
+tap SAVE
+expect list 0
+expect preset 2
+# changed after: Tune 0, Hi cut open
+spin K3 -5
+expect tpar14 0
+tapkey b2
+spin K1 40
+expect gpar12 100
+tapkey b2
+# black 4: the list on 003, load
+tapkey b3
+expect list 2
+expect slot 2
+shot loadlist.png
+tapkey b3
+wait 20
+expect list 0
+expect tpar14 5
+expect gpar12 60
+# an empty slot: kept
+tapkey b3
+turn PRESET 10
+expect slot 12
+tapkey b3
+wait 20
+expect tpar14 5
+# any other button closes the list
+tap SAVE
+expect list 1
+tap HOME
+expect list 0
+expect view 3
+# Program Change 3 (slot 003 is 2), on channel 1, while playing
+tap ENV
+tap ENV
+spin K3 -5
+expect tpar14 0
+tap PLAY
+midi C0 02
+wait 50
+expect tpar14 5
+expect playing 1
+expect preset 2
+tap PLAY
+expect dropped 0

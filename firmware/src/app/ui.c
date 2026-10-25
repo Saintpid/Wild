@@ -7,31 +7,39 @@
  *                  it when let go, unless a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
  *                  KNOB 2 its note.
  *   LIVE mode      the white keys play the sounds: four keys a sound, each a step up the scale
- *   black 1-8      the bars: lit = within the track, bright = playing. A bar pressed shows (and edits)
- *                  that bar and stays; pressed again, the view follows the playhead again.
- *   black 9-11     mute the track, a new pattern for it, a new sound for it
+ *   black 1 / 2    the bar shown (and edited): one down / up, and it stays; both: follow the playhead
+ *   black 3        the Master page (hi cut, lo cut, resonance, glue); again: back
+ *   black 4        the preset list to load: a slot (SELECT, OCT-/+, PRESETS, a white key), black 4 again
+ *   black 5-8      mute track 1-4 (dim = on, flashing with its hits; dark = muted); black 9: track 5
+ *   black 10 / 11  a new pattern / a new sound for the selected track
  *   PLAY start / stop    REC new patterns for every unmuted track    SEQ the mode
- *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page   PRESETS the tempo
+ *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
+ *   PRESETS        the knob of the Setup page's choice (Glue by default)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
- *   SAVE           saves (it also saves by itself, after a change, once stopped and quiet); held: reset
+ *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
+ *                  after a change, once stopped and quiet); held: reset
+ *   Program Change n    loads preset n + 1
  *
  * The screen: the four tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_FX, V_DRIFT, V_GROOVE, V_SETUP, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "FX", "Drift", "Groove", "Setup"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_LFO, B_GLO, B_GLO};
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_FX, V_DRIFT, V_GROOVE, V_SETUP, V_MASTER, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "FX", "Drift", "Groove", "Setup",
+                                              "Master"};
+#define B_BLACK3 NB                    /* the Master page's "button": black 3 */
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_LFO, B_GLO, B_GLO, B_BLACK3};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
-    {KT | T_KIND, KT | T_FLUID, K_NONE, K_NONE},
+    {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
     {G_CHAOS, G_MOTION, K_NONE, K_NONE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
-    {G_LEVEL, G_MIDICH, K_NONE, K_NONE},
+    {G_LEVEL, G_MIDICH, G_PKNOB, K_NONE},
+    {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -40,7 +48,8 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
 #define NBLACK 11
 static const uint8_t WHITE_K[NWHITE] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 static const uint8_t BLACK_K[NBLACK] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25};
-enum { BK_MUTE = 8, BK_PATTERN = 9, BK_SOUND = 10 };
+enum { BK_BARDN, BK_BARUP, BK_MASTER, BK_LOAD, BK_MUTE1, BK_MUTE5 = BK_MUTE1 + 4, BK_PATTERN, BK_SOUND };
+enum { L_NONE, L_SAVE, L_LOAD };       /* the preset list open */
 static const int8_t LIVE_NOTE[4] = {0, 3, 7, 10};   /* LIVE: the four keys of a sound, up its scale */
 
 /* colours: near black, grey ink, one colour per track; red is only the phrase's last bar */
@@ -74,6 +83,9 @@ static struct {
     uint8_t held_vel;                  /* ...its velocity and note as edited (the engine's lag a block) */
     int8_t held_note;
     uint8_t voices;                    /* the CPU guard's voice limit now */
+    uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
+    uint8_t back_view;                 /* the page before the Master page */
+    uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
     float meter[NE_TRACKS];
 } ui;
 
@@ -221,6 +233,10 @@ static void select_track(int t)
 static void white_down(int w)
 {
     int t = ui.track, s;
+    if (ui.list) {                                   /* the list: a slot of its page of 16 */
+        ui.list_slot = (uint8_t)(ui.list_slot / NWHITE * NWHITE + w);
+        return;
+    }
     if (ui.live) {
         ne_hit(w >> 2, 112, LIVE_NOTE[w & 3]);
         return;
@@ -246,7 +262,7 @@ static void white_down(int w)
 static void white_up(int w)
 {
     int t = ui.track;
-    if (ui.live || ui.held_step < 0 || ui.held_step % NE_BAR != w)
+    if (ui.live || ui.list || ui.held_step < 0 || ui.held_step % NE_BAR != w)
         return;
     if (ui.held_was_on && !ui.held_edited) {
         ne_step(t, ui.held_step, 0, ui.held_vel, ui.held_note);
@@ -267,7 +283,7 @@ static void step_edit(int knob, int32_t e)
         say("VELOCITY", b);
     } else if (knob == 1) {
         note += (int)e;
-        note = note < -12 ? -12 : note > 12 ? 12 : note;
+        note = note < -24 ? -24 : note > 24 ? 24 : note;
         if (note < 0) {
             b[0] = '-';
             itoa_u((uint32_t)-note, b + 1);
@@ -286,40 +302,139 @@ static void step_edit(int knob, int32_t e)
     mark_dirty();
 }
 
+static void set_view(int v);
+static void list_open(int which);
+static void list_go(void);
+
+/* a new sound: its Tune back to 0 (the engine does the same) */
+static void new_sound(int t)
+{
+    ne_new_sound(t, proj.t[t][T_KIND]);
+    proj.t[t][T_TUNE] = 0;
+}
+
+static void say_bar(int b)
+{
+    char s[16] = "BAR ";
+    itoa_u((uint32_t)b + 1u, s + 4);
+    say(s, "SHOWN");
+}
+
 static void black_down(int b)
 {
     int t = ui.track;
-    if (b < NE_BARS) {
-        char s[16] = "BAR ";
-        if (b >= track_bars(t)) {
-            itoa_u((uint32_t)track_bars(t), s + 4);
-            s_cpy(s + s_len(s), track_bars(t) == 1 ? " BAR" : " BARS");
-            say("TRACK HAS", s + 4);
-            return;
-        }
-        if (ui.bar_lock && ui.view_bar == b) {
-            ui.bar_lock = 0;                         /* again: follow the playhead */
+    if (b == BK_BARDN || b == BK_BARUP) {
+        int other = BLACK_K[b == BK_BARDN ? BK_BARUP : BK_BARDN], nb;
+        if (ui.keys >> other & 1u) {                 /* both: follow the playhead */
+            ui.bar_lock = 0;
             say("FOLLOW", "PLAYHEAD");
             return;
         }
-        ui.view_bar = (uint8_t)b;
+        nb = shown_bar() + (b == BK_BARUP ? 1 : -1);
+        if (nb < 0 || nb >= track_bars(t)) {
+            char s[16];
+            itoa_u((uint32_t)track_bars(t), s);
+            s_cpy(s + s_len(s), track_bars(t) == 1 ? " BAR" : " BARS");
+            say("TRACK HAS", s);
+            return;
+        }
+        ui.view_bar = (uint8_t)nb;
         ui.bar_lock = 1;
-        itoa_u((uint32_t)b + 1u, s + 4);
-        say(s, "SHOWN");
+        say_bar(nb);
         return;
     }
-    if (b == BK_MUTE) {
-        tpar_set(t, T_MUTE, !proj.t[t][T_MUTE]);
-        say("TRACK", proj.t[t][T_MUTE] ? "MUTED" : "ON");
+    if (b == BK_MASTER) {
+        if (ui.view == V_MASTER) {
+            set_view(ui.back_view);
+        } else {
+            ui.back_view = ui.view;
+            set_view(V_MASTER);
+        }
+        return;
+    }
+    if (b == BK_LOAD) {
+        if (ui.list == L_LOAD)
+            list_go();
+        else
+            list_open(L_LOAD);
+        return;
+    }
+    if (b >= BK_MUTE1 && b < BK_MUTE5) {
+        int m = b - BK_MUTE1;
+        char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + m), 0};
+        tpar_set(m, T_MUTE, !proj.t[m][T_MUTE]);
+        say(a, proj.t[m][T_MUTE] ? "MUTED" : "ON");
+    } else if (b == BK_MUTE5) {
+        say("TRACK 5", "COMING");
     } else if (b == BK_PATTERN) {
         ne_generate(t);
         mark_dirty();
         say("NEW PATTERN", ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
-        ne_new_sound(t, proj.t[t][T_KIND]);
+        new_sound(t);
         mark_dirty();
         say("NEW SOUND", ne_kind_name(proj.t[t][T_KIND]));
     }
+}
+
+/* ------------------------------------------------------------ presets --- */
+/* SAVE or black 4 opens the list on the last slot used; the same key again saves / loads the slot on it,
+ * any other button closes it. A save erases a flash sector: the sound stops a moment. */
+static int slot_used(int n) { return (int)(ui.used[n >> 5] >> (n & 31) & 1u); }
+static void slot_name(int n, char *b)               /* "005" */
+{
+    b[0] = (char)('0' + (n + 1) / 100);
+    b[1] = (char)('0' + (n + 1) / 10 % 10);
+    b[2] = (char)('0' + (n + 1) % 10);
+    b[3] = 0;
+}
+static void list_open(int which)
+{
+    int n;
+    for (n = 0; n < PLAT_PRESETS; n++) {
+        uint32_t m = 1u << (n & 31);
+        ui.used[n >> 5] = plat_preset_used(n) ? ui.used[n >> 5] | m : ui.used[n >> 5] & ~m;
+    }
+    ui.list = (uint8_t)which;
+    ui.list_slot = proj.preset < PLAT_PRESETS ? proj.preset : 0;
+    ui.held_step = -1;
+}
+static void list_move(int d)
+{
+    int n = ui.list_slot + d;
+    ui.list_slot = (uint8_t)(n < 0 ? 0 : n >= PLAT_PRESETS ? PLAT_PRESETS - 1 : n);
+}
+static int preset_load(int n)
+{
+    char b[8];
+    slot_name(n, b);
+    if (project_preset_load(n) != 0) {
+        say("PRESET", "EMPTY");
+        return -1;
+    }
+    ui.bar_lock = 0;
+    if (ui.view_bar >= track_bars(ui.track))
+        ui.view_bar = 0;
+    mark_dirty();                                    /* the project now: saved when quiet */
+    say("LOADED", b);
+    return 0;
+}
+static void list_go(void)
+{
+    char b[8];
+    int n = ui.list_slot;
+    slot_name(n, b);
+    if (ui.list == L_SAVE) {
+        if (project_preset_save(n) == 0) {
+            mark_dirty();
+            say("SAVED", b);
+        } else {
+            say("SAVE", "FAILED");
+        }
+    } else {
+        preset_load(n);
+    }
+    ui.list = L_NONE;
 }
 
 static void set_view(int v)
@@ -337,7 +452,7 @@ static void reset_defaults(void)
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
     for (t = 0; t < NE_TRACKS; t++) {
-        ne_new_sound(t, proj.t[t][T_KIND]);
+        new_sound(t);
         ne_generate(t);
     }
     mark_dirty();
@@ -357,6 +472,15 @@ static void reset_ask(int on)
 static void button(int b)
 {
     int v;
+    if (ui.list && b != B_PLAY) {                    /* the list: its arrows, SAVE; anything else closes it */
+        if (b == B_OCTDN || b == B_OCTUP)
+            list_move(b == B_OCTUP ? 1 : -1);
+        else if (b == B_SAVE && ui.list == L_SAVE)
+            list_go();
+        else
+            ui.list = L_NONE;
+        return;
+    }
     switch (b) {
     case B_PLAY:
         ne_play(!playing());
@@ -381,16 +505,7 @@ static void button(int b)
             reset_defaults();
             break;
         }
-        if (playing()) {                             /* a flash write silences the audio a moment */
-            say("STOP FIRST", "TO SAVE");
-            break;
-        }
-        if (project_save() == 0) {
-            ui.dirty = 0;
-            say("SAVED", 0);
-        } else {
-            say("SAVE", "FAILED");
-        }
+        list_open(L_SAVE);
         break;
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
@@ -430,7 +545,7 @@ static void midi_cc(uint32_t cc, uint32_t v)
     } else if (cc == 117u && v >= 64u) {
         for (t = 0; t < NE_TRACKS; t++)
             if (!proj.t[t][T_MUTE])
-                ne_new_sound(t, proj.t[t][T_KIND]);
+                new_sound(t);
         mark_dirty();
     } else if (cc == 118u && v >= 64u) {
         ne_generate(-1);
@@ -459,6 +574,9 @@ static void midi_in(void)
                 mark_dirty();
         } else if (type == 0xB0u) {
             midi_cc(d1, d2);
+        } else if (type == 0xC0u && d1 < (uint32_t)PLAT_PRESETS) {
+            ui.list = L_NONE;
+            preset_load((int)d1);                   /* Program Change: that preset (empty: kept) */
         }
         ui.act_t = plat_ms();
     }
@@ -509,13 +627,22 @@ static void input(void)
     if (btn || keys || ch)
         ui.act_t = plat_ms();
     midi_in();
-    if ((e = plat_enc(EN_SELECT)) != 0)
-        select_track(ui.track + (e > 0 ? 1 : -1));
-    if ((e = plat_enc(EN_ALGO)) != 0)
-        set_view((ui.view + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS);
+    if ((e = plat_enc(EN_SELECT)) != 0) {
+        if (ui.list)
+            list_move(e > 0 ? 1 : -1);
+        else
+            select_track(ui.track + (e > 0 ? 1 : -1));
+    }
+    if ((e = plat_enc(EN_ALGO)) != 0)                /* the pages, not Master (black 3's) */
+        set_view(ui.view == V_MASTER ? ui.back_view : (ui.view + (e > 0 ? 1 : V_MASTER - 1)) % V_MASTER);
     if ((e = plat_enc(EN_PRESET)) != 0) {
-        knob_set(G_TEMPO, proj.g[G_TEMPO] + (int)accel(EN_PRESET, e, 140));
-        say_knob(G_TEMPO);
+        int k = ne_pknob_target(proj.g[G_PKNOB]);   /* (NE_PK_TRACK is KT: the selected track's) */
+        if (ui.list) {
+            list_move((int)e);
+        } else {
+            turn(EN_PRESET, k, e);
+            say_knob(k);
+        }
     }
     for (i = 0; i < 4; i++)
         if ((e = plat_enc(EN_K1 + (int)i)) != 0) {
@@ -700,7 +827,7 @@ static void draw_track(int t, int32_t y)
             c = here ? K_TEXT : mix(K_PANEL, col, 6 + v * 10 / 127);
             cv_round(x, y + 3, 9, 18, 3, c);
             if (tr->step[st].note)                    /* a pitched hit: a notch at its height */
-                cv_rect(x + 2, y + 11 - tr->step[st].note / 2, 5, 1, K_BG);
+                cv_rect(x + 2, y + 11 - tr->step[st].note / 3, 5, 1, K_BG);
         } else {
             cv_round(x, y + 3, 9, 18, 3, here ? K_DIM : sel ? K_LINE : mix(K_BG, K_LINE, 10));
         }
@@ -744,7 +871,37 @@ static void draw_phrase(int32_t y)
     }
 }
 
-static void draw_main(void)
+/* the preset list: five slots around the one chosen, "used" or "empty"; at the foot, how to go on */
+static void draw_list(void)
+{
+    uint32_t h = hash(hash(2166136261u, (uint32_t)ui.list << 20 | (uint32_t)ui.list_slot << 4), ui.used[0] ^ ui.used[1]);
+    int i;
+    if (h == ui.sig[1])
+        return;
+    ui.sig[1] = h;
+    cv_begin(240, MAIN_H, K_BG);
+    cv_text(10, 2, &FONT_S, ui.list == L_SAVE ? "SAVE TO PRESET" : "LOAD PRESET", K_ACC);
+    for (i = -2; i <= 2; i++) {
+        int n = ui.list_slot + i, used;
+        int32_t y = 24 + (i + 2) * 21;
+        char b[8];
+        if (n < 0 || n >= PLAT_PRESETS)
+            continue;
+        used = slot_used(n);
+        slot_name(n, b);
+        if (!i)
+            cv_round(4, y - 2, 232, 21, 5, K_PANEL);
+        cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
+        cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+        if (n == proj.preset)
+            cv_round(222, y + 6, 6, 6, 3, K_DIM);
+    }
+    cv_text(10, 128, &FONT_XS, ui.list == L_SAVE ? "SAVE again: save   other: cancel" : "BLACK 4 again: load   other: cancel",
+            K_DIM);
+    cv_blit(0, MAIN_Y);
+}
+
+static void draw_grid(void)
 {
     uint32_t h = hash(2166136261u, ui.track | (uint32_t)shown_bar() << 4 | (uint32_t)playing() << 8 |
                                        (uint32_t)phrase_step() << 9);
@@ -776,6 +933,14 @@ static void draw_main(void)
     }
     draw_phrase(130);
     cv_blit(0, MAIN_Y);
+}
+
+static void draw_main(void)
+{
+    if (ui.list)
+        draw_list();
+    else
+        draw_grid();
 }
 
 static void draw_knobs(void)
@@ -824,12 +989,13 @@ static void draw_knobs(void)
 }
 
 /* the lights. SEQ: the white keys the bar's hits (bright), the playhead (dim walking; dark on a hit);
- * black 1-8 the track's bars (dim), the one playing bright, a chosen one blinking; black 9 lit when
- * muted. LIVE: the white keys light with their sound. */
+ * black 1 / 2 dim where the bar can go (the bar locked: one blinks); black 3 lit on the Master page;
+ * black 5-8 the tracks: dim on, bright on a hit, dark muted. LIVE: the white keys light with their
+ * sound. */
 static void leds(void)
 {
-    uint32_t b = 1u << VIEW_BTN[ui.view], k = 0, d = 0, i;
-    int t = ui.track, sb = shown_bar(), pb = play_bar(t), ps = play_step(t), blink = (plat_ms() / 160u) & 1u;
+    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, d = 0, i;
+    int t = ui.track, sb = shown_bar(), ps = play_step(t), blink = (plat_ms() / 160u) & 1u;
     if (playing())
         b |= 1u << B_PLAY;
     if (!ui.live)
@@ -851,18 +1017,28 @@ static void leds(void)
             }
         }
     }
-    for (i = 0; i < NE_BARS; i++) {
-        if ((int)i >= track_bars(t))
-            continue;
-        if ((int)i == pb)
-            k |= 1u << BLACK_K[i];
-        else if (ui.bar_lock && (int)i == sb && blink)
-            k |= 1u << BLACK_K[i];
-        else
-            d |= 1u << BLACK_K[i];
+    if (ui.list) {                                   /* the list: its key blinks */
+        if (blink)
+            b |= ui.list == L_SAVE ? 1u << B_SAVE : 0u;
+        if (ui.list == L_LOAD && blink)
+            k |= 1u << BLACK_K[BK_LOAD];
     }
-    if (proj.t[t][T_MUTE])
-        k |= 1u << BLACK_K[BK_MUTE];
+    if (sb > 0)                                      /* the bar keys: lit where they can go */
+        d |= 1u << BLACK_K[BK_BARDN];
+    if (sb + 1 < track_bars(t))
+        d |= 1u << BLACK_K[BK_BARUP];
+    if (ui.bar_lock && blink)
+        k |= 1u << BLACK_K[sb + 1 < track_bars(t) ? BK_BARUP : BK_BARDN];
+    if (ui.view == V_MASTER)
+        k |= 1u << BLACK_K[BK_MASTER];
+    for (i = 0; i < NE_TRACKS; i++) {                /* the mutes: dim = on, bright with a hit, dark muted */
+        if (proj.t[i][T_MUTE])
+            continue;
+        if (ui.meter[i] > 0.15f)
+            k |= 1u << BLACK_K[BK_MUTE1 + i];
+        else
+            d |= 1u << BLACK_K[BK_MUTE1 + i];
+    }
     k |= ui.keys;
     plat_leds(b, k, d);
 }

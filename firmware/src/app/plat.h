@@ -40,6 +40,11 @@ int plat_store_load(uint32_t obj, void *dst, uint32_t max);   /* bytes loaded, <
 int plat_store_save(uint32_t obj, const void *src, uint32_t len);   /* 0 = ok */
 #define PLAT_STORE_MAX 3840u           /* bytes per object */
 enum { OBJ_PROJ, OBJ_PANEL, OBJ_NOBJ };
+/* presets: PLAT_PRESETS numbered slots of up to PLAT_STORE_MAX bytes (flash 0x97000.., a sector each) */
+#define PLAT_PRESETS 64
+int plat_preset_load(int n, void *dst, uint32_t max);   /* bytes loaded, < 0 = empty / bad */
+int plat_preset_save(int n, const void *src, uint32_t len);   /* 0 = ok */
+int plat_preset_used(int n);                            /* 1 = holds a preset */
 /* flash: OBJ_PROJ 0xFC000, OBJ_PANEL 0xDC000 (2 sectors each, inside Felucca's data area) */
 
 /* audio load in % of the render budget, and xruns since boot (device: from the ISR) */

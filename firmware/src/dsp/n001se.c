@@ -33,13 +33,18 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_DRIVE] = {"Drive", 0, 100, 20},
     [G_LEVEL] = {"Level", 0, 100, 80},
     [G_MIDICH] = {"MIDI ch", 0, 16, 0},
+    [G_HICUT] = {"Hi cut", 0, 100, 100},
+    [G_LOCUT] = {"Lo cut", 0, 100, 0},
+    [G_RESO] = {"Reso", 0, 100, 0},
+    [G_GLUE] = {"Glue", 0, 100, 30},
+    [G_PKNOB] = {"Presets", 0, 0, 0},                 /* (hi: NE_PKNOBS - 1, below) */
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
     [T_RANDLEN] = {"Rnd len", 0, 8, 0},
     [T_HITLO] = {"Hits min", 1, 64, 2},
     [T_HITHI] = {"Hits max", 1, 64, 4},
-    [T_PITCH] = {"Pitch", 0, 12, 0},
+    [T_PITCH] = {"Pitch", 0, 24, 0},
     [T_EVOLVE] = {"Evolve", 0, 100, 10},
     [T_KIND] = {"Kind", 0, NFM_KINDS - 1, 0},
     [T_MUTE] = {"Mute", 0, 1, 0},
@@ -49,16 +54,37 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_BLEED] = {"Ring", 0, 100, 50},
     [T_FLUID] = {"Ring tone", 0, 100, 50},
     [T_LEVEL] = {"Level", 0, 100, 80},
+    [T_TUNE] = {"Tune", -24, 24, 0},
 };
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75},
+    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0},
+    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0},
+    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0},
+    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0},
 };
 
-const ne_param_t *ne_param_info(int i) { return &GP[(unsigned)i < G_NPARAMS ? i : 0]; }
+/* the PRESETS encoder: any knob's value (Glue first, the default) */
+static const uint8_t PKNOB[] = {
+    G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
+    G_HICUT, G_LOCUT, G_RESO,
+    NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
+    NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
+    NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
+};
+#define NE_PKNOBS ((int)sizeof PKNOB)
+int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v : 0]; }
+
+const ne_param_t *ne_param_info(int i)
+{
+    static ne_param_t pk;                        /* G_PKNOB's range is the table's */
+    if (i == G_PKNOB) {
+        pk = GP[G_PKNOB];
+        pk.hi = NE_PKNOBS - 1;
+        return &pk;
+    }
+    return &GP[(unsigned)i < G_NPARAMS ? i : 0];
+}
 const ne_param_t *ne_tparam_info(int i) { return &TP[(unsigned)i < T_NPARAMS ? i : 0]; }
 int ne_tparam_def(int t, int i) { return T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
 
@@ -91,7 +117,14 @@ void ne_param_text(int i, int v, char *b)
     switch (i) {
     case G_TEMPO: case G_POLY: itoa_s(v, b); return;
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: if (!v) { cpy(b, "Off"); return; } break;
+    case G_PKNOB: {
+        int k = ne_pknob_target(v);
+        cpy(b, k & NE_PK_TRACK ? TP[k & ~NE_PK_TRACK].name : GP[k].name);
+        return;
+    }
+    case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
+    case G_LOCUT: if (!v) { cpy(b, "Open"); return; } break;
+    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: if (!v) { cpy(b, "Off"); return; } break;
     }
     itoa_s(v, b);
 }
@@ -103,6 +136,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_MUTE: cpy(b, v ? "Muted" : "On"); return;
     case T_RANDLEN: if (v) { b[0] = '1'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Fixed"); return;
     case T_PITCH: if (v) { b[0] = '+'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Root"); return;
+    case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     }
     itoa_s(v, b);
 }
@@ -163,6 +197,103 @@ static void apply_fx(int p, int v)
     nfx_set_amount(&fx, e, pct(v));
 }
 
+/* the master filter: a resonant low-pass (Hi cut, 100 Hz..20 kHz) and a high-pass (Lo cut, 20 Hz..
+ * 2 kHz), TPT state variable filters, per channel. Both open: not run. */
+static float mf_g[2], mf_k, mf_s[2][2][2];       /* [lp, hp][channel][state] */
+static uint8_t mf_on[2];
+static float exp2_(float x)                      /* (nfx.c's) */
+{
+    union { float f; uint32_t u; } v;
+    int i;
+    float f, p;
+    if (x < -126.0f)
+        return 0.0f;
+    if (x > 126.0f)
+        x = 126.0f;
+    i = (int)x;
+    if ((float)i > x)
+        --i;
+    f = x - (float)i;
+    p = 1.0f + f * (0.6931472f + f * (0.2402265f + f * (0.0555041f + f * (0.0096181f + f * 0.0013334f))));
+    v.u = (uint32_t)(i + 127) << 23;
+    return v.f * p;
+}
+static float tan_pi(float x)                     /* tan(pi x), up to x 0.3 (13 kHz): nfx.c's */
+{
+    float t, t2;
+    if (x > 0.3f)
+        x = 0.3f;
+    t = x * 3.14159265f;
+    t2 = t * t;
+    return t * (1.0f + t2 * (0.33333333f + t2 * (0.13333333f + t2 * (0.05396825f + t2 * 0.02186949f))));
+}
+static void master_filter(void)
+{
+    float hc = 100.0f * exp2_(7.6438562f * pct(gpar[G_HICUT])), lc = 20.0f * exp2_(6.6438562f * pct(gpar[G_LOCUT]));
+    mf_on[0] = gpar[G_HICUT] < 100;
+    mf_on[1] = gpar[G_LOCUT] > 0;
+    mf_g[0] = tan_pi(hc / NE_SR);
+    mf_g[1] = tan_pi(lc / NE_SR);
+    mf_k = 2.0f - 1.9f * pct(gpar[G_RESO]);       /* 2: no peak .. 0.1: a sharp one */
+}
+static float log2_(float x)                      /* x > 0; to about 1e-4 */
+{
+    union { float f; uint32_t u; } v;
+    float e, m;
+    v.f = x;
+    e = (float)((int)(v.u >> 23 & 255u) - 127);
+    v.u = (v.u & 0x7FFFFFu) | 0x3F800000u;
+    m = v.f;
+    return e - 1.7417939f + (2.8212026f + (-1.4699568f + (0.44717955f - 0.056570851f * m) * m) * m) * m;
+}
+
+/* GLUE: a bus compressor on both channels together (the louder one leads). Attack 25 ms, release 120 ms;
+ * the amount lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1), and most of what it
+ * takes at the threshold comes back as makeup (the starting set: 30 is about +6 dB, 100 +13 dB). Over 60 it also saturates a little (a soft curve that
+ * keeps full scale where it is), more towards 100: over the top. 0: off. Then the LIMITER, always on:
+ * it takes any peak over -0.3 dBFS at once and lets go over 60 ms, so the output never passes 0 dBFS.
+ * (Levels in log2.) */
+#define GL_ATT 0.000907f                         /* 1 - exp(-1 / (0.025 s * 44100)) */
+#define GL_REL 0.000189f                         /* 120 ms */
+#define LIM_REL 0.99962f                         /* 60 ms */
+#define LIM_CEIL 0.966f                          /* -0.3 dBFS */
+static float gl_env, gl_thr, gl_slope, gl_mk, gl_sat, lim_env;
+static uint8_t gl_on;
+static void glue_set(int v)
+{
+    float a = pct(v), ratio = 2.0f + 4.0f * a * a;
+    gl_on = v > 0;
+    gl_thr = (-8.0f - 20.0f * a) * (1.0f / 6.0206f);
+    gl_sat = a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f;   /* 0 .. 0.8 */
+    gl_slope = 1.0f - 1.0f / ratio;
+    gl_mk = -0.8f * gl_thr * gl_slope;
+}
+static inline float absf(float x) { return x < 0.0f ? -x : x; }
+static inline float glue_gain(float a, float b)  /* the compressor's gain for one frame */
+{
+    float x = absf(a) > absf(b) ? absf(a) : absf(b), over;
+    gl_env += (x > gl_env ? GL_ATT : GL_REL) * (x - gl_env);
+    over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f;
+    return exp2_((over > 0.0f ? -over * gl_slope : 0.0f) + gl_mk);
+}
+static inline float sat(float y) { return y * (1.0f + gl_sat) / (1.0f + gl_sat * absf(y)); }
+static inline float lim_gain(float a, float b)   /* the limiter's gain for one frame */
+{
+    float y = absf(a) > absf(b) ? absf(a) : absf(b);
+    lim_env = y > lim_env ? y : lim_env * LIM_REL;
+    return lim_env > LIM_CEIL ? LIM_CEIL / lim_env : 1.0f;
+}
+
+static inline float svf(float x, float g, float k, float *s, int hp)
+{
+    float hpo = (x - (g + k) * s[0] - s[1]) / (1.0f + g * (g + k));
+    float bp = g * hpo + s[0], lp;
+    s[0] = g * hpo + bp;
+    lp = g * bp + s[1];
+    s[1] = g * bp + lp;
+    return hp ? hpo : lp;
+}
+
 static void gset(int p, int v)
 {
     if ((unsigned)p >= G_NPARAMS)
@@ -178,6 +309,8 @@ static void gset(int p, int v)
     case G_MOTION: nfx_set_motion(&fx, pct(v)); break;
     case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: apply_fx(p, v); break;
     case G_LEVEL: fm.master = pct(v); break;
+    case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
+    case G_GLUE: glue_set(v); break;
     }
 }
 
@@ -203,6 +336,7 @@ static void tset(int t, int p, int v)
     case T_BLEED: nfm_set_macro(&fm, t, NFM_BLEED, pct(v)); break;
     case T_FLUID: nfm_set_macro(&fm, t, NFM_FLUID, pct(v)); break;
     case T_LEVEL: apply_level(t); break;
+    case T_TUNE: fm.slot[t].tune = (float)v; break;
     case T_KIND: break;                /* takes effect with the next new sound */
     }
     (void)tr;
@@ -215,6 +349,7 @@ static void new_sound(int t, int kind)
     if (kind < 0)
         kind = tpar[t][T_KIND];
     tpar[t][T_KIND] = (int16_t)kind;
+    tset(t, T_TUNE, 0);                          /* a new sound starts at its own pitch */
     nfm_randomize(&fm, t, kind);
     lvl_base[t] = nfm_get_param(&fm, t, NFM_LEVEL);
     apply_level(t);
@@ -393,9 +528,35 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     while (n) {
         uint32_t k = n > BLK ? BLK : n;
         nseq_render(&seq, l, r, (int)k);
+        if (mf_on[0] | mf_on[1])
+            for (j = 0; j < k; j++) {
+                float a = l[j], b = r[j];
+                if (mf_on[0]) {
+                    a = svf(a, mf_g[0], mf_k, mf_s[0][0], 0);
+                    b = svf(b, mf_g[0], mf_k, mf_s[0][1], 0);
+                }
+                if (mf_on[1]) {
+                    a = svf(a, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][0], 1);
+                    b = svf(b, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][1], 1);
+                }
+                l[j] = a < -1.0f ? -1.0f : a > 1.0f ? 1.0f : a;
+                r[j] = b < -1.0f ? -1.0f : b > 1.0f ? 1.0f : b;
+            }
         for (j = 0; j < k; j++) {
-            float a = l[j], b = r[j];
-            float m = (a < 0.0f ? -a : a) > (b < 0.0f ? -b : b) ? (a < 0.0f ? -a : a) : (b < 0.0f ? -b : b);
+            float a = l[j], b = r[j], g, m;
+            if (gl_on) {
+                g = glue_gain(a, b);
+                a *= g;
+                b *= g;
+                if (gl_sat > 0.0f) {
+                    a = sat(a);
+                    b = sat(b);
+                }
+            }
+            g = lim_gain(a, b);
+            a *= g;
+            b *= g;
+            m = absf(a) > absf(b) ? absf(a) : absf(b);
             if (m > pk)
                 pk = m;
             out[2u * j] = (int32_t)(a * gain);

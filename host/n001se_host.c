@@ -20,7 +20,7 @@
  *   shot FILE.png                save the screen
  *   leds                         print the lit buttons and keys
  *   expect WHAT VALUE            check state: exit 1 on mismatch; VALUE "<N" / ">N" is a bound
- *                                (WHAT: view dirty store_writes midi_out playing track bar lock live
+ *                                (WHAT: view dirty store_writes midi_out playing track bar lock live list slot preset
  *                                 stepN velN noteN (step N of the selected track) hits len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min)
@@ -130,6 +130,44 @@ int plat_store_save(uint32_t obj, const void *src, uint32_t len)
     store_len[obj] = (int)len;
     store_writes++;
     return 0;
+}
+
+/* the preset slots, the same way */
+static uint8_t preset[PLAT_PRESETS][PLAT_STORE_MAX];
+static int preset_len[PLAT_PRESETS];
+static int preset_init;
+static void presets_init(void)
+{
+    int n;
+    if (!preset_init)
+        for (preset_init = 1, n = 0; n < PLAT_PRESETS; n++)
+            preset_len[n] = -1;
+}
+int plat_preset_load(int n, void *dst, uint32_t max)
+{
+    int l;
+    presets_init();
+    if ((unsigned)n >= PLAT_PRESETS || (l = preset_len[n]) < 0)
+        return -1;
+    if ((uint32_t)l > max)
+        l = (int)max;
+    memcpy(dst, preset[n], (size_t)l);
+    return l;
+}
+int plat_preset_save(int n, const void *src, uint32_t len)
+{
+    presets_init();
+    if ((unsigned)n >= PLAT_PRESETS || len > PLAT_STORE_MAX)
+        return -1;
+    memcpy(preset[n], src, len);
+    preset_len[n] = (int)len;
+    store_writes++;
+    return 0;
+}
+int plat_preset_used(int n)
+{
+    presets_init();
+    return (unsigned)n < PLAT_PRESETS && preset_len[n] >= 0;
 }
 
 static uint32_t cpu_pct;
@@ -367,6 +405,12 @@ static int expect(const char *what, const char *val)
         got = ui.bar_lock;
     else if (!strcmp(what, "live"))
         got = ui.live;
+    else if (!strcmp(what, "list"))              /* the preset list open: 1 save, 2 load */
+        got = ui.list;
+    else if (!strcmp(what, "slot"))
+        got = ui.list_slot;
+    else if (!strcmp(what, "preset"))
+        got = proj.preset;
     else if (!strncmp(what, "step", 4))
         got = tr->step[atoi(what + 4) % NE_STEPS].on;
     else if (!strncmp(what, "vel", 3))

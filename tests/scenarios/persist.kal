@@ -1,5 +1,5 @@
 # saving: the patterns, the lengths, the sounds and the settings come back after a power cycle;
-# never a flash write while it plays; SAVE held resets
+# never a flash write by itself while it plays; SAVE held resets
 wait 200
 # track 2 (snare): a metal sound, one bar, a hit on step 6 (w5), Edge 80
 tap OCT+
@@ -18,9 +18,8 @@ expect tpar10 80
 wait 30
 expect kind1 5
 expect step5 1
-# playing: SAVE refuses, and nothing saves by itself
+# playing: nothing saves by itself
 tap PLAY
-tap SAVE
 expect store_writes 0
 wait 5000
 expect store_writes 0
@@ -49,5 +48,9 @@ expect kind1 1
 expect len 32
 expect tpar10 50
 expect dirty 1
+# SAVE: the preset list, SAVE again: preset 001
+tap SAVE
+expect store_writes 1
 tap SAVE
 expect store_writes 2
+expect preset 0

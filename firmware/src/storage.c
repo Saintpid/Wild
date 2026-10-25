@@ -146,3 +146,71 @@ static int st_save(uint32_t obj, const void *src, uint32_t len)
     }
     return 0;
 }
+
+/* n001se presets: ST_PRESETS slots of one sector each, from 0x97000 (Felucca's main store, below the
+ * panel's 0xDC000): one copy, the header written last, so a torn save loses that slot alone, never
+ * another. type 0x100 + slot. */
+#define ST_PRESET_BASE 0x00097000u
+#define ST_PRESETS 64u
+_Static_assert(ST_PRESET_BASE + ST_PRESETS * ST_SECTOR <= 0xDC000u, "the presets would reach the panel's sectors");
+
+static int st_preset_head(uint32_t n, st_hdr_t *h)
+{
+    uint32_t off = ST_PRESET_BASE + n * ST_SECTOR;
+    if (n >= ST_PRESETS || st_read(off, h, sizeof *h))
+        return -1;
+    if (h->magic != ST_MAGIC || h->type != 0x100u + n || h->len > ST_PAYLOAD_MAX ||
+        h->hcrc != st_crc32(h, sizeof *h - 4u))
+        return -1;
+    return 0;
+}
+
+static int st_preset_used(uint32_t n)
+{
+    st_hdr_t h;
+    return st_preset_head(n, &h) == 0;
+}
+
+static int st_preset_load(uint32_t n, void *dst, uint32_t max)
+{
+    uint32_t i, off = ST_PRESET_BASE + n * ST_SECTOR;
+    st_hdr_t h;
+    if (st_preset_head(n, &h) || st_read(off + ST_PAYLOAD_OFF, st_buf, h.len) || st_crc32(st_buf, h.len) != h.crc)
+        return -1;
+    if (h.len > max)
+        h.len = max;
+    for (i = 0; i < h.len; i++)
+        ((uint8_t *)dst)[i] = st_buf[i];
+    return (int)h.len;
+}
+
+static int st_preset_save(uint32_t n, const void *src, uint32_t len)
+{
+    uint32_t off, base = ST_PRESET_BASE + n * ST_SECTOR;
+    int rc;
+    st_hdr_t h, chk;
+    if (n >= ST_PRESETS || len > ST_PAYLOAD_MAX)
+        return -1;
+    for (off = 0; off < len; off++)
+        st_buf[off] = ((const uint8_t *)src)[off];
+    if ((rc = st_erase(base)) != 0)
+        return rc;
+    for (off = 0; off < len; off += 256u) {
+        uint32_t k = len - off > 256u ? 256u : len - off;
+        if ((rc = st_prog(base + ST_PAYLOAD_OFF + off, st_buf + off, k)) != 0)
+            return rc;
+    }
+    h.magic = ST_MAGIC;
+    h.type = (uint16_t)(0x100u + n);
+    h.slot = 0;
+    h.seq = 1u;
+    h.len = len;
+    h.crc = st_crc32(st_buf, len);
+    h.rsv[0] = h.rsv[1] = 0xFFFFFFFFu;
+    h.hcrc = st_crc32(&h, sizeof h - 4u);
+    if ((rc = st_prog(base, &h, sizeof h)) != 0)
+        return rc;
+    if (st_preset_head(n, &chk) || chk.crc != h.crc)
+        return -7;
+    return 0;
+}

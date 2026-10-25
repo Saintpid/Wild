@@ -104,6 +104,23 @@ int main(void)
         }
         bad += check("objects in data regions, clear of the sample slots", (int)ok);
     }
+    {   /* n001se presets: a slot each, empty until saved, a torn save loses that slot alone */
+        st_save(OBJ_PROJECT0, b, sizeof b);
+        bad += check("preset 5 empty", !st_preset_used(5) && st_preset_load(5, got, sizeof got) < 0);
+        bad += check("save preset 5 and 63", st_preset_save(5, a, sizeof a) == 0 && st_preset_save(63, b, sizeof b) == 0);
+        n = st_preset_load(5, got, sizeof got);
+        bad += check("preset 5 loads A", st_preset_used(5) && n == (int)sizeof a && !memcmp(got, a, sizeof a));
+        n = st_preset_load(63, got, sizeof got);
+        bad += check("preset 63 loads B", n == (int)sizeof b && !memcmp(got, b, sizeof b));
+        bad += check("preset 64 does not exist", st_preset_save(64, a, sizeof a) < 0 && !st_preset_used(64));
+        fail_after = 1;
+        st_preset_save(63, a, sizeof a);
+        fail_after = -1;
+        bad += check("torn preset save: slot empty, others kept", !st_preset_used(63) && st_preset_used(5));
+        n = st_load(OBJ_PROJECT0, got, sizeof got);
+        bad += check("the project untouched by presets", n == (int)sizeof b && !memcmp(got, b, sizeof b));
+        bad += check("presets clear of the panel", ST_PRESET_BASE + ST_PRESETS * 4096u <= st_sector(OBJ_PANEL, 0));
+    }
     printf("%s\n", bad ? "STORAGE TEST FAILED" : "storage test passed");
     return bad != 0;
 }

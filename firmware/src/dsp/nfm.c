@@ -538,7 +538,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     for (int i = 0; i < NFM_PARAMS; ++i) val[i] = param_map(i, clamp01(n[i]));
 
     nfm_voice *v = pick_voice(e, s);
-    float sr = e->sr, tr = exp2_approx(transpose * (1.0f / 12.0f));
+    float sr = e->sr, tr = exp2_approx((transpose + e->slot[s].tune) * (1.0f / 12.0f));
     float vel_amp = velocity * (0.4f + 0.6f * velocity);
     float vel_idx = 0.55f + 0.45f * velocity;
 

@@ -1,5 +1,5 @@
-# the sequencer on the keys: white keys the steps of the bar shown, black keys 1-8 the bars,
-# 9-11 mute / new pattern / new sound; a held step's velocity and note on KNOB 1 and 2
+# the sequencer on the keys: white keys the steps of the bar shown, black 1 / 2 the bar down / up,
+# 5-8 mute track 1-4, 10 / 11 new pattern / new sound; a held step's velocity and note on KNOB 1 and 2
 wait 200
 # the hat (track 3, one bar): OCT+ twice
 tap OCT+
@@ -17,7 +17,9 @@ tap OCT-
 tap OCT-
 tap OCT-
 expect track 0
-# the kick: two bars. Bar 2 shown and locked
+# the kick: two bars. Bar down at bar 1: refused; bar up: bar 2 shown and locked
+tapkey b0
+expect lock 0
 tapkey b1
 expect lock 1
 expect bar 1
@@ -28,11 +30,12 @@ wait 20
 expect step17 1
 expect vel17 100
 expect dirty 1
-# held, KNOB 1 turns its velocity, KNOB 2 its note; let go, it stays
+# held, KNOB 1 turns its velocity, KNOB 2 its note (to +-24); let go, it stays
 key w1 down
 wait 20
 spin K1 -5
-spin K2 3
+spin K2 30
+spin K2 -21
 wait 20
 key w1 up
 wait 20
@@ -43,18 +46,38 @@ expect note17 3
 tapkey w1
 wait 20
 expect step17 0
-# the bar key again: follow the playhead
-tapkey b1
+# both bar keys: follow the playhead
+key b1 down
+tapkey b0
+key b1 up
 expect lock 0
-# black 9: mute, lit
-tapkey b8
+# bar down: bar 1
+tapkey b1
+tapkey b0
+expect bar 0
+expect lock 1
+key b0 down
+tapkey b1
+key b0 up
+expect lock 0
+# black 5: mute track 1 (selected); black 6: track 2, from track 1
+tapkey b4
 wait 20
 expect mute 1
 expect tpar7 1
 leds
-tapkey b8
+tapkey b4
 wait 20
 expect mute 0
+tapkey b5
+wait 20
+expect mute 0
+tap OCT+
+expect mute 1
+tapkey b5
+wait 20
+expect mute 0
+tap OCT-
 # black 10: a new pattern; Hits min up to 7 pushes max to 7: exactly 7
 spin K2 4
 expect tpar2 7
@@ -109,10 +132,18 @@ turn ALGO 1
 expect view 0
 turn ALGO -1
 expect view 7
-# tempo on PRESETS
+# PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
+turn PRESET 5
+expect gpar15 35
+tap GLO
+tap GLO
+expect view 7
+spin K3 1
+expect gpar16 1
 turn PRESET 8
 expect gpar0 120
 expect bpm 1200
+spin K3 -1
 # LIVE: the white keys play the sounds
 tap SEQ
 expect live 1

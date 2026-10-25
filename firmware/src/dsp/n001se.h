@@ -9,6 +9,7 @@
  *             pattern places a random number of hits (Hits low..high) where the kind likes them.
  *   FX        filter, drive (on single hits), delay, reverb (one sound at a time): Amount is how many
  *             hits get it, Chaos how far the settings wander, Motion how fast.
+ *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor and a limiter at -0.3 dBFS.
  *
  * Threads: ne_render() runs in the audio interrupt. Everything else posts commands, which the render
  * drains at the start of a block. The pattern and the sounds are read by the UI through ne_seq() and
@@ -31,6 +32,9 @@ enum {
     G_TEMPO, G_SWING, G_LOOSE, G_POLY,
     G_CHAOS, G_MOTION, G_REVERB, G_DELAY,
     G_FILTER, G_DRIVE, G_LEVEL, G_MIDICH,
+    G_HICUT, G_LOCUT, G_RESO,                        /* the master filter, on everything */
+    G_GLUE,                                          /* the bus compressor's amount (a limiter after it) */
+    G_PKNOB,                                         /* what the PRESETS encoder turns (ne_pknob_*) */
     G_NPARAMS
 };
 /* per-track parameters */
@@ -39,6 +43,7 @@ enum {
     T_PITCH, T_EVOLVE, T_KIND, T_MUTE,
     T_DEV, T_STRESS, T_SPIKE, T_BLEED,
     T_FLUID, T_LEVEL,
+    T_TUNE,                                          /* semitones on the sound (reset by a new sound) */
     T_NPARAMS
 };
 typedef struct {
@@ -51,6 +56,10 @@ int ne_tparam_def(int track, int i);
 void ne_param_text(int i, int v, char *buf);         /* the value as the screen shows it (12 bytes) */
 void ne_tparam_text(int i, int v, char *buf);
 const char *ne_kind_name(int kind);                  /* "Kick" .. "Metal" */
+/* the PRESETS encoder's choices (G_PKNOB): 0..NE_PKNOBS-1, each a G_* or, with NE_PK_TRACK, a T_* of
+ * the selected track */
+#define NE_PK_TRACK 0x80
+int ne_pknob_target(int v);
 
 /* ---- commands (main loop -> render). The main loop is the only producer. */
 void ne_init(void);
