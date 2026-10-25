@@ -46,7 +46,7 @@ void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys)
     for (i = 0; i < NB + NKEYS; i++) {
         uint32_t id = i < NB ? panel.btn[i] : 14u + (i - NB);
         int on = i < NB ? (buttons >> i) & 1u : (keys >> (i - NB)) & 1u;
-        int dim = i >= NB && ((dim_keys >> (i - NB)) & 1u);
+        int dim = i < NB || ((dim_keys >> (i - NB)) & 1u);   /* every button glows: its name shows */
         uint8_t q = led_pos[id];
         if (q == 0xFF)
             continue;
