@@ -12,7 +12,8 @@
 #define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
 /* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value
  * at the end of G_* / T_*, bump the format and say here how many the older one had. */
-#define PROJ_FORMAT 2u                    /* 2: master filter, PRESETS knob, Tune, the preset number */
+#define PROJ_FORMAT 3u                    /* 2: master filter, PRESETS knob, Tune, the preset number;
+                                            3: the acid line (appended: format 2 is this up to .acid) */
 #define PROJ_G_OF(f) ((f) == 1u ? 12 : G_NPARAMS)   /* the values each format holds */
 #define PROJ_T_OF(f) ((f) == 1u ? 14 : T_NPARAMS)
 
@@ -23,6 +24,8 @@ typedef struct {
     ne_state_t st;                       /* the patterns and the sounds, as saved */
     uint8_t preset;                      /* the preset slot it came from / went to last (0..63) */
     uint8_t rsv[31];                     /* room to grow */
+    ne_acid_t acid;                      /* the acid line's pattern, as saved */
+    int16_t a[A_NPARAMS];                /* n001se.h A_* */
 } project_t;
 
 extern project_t proj;

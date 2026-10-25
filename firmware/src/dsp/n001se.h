@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* n001se: the instrument. Four FM percussion sounds (nfm), a random pattern sequencer over them (nseq)
- * and effects that drift and pick which hits they touch (nfx), behind one command queue.
+/* n001se: the instrument. Four FM percussion sounds (nfm), a random pattern sequencer over them (nseq),
+ * an acid bass line with its own random sequencer (nacid, the fifth track) and effects that drift and
+ * pick which hits they touch (nfx), behind one command queue.
  *
  *   SOUNDS    four slots, one per track: a 4-operator FM voice with noise, fold, crush and a resonator.
  *             Every hit varies a little around the slot's base patch (Deviance); a new sound is drawn
@@ -20,12 +21,15 @@
 #include "nfm.h"
 #include "nseq.h"
 #include "nfx.h"
+#include "nacid.h"
 
 #define NE_SR 44100.0f
 #define NE_TRACKS NSEQ_TRACKS          /* 4 */
 #define NE_BAR NSEQ_BAR                /* 16 steps */
 #define NE_BARS NSEQ_MAX_BARS          /* 8 */
 #define NE_STEPS NSEQ_MAX_STEPS        /* 128 */
+#define NE_ACID NE_TRACKS              /* the acid line's track number: 4 (the fifth) */
+#define NE_ASTEPS NACID_STEPS          /* 64: four bars */
 
 /* global parameters, value ranges in ne_param_info() */
 enum {
@@ -46,10 +50,20 @@ enum {
     T_TUNE,                                          /* semitones on the sound (reset by a new sound) */
     T_NPARAMS
 };
+/* the acid line's parameters */
+enum {
+    A_BARS, A_NOTES, A_SLIDES, A_ACCENTS,
+    A_OCTAVES, A_SCALE, A_EVOLVE, A_MUTE,
+    A_CUTOFF, A_RESO, A_ENVMOD, A_DECAY,
+    A_ACCENT, A_WAVE, A_TUNE, A_LEVEL,
+    A_NPARAMS
+};
 typedef struct {
     const char *name;
     int16_t lo, hi, def;
 } ne_param_t;
+const ne_param_t *ne_aparam_info(int i);             /* A_* */
+void ne_aparam_text(int i, int v, char *buf);
 const ne_param_t *ne_param_info(int i);              /* G_* */
 const ne_param_t *ne_tparam_info(int i);             /* T_* (defaults: ne_tparam_def) */
 int ne_tparam_def(int track, int i);
@@ -59,6 +73,7 @@ const char *ne_kind_name(int kind);                  /* "Kick" .. "Metal" */
 /* the PRESETS encoder's choices (G_PKNOB): 0..NE_PKNOBS-1, each a G_* or, with NE_PK_TRACK, a T_* of
  * the selected track */
 #define NE_PK_TRACK 0x80
+#define NE_PK_ACID 0x40                              /* ...or an A_* of the acid line */
 int ne_pknob_target(int v);
 
 /* ---- commands (main loop -> render). The main loop is the only producer. */
@@ -75,6 +90,9 @@ enum { NE_CLK_TICK, NE_CLK_START, NE_CLK_CONTINUE, NE_CLK_STOP };
 void ne_clock(int msg);                              /* MIDI clock in: ticks set the tempo, start / stop */
 void ne_voices(int limit);                           /* the CPU guard: new hits use this many voices */
 void ne_panic(void);
+void ne_aset(int param, int value);                  /* A_* */
+void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12..24 */
+/* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */
 
 /* ---- the whole state, for saving: the patterns, lengths and base patches (normalised x 65535) */
 typedef struct {
@@ -85,6 +103,14 @@ typedef struct {
 } ne_state_t;
 void ne_snapshot(ne_state_t *s);                     /* main loop: what plays now */
 void ne_restore(const ne_state_t *s);                /* main loop: the render is silent meanwhile */
+typedef struct {
+    uint8_t len;                                     /* steps, 1..64 */
+    uint8_t rsv[3];
+    uint8_t flags[NE_ASTEPS];                        /* NACID_* */
+    int8_t note[NE_ASTEPS];
+} ne_acid_t;
+void ne_acid_snapshot(ne_acid_t *s);
+void ne_acid_restore(const ne_acid_t *s);
 
 /* the render (audio ISR): n stereo frames, 24-bit in int32; gain Q12 (the MASTER pot) */
 void ne_render(int32_t *out_lr, uint32_t n, uint32_t gain_q12);
@@ -92,7 +118,10 @@ void ne_render(int32_t *out_lr, uint32_t n, uint32_t gain_q12);
 /* state for the screen (UI) */
 const nseq *ne_seq(void);
 const nfm_engine *ne_fm(void);
-int ne_fx_owner(int which);                          /* the track in the delay (0) or the reverb (1), -1 none */
+const nacid *ne_acid(void);
+extern volatile float ne_acid_level;
+int ne_fx_owner(int which);                          /* the track in the delay (0) or the reverb (1), -1 none
+                                                        (NE_ACID: the acid line) */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */
 extern volatile float ne_out_level;                  /* the output's peak over the last block (tails too) */
 extern volatile uint32_t ne_dropped;                 /* commands lost to a full queue */

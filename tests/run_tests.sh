@@ -28,11 +28,11 @@ run trs sh -c "$CC -O2 -w -Ifirmware/src -Ifirmware/hal -o $OUT/trs_test tests/h
 # no -lm: a libm call that crept into the engine fails to link here, as it would on the device
 run n001se sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/n001se_test tests/host/n001se_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
-    firmware/src/dsp/nfx.c && $OUT/n001se_test $OUT"
+    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/n001se_test $OUT"
 # again with the sanitizer: an unaligned store or an index out of bounds traps on the FM-1's CPU
 run n001se-ubsan sh -c "$CC -O1 -g -std=c99 -fsanitize=alignment,undefined -fno-sanitize-recover=all -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/n001se_ubsan tests/host/n001se_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
-    firmware/src/dsp/nfx.c && $OUT/n001se_ubsan"
+    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/n001se_ubsan"
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"
 # the update path, against the firmware package (Felucca's tests; needs ./build.sh)
 if [ -f build/n001se.fwsc ]; then

@@ -10,5 +10,5 @@ mkdir -p build/gen build/host
 [ -f build/gen/felucca_font.h ] || "$PY" tools/gen_font.py build/gen/felucca_font.h >/dev/null
 $CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wno-unused-function -Wno-unused-parameter \
     -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen -o build/host/n001se_host host/n001se_host.c \
-    firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c -lm
+    firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm
 echo "host: build/host/n001se_host"

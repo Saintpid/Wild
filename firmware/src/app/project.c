@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* n001se project: one flash object (OBJ_PROJ): the settings, the four patterns and the four sounds.
+/* n001se project: one flash object (OBJ_PROJ): the settings, the four patterns and the four sounds, the
+ * acid line's pattern and settings.
  * A project of another kind, or none, gives the defaults (the engine's starting set). Part of the unity
  * build, after app.h. */
 project_t proj;
 static uint8_t proj_has_state;           /* the project carries patterns and sounds (not just defaults) */
+static uint8_t proj_has_acid;            /* ...and an acid pattern (not from before format 3) */
 
 void project_defaults(void)
 {
@@ -16,7 +18,10 @@ void project_defaults(void)
     for (t = 0; t < NE_TRACKS; t++)
         for (i = 0; i < T_NPARAMS; i++)
             proj.t[t][i] = (int16_t)ne_tparam_def(t, i);
+    for (i = 0; i < A_NPARAMS; i++)
+        proj.a[i] = ne_aparam_info(i)->def;
     proj_has_state = 0;
+    proj_has_acid = 0;
 }
 
 /* An older format moves into this one: its values in place, the ones it lacks at their defaults */
@@ -26,8 +31,15 @@ static void project_upgrade(void)
     uint32_t f = proj.format;
     int ng = PROJ_G_OF(f), nt = PROJ_T_OF(f), i, t;
     const uint8_t *p;
+    proj_has_acid = f >= 3u;
     if (f == PROJ_FORMAT)
         return;
+    if (f == 2u) {                                   /* the same up to the acid line: its defaults */
+        for (i = 0; i < A_NPARAMS; i++)
+            proj.a[i] = ne_aparam_info(i)->def;
+        proj.format = PROJ_FORMAT;
+        return;
+    }
     old = proj;
     project_defaults();
     p = (const uint8_t *)&old + 8;                   /* the old layout, field by field */
@@ -47,7 +59,8 @@ static void project_upgrade(void)
 static int project_valid(int bytes)
 {
     int i, t;
-    uint32_t want = proj.format == 1u ? 8u + 2u * (12u + 4u * 14u) + sizeof proj.st + 32u : sizeof proj;
+    uint32_t want = proj.format == 1u ? 8u + 2u * (12u + 4u * 14u) + sizeof proj.st + 32u
+                  : proj.format == 2u ? (uint32_t)__builtin_offsetof(project_t, acid) : sizeof proj;
     if (proj.magic != PROJ_MAGIC || proj.format < 1u || proj.format > PROJ_FORMAT || (uint32_t)bytes < want - 32u)
         return 0;
     project_upgrade();
@@ -62,6 +75,11 @@ static int project_valid(int bytes)
             if (proj.t[t][i] < p->lo || proj.t[t][i] > p->hi)
                 proj.t[t][i] = (int16_t)ne_tparam_def(t, i);
         }
+    for (i = 0; i < A_NPARAMS; i++) {
+        const ne_param_t *p = ne_aparam_info(i);
+        if (proj.a[i] < p->lo || proj.a[i] > p->hi)
+            proj.a[i] = p->def;
+    }
     if (proj.preset >= PLAT_PRESETS)
         proj.preset = 0;
     return 1;
@@ -83,7 +101,8 @@ int project_load(void)
 int project_save(void)
 {
     ne_snapshot(&proj.st);
-    proj_has_state = 1;
+    ne_acid_snapshot(&proj.acid);
+    proj_has_state = proj_has_acid = 1;
     return plat_store_save(OBJ_PROJ, &proj, sizeof proj);
 }
 
@@ -91,7 +110,8 @@ int project_preset_save(int n)
 {
     proj.preset = (uint8_t)n;
     ne_snapshot(&proj.st);
-    proj_has_state = 1;
+    ne_acid_snapshot(&proj.acid);
+    proj_has_state = proj_has_acid = 1;
     return plat_preset_save(n, &proj, sizeof proj);
 }
 
@@ -125,4 +145,11 @@ void project_apply(void)
         for (i = 0; i < T_NPARAMS; i++)
             if (!proj_has_state || (i != T_KIND && i != T_BARS))   /* (the saved length and kind stand) */
                 ne_tset(t, i, proj.t[t][i]);
+    if (proj_has_acid)
+        ne_acid_restore(&proj.acid);
+    for (i = 0; i < A_NPARAMS; i++)
+        if (!proj_has_acid || i != A_BARS)
+            ne_aset(i, proj.a[i]);
+    if (!proj_has_acid)
+        ne_generate(NE_ACID);
 }

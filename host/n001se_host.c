@@ -23,7 +23,8 @@
  *                                (WHAT: view dirty store_writes midi_out playing track bar lock live list slot preset
  *                                 stepN velN noteN (step N of the selected track) hits len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
- *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min)
+ *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
+ *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
 #define OM_HOST 1
@@ -386,7 +387,8 @@ static int key_of(const char *s)
 static int expect(const char *what, const char *val)
 {
     int got;
-    const nseq_track *tr = &ne_seq()->track[ui.track];
+    const nseq_track *tr = &ne_seq()->track[ui.track < NE_TRACKS ? ui.track : 0];
+    const nacid *ac = ne_acid();
     if (!strcmp(what, "view"))
         got = ui.view;
     else if (!strcmp(what, "dirty"))
@@ -405,6 +407,22 @@ static int expect(const char *what, const char *val)
         got = ui.bar_lock;
     else if (!strcmp(what, "live"))
         got = ui.live;
+    else if (!strcmp(what, "alen"))              /* the acid line */
+        got = ac->length;
+    else if (!strcmp(what, "anotes")) {
+        int s;
+        for (got = 0, s = 0; s < ac->length; s++)
+            got += ac->step[s].flags & NACID_ON;
+    } else if (!strcmp(what, "alast"))
+        got = ac->last;
+    else if (!strncmp(what, "aflags", 6))
+        got = ac->step[atoi(what + 6) % NE_ASTEPS].flags;
+    else if (!strncmp(what, "anote", 5))
+        got = ac->step[atoi(what + 5) % NE_ASTEPS].note;
+    else if (!strncmp(what, "apar", 4))
+        got = proj.a[atoi(what + 4) % A_NPARAMS];
+    else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */
+        got = (int)(ne_acid_level * 1000.0f);
     else if (!strcmp(what, "list"))              /* the preset list open: 1 save, 2 load */
         got = ui.list;
     else if (!strcmp(what, "slot"))
@@ -438,7 +456,7 @@ static int expect(const char *what, const char *val)
     else if (!strncmp(what, "gpar", 4))
         got = proj.g[atoi(what + 4)];
     else if (!strncmp(what, "tpar", 4))
-        got = proj.t[ui.track][atoi(what + 4)];
+        got = proj.t[ui.track < NE_TRACKS ? ui.track : 0][atoi(what + 4)];
     else if (!strncmp(what, "kind", 4))
         got = ne_fm()->slot[atoi(what + 4) & 3].kind;
     else if (!strcmp(what, "dimkeys"))

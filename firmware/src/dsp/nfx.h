@@ -63,8 +63,8 @@ typedef struct {
     nfx_mod_state mod[NFX_MODS];
 
     /* One owner each for delay and reverb. */
-    int owner_voice[2];
-    uint32_t owner_age[2], owner_since[2];
+    int owner_voice[2];            /* NFX_EXT: another source's, held owner_hold samples */
+    uint32_t owner_age[2], owner_since[2], owner_hold[2];
     int8_t owner_slot[2];
 
     /* delay: ping-pong, int16 storage */
@@ -80,7 +80,12 @@ typedef struct {
     uint16_t len[NFX_REV_LINES], rpos[NFX_REV_LINES];
     float lp[NFX_REV_LINES];
     float rgain[NFX_REV_LINES], rdamp;
+
+    /* another source on the bus (the acid line): adds to the dry bus and the sends */
+    void (*src)(void *ctx, float *l, float *r, float *rev, float *dly, int n);
+    void *src_ctx;
 } nfx;
+#define NFX_EXT (-2)
 
 void nfx_init(nfx *fx, float sample_rate, uint32_t seed);
 void nfx_set_on(nfx *fx, int effect, int on);
@@ -91,6 +96,13 @@ void nfx_set_tempo(nfx *fx, float bpm);
 
 /* Trigger a slot and choose this hit's effects. Returns the voice. */
 int nfx_trigger(nfx *fx, nfm_engine *e, int slot, float velocity, float transpose);
+
+/* Another source: its effects for the next hold samples, by the same chances as a hit, its own
+ * weights (filter, drive, delay, reverb) for the kind's. It owns the delay or reverb it gets for
+ * that long, under the number slot. */
+void nfx_choose(nfx *fx, nfm_engine *e, const float weight[NFX_EFFECTS], int slot, uint32_t hold,
+                int *ins, float send[2]);
+void nfx_set_source(nfx *fx, void (*src)(void *, float *, float *, float *, float *, int), void *ctx);
 
 /* Render the engine through the effects, clipped to -1..1. */
 void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int n);

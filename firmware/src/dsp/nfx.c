@@ -97,6 +97,7 @@ NFM_CODE float nfx_mod_value(const nfx *fx, int m) { return m >= 0 && m < NFX_MO
  * but never longer than 1.5 s, so a long ring cannot keep the bus forever. */
 NFM_CODE static int owner_held(const nfx *fx, const nfm_engine *e, int w)
 {
+    if (fx->owner_voice[w] == NFX_EXT) return fx->now - fx->owner_since[w] < fx->owner_hold[w];
     return fx->owner_voice[w] >= 0 &&
            nfm_voice_alive(e, fx->owner_voice[w], fx->owner_age[w]) &&
            fx->now - fx->owner_since[w] < (uint32_t)(fx->sr * 1.5f);
@@ -129,6 +130,32 @@ NFM_CODE int nfx_trigger(nfx *fx, nfm_engine *e, int slot, float vel, float tran
     }
     nfm_route(e, v, ins, send[1], send[0]);
     return v;
+}
+
+NFM_CODE void nfx_choose(nfx *fx, nfm_engine *e, const float w8[NFX_EFFECTS], int slot, uint32_t hold,
+                         int *ins, float send[2])
+{
+    *ins = 0;
+    send[0] = send[1] = 0.0f;
+    if (fx->on[NFX_FILTER] && rndf(&fx->rng) < fx->amount[NFX_FILTER] * w8[NFX_FILTER]) *ins |= NFM_INS_FILTER;
+    if (fx->on[NFX_DRIVE] && rndf(&fx->rng) < fx->amount[NFX_DRIVE] * w8[NFX_DRIVE]) *ins |= NFM_INS_DRIVE;
+    for (int w = 0; w < 2; ++w) {
+        int effect = w ? NFX_REVERB : NFX_DELAY;
+        if (!fx->on[effect]) continue;
+        if (owner_held(fx, e, w) && !(fx->owner_voice[w] == NFX_EXT && fx->owner_slot[w] == slot)) continue;
+        if (rndf(&fx->rng) >= fx->amount[effect] * w8[effect]) continue;
+        send[w] = 0.4f + 0.4f * rndf(&fx->rng);
+        fx->owner_voice[w] = NFX_EXT;
+        fx->owner_since[w] = fx->now;
+        fx->owner_hold[w] = hold;
+        fx->owner_slot[w] = (int8_t)slot;
+    }
+}
+
+NFM_CODE void nfx_set_source(nfx *fx, void (*src)(void *, float *, float *, float *, float *, int), void *ctx)
+{
+    fx->src = src;
+    fx->src_ctx = ctx;
 }
 
 /* Drift: now and then a new target near the base; glide towards it. */
@@ -209,6 +236,7 @@ NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int
         int c = n < 64 ? n : 64;
         update(fx, e, c);
         nfm_render_bus(e, out_l, out_r, rev, dly, c);
+        if (fx->src) fx->src(fx->src_ctx, out_l, out_r, rev, dly, c);
 
         float fb = 0.15f + 0.5f * fx->mod[NFX_M_DFEEDBACK].cur;
         float dtone = 1.0f - exp2f_(-9.0647202f * (1200.0f * exp2f_(fx->mod[NFX_M_DTONE].cur * 2.9f)) / fx->sr);

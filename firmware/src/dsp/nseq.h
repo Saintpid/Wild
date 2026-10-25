@@ -71,6 +71,10 @@ typedef struct {
     uint32_t steps;      /* global steps since start */
     uint32_t rng;
     nseq_event queue[NSEQ_QUEUE];
+    /* told of each global step (another line clocked by this one): its number, the swing's delay
+     * in samples, the step's length */
+    void (*on_step)(void *ctx, uint32_t step, float delay, float step_len);
+    void *step_ctx;
 } nseq;
 
 void nseq_init(nseq *q, nfm_engine *engine, uint32_t seed);

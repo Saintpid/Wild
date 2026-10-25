@@ -311,6 +311,7 @@ NFM_CODE static void global_step(nseq *q, float step_len)
         float late = q->loose * 0.12f * step_len * rndf(&q->rng);
         schedule(q, cand[i], &tr->step[tr->last], swing + late);
     }
+    if (q->on_step) q->on_step(q->step_ctx, q->steps, swing, step_len);
     ++q->steps;
 }
 

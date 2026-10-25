@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* n001se: the instrument (see n001se.h). A separate unit at -O2 (tools/build.py), with nfm.c, nseq.c
- * and nfx.c. */
+/* n001se: the instrument (see n001se.h). A separate unit at -O2 (tools/build.py), with nfm.c, nseq.c,
+ * nfx.c and nacid.c. */
 #include "n001se.h"
 
 #ifdef OM_HOST
@@ -12,9 +12,11 @@
 static nfm_engine fm;
 static nseq seq;
 static nfx fx NE_POOL;                 /* the delay and reverb lines: 180 kB */
+static nacid acid;
 
 volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
+volatile float ne_acid_level;
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
 volatile uint16_t ne_bpm_x10 = 1120;
@@ -56,6 +58,26 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_LEVEL] = {"Level", 0, 100, 80},
     [T_TUNE] = {"Tune", -24, 24, 0},
 };
+static const ne_param_t AP[A_NPARAMS] = {
+    [A_BARS] = {"Bars", 1, 4, 1},
+    [A_NOTES] = {"Notes", 10, 100, 60},
+    [A_SLIDES] = {"Slides", 0, 100, 20},
+    [A_ACCENTS] = {"Accents", 0, 100, 25},
+    [A_OCTAVES] = {"Octaves", 0, 100, 15},
+    [A_SCALE] = {"Scale", 0, NACID_SCALES - 1, 0},
+    [A_EVOLVE] = {"Evolve", 0, 100, 15},
+    [A_MUTE] = {"Mute", 0, 1, 0},
+    [A_CUTOFF] = {"Cutoff", 0, 100, 30},
+    [A_RESO] = {"Reso", 0, 100, 70},
+    [A_ENVMOD] = {"Env mod", 0, 100, 60},
+    [A_DECAY] = {"Decay", 0, 100, 40},
+    [A_ACCENT] = {"Accent", 0, 100, 60},
+    [A_WAVE] = {"Wave", 0, 1, 0},
+    [A_TUNE] = {"Tune", -24, 24, 0},
+    [A_LEVEL] = {"Level", 0, 100, 70},
+};
+const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
+
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
     {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0},
@@ -71,6 +93,8 @@ static const uint8_t PKNOB[] = {
     NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
     NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
+    NE_PK_ACID | A_CUTOFF, NE_PK_ACID | A_RESO, NE_PK_ACID | A_ENVMOD, NE_PK_ACID | A_DECAY,
+    NE_PK_ACID | A_ACCENT, NE_PK_ACID | A_TUNE, NE_PK_ACID | A_LEVEL,
 };
 #define NE_PKNOBS ((int)sizeof PKNOB)
 int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v : 0]; }
@@ -119,7 +143,12 @@ void ne_param_text(int i, int v, char *b)
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
     case G_PKNOB: {
         int k = ne_pknob_target(v);
-        cpy(b, k & NE_PK_TRACK ? TP[k & ~NE_PK_TRACK].name : GP[k].name);
+        if (k & NE_PK_ACID) {                    /* "303 Cutoff" */
+            cpy(b, "303 ");
+            cpy(b + 4, AP[k & ~NE_PK_ACID].name);
+        } else {
+            cpy(b, k & NE_PK_TRACK ? TP[k & ~NE_PK_TRACK].name : GP[k].name);
+        }
         return;
     }
     case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
@@ -141,8 +170,20 @@ void ne_tparam_text(int i, int v, char *b)
     itoa_s(v, b);
 }
 
+void ne_aparam_text(int i, int v, char *b)
+{
+    static const char *const SCALE[NACID_SCALES] = {"Minor", "Phrygian", "Dorian", "Penta", "Blues", "Harm min"};
+    switch (i) {
+    case A_SCALE: cpy(b, SCALE[(unsigned)v < NACID_SCALES ? v : 0]); return;
+    case A_MUTE: cpy(b, v ? "Muted" : "On"); return;
+    case A_WAVE: cpy(b, v ? "Square" : "Saw"); return;
+    case A_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
+    }
+    itoa_s(v, b);
+}
+
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -176,6 +217,8 @@ void ne_midi_note(int note, int vel) { post(C_NOTE, 0, note, vel, 0, 0); }
 void ne_clock(int m) { post(C_CLOCK, 0, m, 0, 0, 0); }
 void ne_voices(int n) { post(C_VOICES, 0, n, 0, 0, 0); }
 void ne_panic(void) { post(C_PANIC, 0, 0, 0, 0, 0); }
+void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
+void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
 
 /* ------------------------------------------------------------ the state --- */
 static int16_t gpar[G_NPARAMS], tpar[NE_TRACKS][T_NPARAMS];
@@ -342,6 +385,58 @@ static void tset(int t, int p, int v)
     (void)tr;
 }
 
+/* ------------------------------------------------------------ the acid line --- */
+static int16_t apar[A_NPARAMS];
+
+static void aset(int p, int v)
+{
+    if ((unsigned)p >= A_NPARAMS)
+        return;
+    v = v < AP[p].lo ? AP[p].lo : v > AP[p].hi ? AP[p].hi : v;
+    apar[p] = (int16_t)v;
+    switch (p) {
+    case A_BARS: nacid_set_length(&acid, v * NACID_BAR); break;
+    case A_NOTES: acid.p[NACID_P_DENSITY] = pct(v); break;
+    case A_SLIDES: acid.p[NACID_P_SLIDES] = pct(v); break;
+    case A_ACCENTS: acid.p[NACID_P_ACCENTS] = pct(v); break;
+    case A_OCTAVES: acid.p[NACID_P_OCTAVES] = pct(v); break;
+    case A_SCALE: acid.scale = (uint8_t)v; break;
+    case A_EVOLVE: acid.p[NACID_P_EVOLVE] = pct(v); break;
+    case A_MUTE: acid.mute = (uint8_t)v; break;
+    case A_CUTOFF: acid.p[NACID_P_CUTOFF] = pct(v); break;
+    case A_RESO: acid.p[NACID_P_RESO] = pct(v); break;
+    case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); break;
+    case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); break;
+    case A_ACCENT: acid.p[NACID_P_ACCENT] = pct(v); break;
+    case A_WAVE: acid.square = (uint8_t)v; break;
+    case A_TUNE: acid.tune = (float)v; break;
+    case A_LEVEL: acid.p[NACID_P_LEVEL] = pct(v); break;
+    }
+}
+
+/* the drums' clock steps the acid line; at the top of each of its bars the effects choose for it, as
+ * for a hit (filter, drive, delay, reverb), and keep the choice for the bar */
+static const float ACID_FX_W[NFX_EFFECTS] = {0.7f, 1.0f, 0.8f, 0.4f};
+static void acid_step(void *ctx, uint32_t step, float delay, float step_len)
+{
+    (void)ctx;
+    if (step == 0u)
+        nacid_reset(&acid);
+    acid.root = seq.root;
+    if (acid.pos % NACID_BAR == 0 || acid.pos >= acid.length) {
+        int ins;
+        float send[2];
+        nfx_choose(&fx, &fm, ACID_FX_W, NE_ACID, (uint32_t)(step_len * NACID_BAR), &ins, send);
+        nacid_route(&acid, ins, send[1], send[0]);
+    }
+    nacid_step(&acid, delay, step_len);
+}
+static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
+{
+    (void)ctx;
+    nacid_render(&acid, &fm, l, r, rev, dly, n);
+}
+
 static void new_sound(int t, int kind)
 {
     if ((unsigned)t >= NE_TRACKS)
@@ -368,6 +463,12 @@ void ne_init(void)
     nfx_init(&fx, NE_SR, 0x6e736521u);
     nseq_init(&seq, &fm, 0x73657121u);
     nseq_set_fx(&seq, &fx);
+    nacid_init(&acid, NE_SR, 0x61636964u);
+    seq.on_step = acid_step;
+    nfx_set_source(&fx, acid_render, 0);
+    for (p = 0; p < A_NPARAMS; p++)
+        aset(p, AP[p].def);
+    nacid_generate(&acid);
     for (p = 0; p < G_NPARAMS; p++)
         gset(p, GP[p].def);
     for (t = 0; t < NE_TRACKS; t++) {
@@ -435,6 +536,31 @@ void ne_restore(const ne_state_t *s)
 
 const nseq *ne_seq(void) { return &seq; }
 const nfm_engine *ne_fm(void) { return &fm; }
+const nacid *ne_acid(void) { return &acid; }
+
+void ne_acid_snapshot(ne_acid_t *s)
+{
+    int i;
+    s->len = acid.length;
+    s->rsv[0] = s->rsv[1] = s->rsv[2] = 0;
+    for (i = 0; i < NE_ASTEPS; i++) {
+        s->flags[i] = acid.step[i].flags;
+        s->note[i] = acid.step[i].note;
+    }
+}
+
+void ne_acid_restore(const ne_acid_t *s)
+{
+    int i;
+    hold = 1;
+    __asm__ volatile("" ::: "memory");
+    nacid_stop(&acid);
+    nacid_set_length(&acid, s->len);
+    for (i = 0; i < NE_ASTEPS; i++)
+        nacid_set_step(&acid, i, s->flags[i], s->note[i]);
+    __asm__ volatile("" ::: "memory");
+    hold = 0;
+}
 int ne_fx_owner(int which) { return nfx_owner(&fx, &fm, which); }
 
 /* ------------------------------------------------------------ MIDI clock --- */
@@ -488,19 +614,33 @@ static void drain(void)
                 for (t = 0; t < NE_TRACKS; t++)
                     if (!seq.track[t].mute)
                         nseq_generate(&seq, t);
+                if (!acid.mute)
+                    nacid_generate(&acid);
             } else if (c.t < NE_TRACKS) {
                 nseq_generate(&seq, c.t);
+            } else if (c.t == NE_ACID) {
+                nacid_generate(&acid);
             }
             break;
+        case C_ASET: aset(c.a, c.b); break;
+        case C_ASTEP: nacid_set_step(&acid, c.a, c.b, c.c); break;
         case C_SOUND: new_sound(c.t, c.a); break;
         case C_HIT:
             if ((unsigned)c.t < NE_TRACKS)
                 nfx_trigger(&fx, &fm, c.t, (float)c.a * (1.0f / 127.0f), (float)c.b);
             break;
-        case C_NOTE: nseq_midi_note(&seq, c.a, c.b); break;
+        case C_NOTE:
+            if (c.a == NSEQ_NOTE_TRACK0 + NE_ACID && c.b) {   /* E1: a new acid pattern */
+                nacid_generate(&acid);
+                if (!seq.playing)
+                    nseq_start(&seq);
+            } else {
+                nseq_midi_note(&seq, c.a, c.b);
+            }
+            break;
         case C_CLOCK: clock_msg(c.a, seq.now); break;
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
-        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); break;
+        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); break;
         }
     }
 }
@@ -519,6 +659,8 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         return;
     }
     drain();
+    if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
+        nacid_stop(&acid);
     if (ne_ext && seq.now - clk_seen > 22050u) {   /* the clock stopped coming: our own tempo again */
         ne_ext = 0;
         clk_n = 0;
@@ -573,4 +715,5 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
                 lv = fm.voice[v].peak;
         ne_track_level[t] = lv;
     }
+    ne_acid_level = acid.peak * 1.5f;
 }

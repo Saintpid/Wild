@@ -1,0 +1,99 @@
+# the acid line, track 5: its pages, its steps (a note, its pitch, accent and slide on the held key),
+# its pattern and sound keys, its mute on black 9, MIDI E1 and CC 74 / 71, and that it is heard
+wait 200
+expect alen 16
+expect anotes >3
+# track 5: OCT- from track 1 (wraps), or SELECT
+tap OCT-
+expect track 4
+shot acid_track.png
+# its pattern page: Bars 1 -> 2
+tap HOME
+spin K1 1
+expect apar0 2
+wait 20
+expect alen 32
+# its sound page: Cutoff
+tap ENV
+spin K1 10
+expect apar8 40
+shot acid_sound.png
+# a step: step 3 (w2) of bar 1 cleared first if set, then set: the root, no accent
+tapkey w2
+wait 20
+tapkey w2
+wait 20
+expect aflags2 0
+tapkey w2
+wait 20
+expect aflags2 1
+# held: KNOB 1 its note, KNOB 2 accent on, KNOB 3 slide on
+key w2 down
+wait 20
+spin K1 7
+spin K2 1
+spin K3 1
+wait 20
+key w2 up
+wait 20
+expect anote2 7
+expect aflags2 7
+# black 9: mute track 5, again: on
+tapkey b8
+expect apar7 1
+leds
+tapkey b8
+expect apar7 0
+# black 11: a new sound (its settings drawn), black 10: a new pattern
+tapkey b10
+expect apar14 0
+tapkey b9
+wait 20
+expect anotes >3
+# play, the drums muted: it sounds alone, its steps walk
+tapkey b4
+tapkey b5
+tapkey b6
+tapkey b7
+tap PLAY
+wav acid.wav
+wait 3000
+expect alast >-1
+shot acid_playing.png
+wavstop
+expect peak_db_min -24
+expect peak_db_max -0.2
+tapkey b4
+tapkey b5
+tapkey b6
+tapkey b7
+# CC 74 cutoff, CC 71 reso; E1 a new pattern
+midi B0 4A 7F
+midi B0 47 0
+wait 20
+expect apar8 100
+expect apar9 0
+midi 90 28 64
+wait 20
+tap PLAY
+expect alast -1
+# saved with the project: step 6 up two octaves, and after a power cycle it is there
+key w5 down
+wait 20
+spin K1 40
+key w5 up
+wait 20
+expect anote5 24
+wait 6000
+expect dirty 0
+reboot
+wait 200
+expect anote5 24
+expect aflags5 >0
+expect apar8 100
+expect alen 32
+# the drum tracks still: OCT- to track 5, OCT+ back to track 1
+tap OCT-
+tap OCT+
+expect track 0
+expect dropped 0
