@@ -5,7 +5,7 @@ wait 200
 tap FX
 expect view 4
 tapkey b2
-expect view 8
+expect view 9
 spin K1 -40
 expect gpar12 60
 spin K4 70
@@ -13,13 +13,13 @@ expect gpar15 100
 shot master.png
 tapkey b2
 expect view 4
-# play with the glue at 100: loud, never over 0 dBFS
+# play with the glue at 100: no louder for it (matched), never over 0 dBFS
 tap PLAY
 wav glue.wav
 wait 3000
 wavstop
 expect peak_db_max -0.2
-expect peak_db_min -8
+expect peak_db_min -16
 tap PLAY
 # a state to keep: Hi cut 60, Tune +5 on the kick
 tap ENV

@@ -67,6 +67,10 @@ tapkey b4
 tapkey b5
 tapkey b6
 tapkey b7
+# unmuted, a track is selected: track 4 now; OCT+ back to the acid line
+expect track 3
+tap OCT+
+expect track 4
 # CC 74 cutoff, CC 71 reso; E1 a new pattern
 midi B0 4A 7F
 midi B0 47 0

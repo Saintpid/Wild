@@ -106,6 +106,18 @@ typedef struct {
     float tune;               /* semitones added to every hit (a drawn sound, retuned) */
 } nfm_slot;
 
+/* Saturation that warms rather than distorts: a soft curve, biased so it adds even harmonics, DC
+ * removed, and its loudness matched to what goes in (statically for quiet signals, then by
+ * following both levels), so turning it up changes the colour, not the volume. */
+typedef struct {
+    float amount;             /* 0 off .. 1 */
+    float pre, bias, off, comp;
+    float dc, ein, eout, adapt;
+} nfm_sat;
+void nfm_sat_set(nfm_sat *s, float amount);
+float nfm_sat_tick(nfm_sat *s, float x);
+void nfm_sat_control(nfm_sat *s);   /* every few samples: the loudness match */
+
 typedef struct {
     int8_t slot;              /* -1 idle */
     uint8_t fading;
@@ -131,6 +143,7 @@ typedef struct {
     uint8_t ins;             /* NFM_INS_* bits */
     float send_rev, send_dly;
     float ins_s1, ins_s2;    /* insert filter state */
+    nfm_sat sat;             /* the drive: warm, even, loudness-matched (nfm_sat_*) */
 } nfm_voice;
 
 typedef struct {
@@ -141,12 +154,13 @@ typedef struct {
     nfm_voice voice[NFM_VOICES];
     float master;
     /* Shared insert settings, written by the effects module per block:
-     * filter coefficient g, damping k, lowpass->bandpass morph, drive gain
-     * and the loudness compensation that goes with it. */
-    float ins_g, ins_k, ins_morph, ins_drive, ins_comp;
+     * filter coefficient g, damping k, lowpass->bandpass morph. */
+    float ins_g, ins_k, ins_morph;
     /* New hits use only voices below this (1..NFM_VOICES). A CPU guard can
      * lower it; voices above it still finish what they are playing. */
     int voice_limit;
+    /* This slot's hits are never stolen by another's (-1: none): a kick that never drops out. */
+    int priority_slot;
 } nfm_engine;
 
 enum { NFM_INS_FILTER = 1, NFM_INS_DRIVE = 2 };
@@ -171,8 +185,9 @@ int nfm_slot_kind(const nfm_engine *e, int slot);
 /* Play slot. velocity 0..1, transpose in semitones (0 for drums).
  * Returns the voice used, for nfm_route. */
 int nfm_trigger(nfm_engine *e, int slot, float velocity, float transpose);
-/* Effects for a voice just triggered: insert bits and send levels 0..1. */
-void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float send_dly);
+/* Effects for a voice just triggered: insert bits, send levels 0..1 and the drive (with
+ * NFM_INS_DRIVE: 0..1). */
+void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float send_dly, float drive);
 /* 1 while the voice still sounds and was started by the trigger that
  * returned it (age is the value nfm_voice_age gave then). */
 int nfm_voice_alive(const nfm_engine *e, int voice, uint32_t age);

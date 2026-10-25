@@ -21,7 +21,7 @@ wait 30
 expect playing 1
 # a channel set: other channels are ignored
 spin ALGO -1
-expect view 7
+expect view 8
 spin K2 5
 expect gpar11 5
 midi B0 70 7F

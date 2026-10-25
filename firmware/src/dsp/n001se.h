@@ -8,9 +8,12 @@
  *             from a kind (kick, snare, hat, perc, click, metal).
  *   PATTERN   each track loops over its own length, 1..8 bars of 16 steps, so tracks drift. A new
  *             pattern places a random number of hits (Hits low..high) where the kind likes them.
- *   FX        filter, drive (on single hits), delay, reverb (one sound at a time): Amount is how many
- *             hits get it, Chaos how far the settings wander, Motion how fast.
- *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor and a limiter at -0.3 dBFS.
+ *   FX        per sound: reverb and delay sends, the share of its hits in a moving filter, a warm drive
+ *             (loudness matched). Globally: the reverb's and delay's returns, the filter's and drive's
+ *             scale; Chaos how far the settings wander, Motion how fast. Chaos also brings GLITCHES now
+ *             and then, on the beat: a beat repeat or a beat played backwards.
+ *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor (loudness matched) and a limiter
+ *             at -0.3 dBFS. Track 1 and the acid line never lose a hit to the others.
  *
  * Threads: ne_render() runs in the audio interrupt. Everything else posts commands, which the render
  * drains at the start of a block. The pattern and the sounds are read by the UI through ne_seq() and
@@ -48,6 +51,7 @@ enum {
     T_DEV, T_STRESS, T_SPIKE, T_BLEED,
     T_FLUID, T_LEVEL,
     T_TUNE,                                          /* semitones on the sound (reset by a new sound) */
+    T_REVERB, T_DELAY, T_FILTER, T_DRIVE,            /* its effects: sends, the filter's share, drive */
     T_NPARAMS
 };
 /* the acid line's parameters */
@@ -56,6 +60,7 @@ enum {
     A_OCTAVES, A_SCALE, A_EVOLVE, A_MUTE,
     A_CUTOFF, A_RESO, A_ENVMOD, A_DECAY,
     A_ACCENT, A_WAVE, A_TUNE, A_LEVEL,
+    A_REVERB, A_DELAY, A_FILTER, A_DRIVE,
     A_NPARAMS
 };
 typedef struct {
@@ -120,8 +125,7 @@ const nseq *ne_seq(void);
 const nfm_engine *ne_fm(void);
 const nacid *ne_acid(void);
 extern volatile float ne_acid_level;
-int ne_fx_owner(int which);                          /* the track in the delay (0) or the reverb (1), -1 none
-                                                        (NE_ACID: the acid line) */
+extern volatile uint32_t ne_glitches;                /* glitches played since boot */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */
 extern volatile float ne_out_level;                  /* the output's peak over the last block (tails too) */
 extern volatile uint32_t ne_dropped;                 /* commands lost to a full queue */

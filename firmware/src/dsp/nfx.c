@@ -39,16 +39,6 @@ NFM_CODE static inline float soft(float x)
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 
-/* How likely each kind is to get an effect: kicks stay out of the reverb
- * and delay, hats and percussion go into the delay readily. */
-NFM_DATA static const float weight[NFX_EFFECTS][NFM_KINDS] = {
-    /*            kick  snare  hat   perc  click  metal */
-    [NFX_FILTER] = { 0.6f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
-    [NFX_DRIVE]  = { 0.8f, 1.0f, 0.6f, 0.8f, 1.0f, 0.5f },
-    [NFX_DELAY]  = { 0.2f, 0.6f, 1.0f, 1.0f, 1.0f, 0.8f },
-    [NFX_REVERB] = { 0.15f, 0.8f, 0.5f, 1.0f, 0.9f, 1.0f },
-};
-
 /* Delay times on offer, in sixteenths. */
 NFM_DATA static const float dsteps[] = { 2.0f, 3.0f, 4.0f, 6.0f };
 
@@ -77,7 +67,6 @@ NFM_CODE void nfx_init(nfx *fx, float sr, uint32_t seed)
         fx->mod[m].base = fx->mod[m].cur = fx->mod[m].target = ms[m][0];
         fx->mod[m].span = ms[m][1];
     }
-    for (int w = 0; w < 2; ++w) { fx->owner_voice[w] = -1; fx->owner_slot[w] = -1; }
     NFM_DATA static const uint16_t lens[NFX_REV_LINES] = { 1559, 1867, 2251, 2687 };
     for (int l = 0; l < NFX_REV_LINES; ++l) {
         float n = (float)lens[l] * sr / 44100.0f;
@@ -93,63 +82,28 @@ NFM_CODE void nfx_set_motion(nfx *fx, float m) { fx->motion = clamp01(m); }
 NFM_CODE void nfx_set_tempo(nfx *fx, float bpm) { fx->bpm = bpm < 20.0f ? 20.0f : bpm; }
 NFM_CODE float nfx_mod_value(const nfx *fx, int m) { return m >= 0 && m < NFX_MODS ? fx->mod[m].cur : 0.0f; }
 
-/* Owner of delay (0) or reverb (1): held while its voice still sounds,
- * but never longer than 1.5 s, so a long ring cannot keep the bus forever. */
-NFM_CODE static int owner_held(const nfx *fx, const nfm_engine *e, int w)
+NFM_CODE void nfx_set_slot(nfx *fx, int slot, int effect, float amount)
 {
-    if (fx->owner_voice[w] == NFX_EXT) return fx->now - fx->owner_since[w] < fx->owner_hold[w];
-    return fx->owner_voice[w] >= 0 &&
-           nfm_voice_alive(e, fx->owner_voice[w], fx->owner_age[w]) &&
-           fx->now - fx->owner_since[w] < (uint32_t)(fx->sr * 1.5f);
+    if (slot >= 0 && slot < NFM_SLOTS && effect >= 0 && effect < NFX_EFFECTS)
+        fx->slot_amt[slot][effect] = clamp01(amount);
 }
 
-NFM_CODE int nfx_owner(const nfx *fx, nfm_engine *e, int w)
+NFM_CODE void nfx_route(nfx *fx, const float amt[NFX_EFFECTS], int *filter, float *drive, float send[2])
 {
-    return w >= 0 && w < 2 && owner_held(fx, e, w) ? fx->owner_slot[w] : -1;
+    *filter = fx->on[NFX_FILTER] && rndf(&fx->rng) < amt[NFX_FILTER] * fx->amount[NFX_FILTER];
+    *drive = fx->on[NFX_DRIVE] ? amt[NFX_DRIVE] * fx->amount[NFX_DRIVE] : 0.0f;
+    send[0] = fx->on[NFX_DELAY] ? amt[NFX_DELAY] : 0.0f;
+    send[1] = fx->on[NFX_REVERB] ? amt[NFX_REVERB] : 0.0f;
 }
 
 NFM_CODE int nfx_trigger(nfx *fx, nfm_engine *e, int slot, float vel, float transpose)
 {
-    int v = nfm_trigger(e, slot, vel, transpose);
+    int v = nfm_trigger(e, slot, vel, transpose), filter;
+    float drive, send[2];
     if (v < 0) return v;
-    int kind = nfm_slot_kind(e, slot);
-    if (kind < 0 || kind >= NFM_KINDS) kind = NFM_KIND_PERC;
-    int ins = 0;
-    float send[2] = { 0.0f, 0.0f };
-    if (fx->on[NFX_FILTER] && rndf(&fx->rng) < fx->amount[NFX_FILTER] * weight[NFX_FILTER][kind]) ins |= NFM_INS_FILTER;
-    if (fx->on[NFX_DRIVE] && rndf(&fx->rng) < fx->amount[NFX_DRIVE] * weight[NFX_DRIVE][kind]) ins |= NFM_INS_DRIVE;
-    for (int w = 0; w < 2; ++w) {
-        int effect = w ? NFX_REVERB : NFX_DELAY;
-        if (!fx->on[effect] || owner_held(fx, e, w)) continue;
-        if (rndf(&fx->rng) >= fx->amount[effect] * weight[effect][kind]) continue;
-        send[w] = 0.6f + 0.4f * rndf(&fx->rng);
-        fx->owner_voice[w] = v;
-        fx->owner_age[w] = nfm_voice_age(e, v);
-        fx->owner_since[w] = fx->now;
-        fx->owner_slot[w] = (int8_t)slot;
-    }
-    nfm_route(e, v, ins, send[1], send[0]);
+    nfx_route(fx, fx->slot_amt[slot], &filter, &drive, send);
+    nfm_route(e, v, (filter ? NFM_INS_FILTER : 0) | (drive > 0.0f ? NFM_INS_DRIVE : 0), send[1], send[0], drive);
     return v;
-}
-
-NFM_CODE void nfx_choose(nfx *fx, nfm_engine *e, const float w8[NFX_EFFECTS], int slot, uint32_t hold,
-                         int *ins, float send[2])
-{
-    *ins = 0;
-    send[0] = send[1] = 0.0f;
-    if (fx->on[NFX_FILTER] && rndf(&fx->rng) < fx->amount[NFX_FILTER] * w8[NFX_FILTER]) *ins |= NFM_INS_FILTER;
-    if (fx->on[NFX_DRIVE] && rndf(&fx->rng) < fx->amount[NFX_DRIVE] * w8[NFX_DRIVE]) *ins |= NFM_INS_DRIVE;
-    for (int w = 0; w < 2; ++w) {
-        int effect = w ? NFX_REVERB : NFX_DELAY;
-        if (!fx->on[effect]) continue;
-        if (owner_held(fx, e, w) && !(fx->owner_voice[w] == NFX_EXT && fx->owner_slot[w] == slot)) continue;
-        if (rndf(&fx->rng) >= fx->amount[effect] * w8[effect]) continue;
-        send[w] = 0.4f + 0.4f * rndf(&fx->rng);
-        fx->owner_voice[w] = NFX_EXT;
-        fx->owner_since[w] = fx->now;
-        fx->owner_hold[w] = hold;
-        fx->owner_slot[w] = (int8_t)slot;
-    }
 }
 
 NFM_CODE void nfx_set_source(nfx *fx, void (*src)(void *, float *, float *, float *, float *, int), void *ctx)
@@ -183,10 +137,6 @@ NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
     e->ins_g = tan_pi(fc / sr);
     e->ins_k = 2.0f - 1.85f * m[NFX_M_RESO].cur;
     e->ins_morph = m[NFX_M_MORPH].cur;
-    /* Drive 1.5..10x, roughly level-matched. */
-    float d = 1.5f + 8.5f * m[NFX_M_DRIVE].cur * (0.4f + 0.6f * fx->amount[NFX_DRIVE]);
-    e->ins_drive = d;
-    e->ins_comp = 1.0f / (0.6f + 0.4f * d * 0.35f);
 
     /* Delay time: a tempo-synced choice; changes glide like tape. */
     int pick = (int)(m[NFX_M_DTIME].cur * 3.999f);
@@ -240,8 +190,8 @@ NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int
 
         float fb = 0.15f + 0.5f * fx->mod[NFX_M_DFEEDBACK].cur;
         float dtone = 1.0f - exp2f_(-9.0647202f * (1200.0f * exp2f_(fx->mod[NFX_M_DTONE].cur * 2.9f)) / fx->sr);
-        float dret = 0.35f + 0.5f * fx->amount[NFX_DELAY];
-        float rret = 0.3f + 0.6f * fx->amount[NFX_REVERB];
+        float dret = fx->on[NFX_DELAY] ? fx->amount[NFX_DELAY] : 0.0f;    /* the returns */
+        float rret = fx->on[NFX_REVERB] ? 1.2f * fx->amount[NFX_REVERB] : 0.0f;
         for (int i = 0; i < c; ++i) {
             /* Ping-pong delay: input to the left, each side feeds the other. */
             float yl = delay_read(fx->dl, fx->dpos, fx->dtime);

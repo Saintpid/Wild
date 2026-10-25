@@ -251,7 +251,7 @@ NFM_DATA static const recipe recipes[NFM_KINDS] = {
         .click_chance = 0.3f,
         .noise = { 0, 0.5f }, .ndecay = { 0.002f, 0.02f }, .ncolor = { 2000, 16000 }, .nband = { 0, 1 }, .nfm = { 0, 0.5f },
         .res_freq = { 800, 7000 }, .res_spread = { 1, 3 }, .res_decay = { 0.01f, 0.12f }, .res_mix = { 0, 0.4f },
-        .level = { 0.7f, 0.9f }, .pan = { 0.2f, 0.8f }, .fold_chance = 0.3f, .crush_chance = 0.3f },
+        .level = { 0.7f, 0.9f }, .pan = { 0.2f, 0.8f }, .fold_chance = 0.3f, .crush_chance = 0.08f },
     [NFM_KIND_METAL] = {
         .algos = 1 << 7 | 1 << 2 | 1 << 3 | 1 << 1 | 1 << 6,
         .pitch = { 200, 1300 }, .penv = { 0, 3 }, .pdecay = { 0.003f, 0.03f }, .sweep = { 0, 1 },
@@ -412,8 +412,8 @@ NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)
     e->master = 0.9f;
     e->ins_g = 0.5f;
     e->ins_k = 1.0f;
-    e->ins_drive = e->ins_comp = 1.0f;
     e->voice_limit = NFM_VOICES;
+    e->priority_slot = -1;
     for (int v = 0; v < NFM_VOICES; ++v) e->voice[v].slot = -1;
     NFM_DATA static const int8_t start_kit[NFM_SLOTS > 8 ? NFM_SLOTS : 8] = {
         NFM_KIND_KICK, NFM_KIND_SNARE, NFM_KIND_HAT, NFM_KIND_PERC,
@@ -463,14 +463,15 @@ NFM_CODE static nfm_voice *pick_voice(nfm_engine *e, int s)
     int lim = e->voice_limit < 1 ? 1 : e->voice_limit > NFM_VOICES ? NFM_VOICES : e->voice_limit;
     for (int v = 0; v < lim; ++v)
         if (e->voice[v].slot < 0) return &e->voice[v];
-    /* Steal: a fading voice first, otherwise the oldest. */
+    /* Steal: a fading voice first, otherwise the oldest; the priority slot's only by its own. */
     for (int v = 0; v < lim; ++v) {
         nfm_voice *vo = &e->voice[v];
+        if (vo->slot == e->priority_slot && s != e->priority_slot && !vo->fading) continue;
         if (!best) best = vo;
         else if (vo->fading != best->fading) { if (vo->fading) best = vo; }
         else if (vo->fading ? vo->fade < best->fade : vo->age < best->age) best = vo;
     }
-    return best;
+    return best ? best : &e->voice[0];
 }
 
 NFM_CODE static float res_coef(nfm_engine *e, float f, float t60, float *k)
@@ -531,7 +532,6 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     n[NFM_NOISE_COLOR] += spike * 0.5f;
     if (n[NFM_NOISE_FM] > 0.0f) n[NFM_NOISE_FM] += spike * 0.3f;
     if (spike > 0.0f) n[NFM_FOLD] += spike * 0.8f;
-    if (spike > 0.2f) n[NFM_CRUSH] += (spike - 0.2f) * 1.2f;
     n[NFM_RES_MIX] += bleed;
     n[NFM_RES_DECAY] += fluid * 0.7f;
     n[NFM_RES_SPREAD] += fluid * 0.3f;
@@ -617,16 +617,61 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->ins = 0;
     v->send_rev = v->send_dly = 0.0f;
     v->ins_s1 = v->ins_s2 = 0.0f;
+    nfm_sat_set(&v->sat, 0.0f);
     return (int)(v - e->voice);
 }
 
-NFM_CODE void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float send_dly)
+NFM_CODE void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float send_dly, float drive)
 {
     if (voice < 0 || voice >= NFM_VOICES) return;
     nfm_voice *v = &e->voice[voice];
     v->ins = (uint8_t)ins;
     v->send_rev = clamp01(send_rev);
     v->send_dly = clamp01(send_dly);
+    nfm_sat_set(&v->sat, ins & NFM_INS_DRIVE ? drive : 0.0f);
+    if (v->sat.amount <= 0.0f) v->ins &= (uint8_t)~NFM_INS_DRIVE;
+}
+
+/* the drive: pre-gain 1..7, a bias 0.1..0.35 (the even harmonics), and the curve's slope at the bias
+ * divided out, so a quiet signal comes out as loud as it went in */
+NFM_CODE void nfm_sat_set(nfm_sat *s, float amount)
+{
+    amount = clamp01(amount);
+    s->amount = amount;
+    s->pre = 1.0f + 6.0f * amount;
+    s->bias = 0.1f + 0.25f * amount;
+    s->off = soft_clip(s->bias);
+    {   /* d/dx x(27 + x2)/(27 + 9x2) at the bias */
+        float b = s->bias, b2 = b * b, q = 27.0f + 9.0f * b2;
+        float slope = ((27.0f + 3.0f * b2) * q - 18.0f * b2 * (27.0f + b2)) / (q * q);
+        s->comp = 1.0f / (s->pre * slope);
+    }
+    s->dc = 0.0f;
+    s->ein = s->eout = 0.0f;
+    s->adapt = 1.0f;
+}
+
+NFM_CODE float nfm_sat_tick(nfm_sat *s, float x)
+{
+    float y = (soft_clip(x * s->pre + s->bias) - s->off) * s->comp;
+    s->dc += 0.0015f * (y - s->dc);
+    y -= s->dc;
+    s->ein += 0.004f * (x * x - s->ein);
+    s->eout += 0.004f * (y * y - s->eout);
+    return y * s->adapt;
+}
+
+/* loud parts come out of the curve quieter than they went in: the levels followed (~6 ms) and the
+ * difference made up, within 0.7..3 (sqrt by two Newton steps from the last value) */
+NFM_CODE void nfm_sat_control(nfm_sat *s)
+{
+    if (s->eout < 1e-9f || s->ein < 1e-9f) return;
+    float want = s->ein / s->eout, r = s->adapt;
+    if (want > 9.0f) want = 9.0f;
+    if (want < 0.49f) want = 0.49f;
+    r = 0.5f * (r + want / r);
+    r = 0.5f * (r + want / r);
+    s->adapt = r;
 }
 
 NFM_CODE int nfm_voice_alive(const nfm_engine *e, int voice, uint32_t age)
@@ -667,6 +712,7 @@ NFM_CODE static void voice_control(nfm_engine *e, nfm_voice *v)
     }
     v->peak = 0.0f;
     v->ctl = CTL_STEP;
+    if (v->ins & NFM_INS_DRIVE) nfm_sat_control(&v->sat);
 }
 
 /* One operator: sine of phase plus modulation, times its envelope. */
@@ -754,7 +800,7 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */
-    if (v->ins & NFM_INS_DRIVE) x = soft_clip(x * e->ins_drive) * e->ins_comp;
+    if (v->ins & NFM_INS_DRIVE) x = nfm_sat_tick(&v->sat, x);
     if (v->ins & NFM_INS_FILTER) {
         float g = e->ins_g, k = e->ins_k;
         float hp = (x - (k + g) * v->ins_s1 - v->ins_s2) / (1.0f + g * (g + k));

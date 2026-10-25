@@ -63,7 +63,7 @@ typedef struct {
     float bpm;
     float swing;         /* 0..1: off-beat sixteenths later, 1 = half a step */
     float loose;         /* 0..1: random lateness and velocity spread */
-    uint8_t max_poly;    /* most hits that may sound on one step */
+    uint8_t max_poly;    /* most hits that may sound on one step (track 1 always plays) */
     uint8_t playing;
     int8_t root;         /* transpose for tonal tracks, set by MIDI */
     uint32_t now;        /* sample clock */

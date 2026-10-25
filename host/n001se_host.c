@@ -24,7 +24,7 @@
  *                                 stepN velN noteN (step N of the selected track) hits len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
- *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel)
+ *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
 #define OM_HOST 1
@@ -421,6 +421,8 @@ static int expect(const char *what, const char *val)
         got = ac->step[atoi(what + 5) % NE_ASTEPS].note;
     else if (!strncmp(what, "apar", 4))
         got = proj.a[atoi(what + 4) % A_NPARAMS];
+    else if (!strcmp(what, "glitches"))
+        got = (int)ne_glitches;
     else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */
         got = (int)(ne_acid_level * 1000.0f);
     else if (!strcmp(what, "list"))              /* the preset list open: 1 save, 2 load */

@@ -1,0 +1,34 @@
+# effects per track: the selected track's sends and inserts on FX, the bus on FX again; Chaos brings
+# glitches (beat repeat, reverse) on the beat; a drive changes the colour, not the loudness
+wait 200
+tap FX
+expect view 4
+# the kick's: no reverb, no delay, no filter, drive 25
+expect tpar15 0
+expect tpar18 25
+spin K1 40
+expect tpar15 40
+shot trackfx.png
+tap FX
+expect view 5
+shot fxbus.png
+# the acid line's own
+tap OCT-
+tap FX
+expect view 4
+expect apar16 10
+expect apar19 35
+spin K4 20
+expect apar19 55
+# Chaos up: glitches come
+tap LFO
+spin K1 60
+expect gpar4 100
+tap PLAY
+wav chaos.wav
+wait 8000
+wavstop
+expect glitches >0
+expect peak_db_max -0.2
+tap PLAY
+expect dropped 0

@@ -152,10 +152,13 @@ NFM_CODE void nacid_stop(nacid *a)
     a->last = -1;
 }
 
-NFM_CODE void nacid_route(nacid *a, int ins, float rev, float dly)
+NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dly)
 {
-    a->ins_f_to = ins & NFM_INS_FILTER ? 1.0f : 0.0f;
-    a->ins_d_to = ins & NFM_INS_DRIVE ? 1.0f : 0.0f;
+    a->ins_f_to = filter ? 1.0f : 0.0f;
+    if (drive != a->drive_to) {                   /* (a new drive starts its loudness match over) */
+        a->drive_to = drive;
+        nfm_sat_set(&a->sat, drive);
+    }
     a->rev_to = rev;
     a->dly_to = dly;
 }
@@ -252,12 +255,30 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
         float dt = a->freq / a->sr, t = a->phase + dt, x;
         if (t >= 1.0f) t -= 1.0f;
         a->phase = t;
-        if (a->square) {
-            float t2 = t + 0.5f;
+        switch (a->wave) {
+        default:
+        case NACID_SAW: x = 2.0f * t - 1.0f - blep(t, dt); break;
+        case NACID_SQUARE:
+        case NACID_PULSE: {                      /* 50 % and 20 % */
+            float w = a->wave == NACID_PULSE ? 0.2f : 0.5f, t2 = t + 1.0f - w;
             if (t2 >= 1.0f) t2 -= 1.0f;
-            x = (t < 0.5f ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt);
-        } else {
-            x = 2.0f * t - 1.0f - blep(t, dt);
+            x = (t < w ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt);
+            if (a->wave == NACID_PULSE) x += 0.6f;   /* (its DC off) */
+            break;
+        }
+        case NACID_TRI: x = t < 0.5f ? 4.0f * t - 1.0f : 3.0f - 4.0f * t; break;
+        case NACID_SINE: {                       /* a parabola pair, near enough a sine */
+            float u = t < 0.5f ? t * 4.0f - 1.0f : 3.0f - t * 4.0f;
+            x = u * (1.5f - 0.5f * u * u);
+            break;
+        }
+        case NACID_DUO: {                        /* two saws, 12 cents apart */
+            float dt2 = dt * 1.00696f, t2 = a->phase2 + dt2;
+            if (t2 >= 1.0f) t2 -= 1.0f;
+            a->phase2 = t2;
+            x = (2.0f * t - 1.0f - blep(t, dt) + 2.0f * t2 - 1.0f - blep(t2, dt2)) * 0.6f;
+            break;
+        }
         }
 
         /* the ladder: four one-pole stages with the feedback solved for the sample (and a soft
@@ -273,10 +294,12 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
         }
         float o = u * a->amp * (1.0f + (a->accent ? 0.8f * a->p[NACID_P_ACCENT] * a->acc_env : 0.0f)) * lvl;
 
-        /* the inserts the effects chose, faded in and out */
-        a->ins_d += (a->ins_d_to - a->ins_d) * fade;
+        /* the drive, then the moving filter when the effects chose it (faded in and out) */
         a->ins_f += (a->ins_f_to - a->ins_f) * fade;
-        if (a->ins_d > 0.001f) o += (soft(o * e->ins_drive) * e->ins_comp - o) * a->ins_d;
+        if (a->sat.amount > 0.0f) {
+            o = nfm_sat_tick(&a->sat, o);
+            if (a->ctl == 0) nfm_sat_control(&a->sat);
+        }
         if (a->ins_f > 0.001f) {
             float gg = e->ins_g, k = e->ins_k;
             float hp = (o - (k + gg) * a->is1 - a->is2) / (1.0f + gg * (gg + k));

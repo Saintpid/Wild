@@ -13,10 +13,12 @@ static nfm_engine fm;
 static nseq seq;
 static nfx fx NE_POOL;                 /* the delay and reverb lines: 180 kB */
 static nacid acid;
+static void acid_route(int bar);
 
 volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
 volatile float ne_acid_level;
+volatile uint32_t ne_glitches;
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
 volatile uint16_t ne_bpm_x10 = 1120;
@@ -29,10 +31,10 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_POLY] = {"Max hits", 1, 4, 3},
     [G_CHAOS] = {"Chaos", 0, 100, 40},
     [G_MOTION] = {"Motion", 0, 100, 30},
-    [G_REVERB] = {"Reverb", 0, 100, 30},
-    [G_DELAY] = {"Delay", 0, 100, 25},
-    [G_FILTER] = {"Filter", 0, 100, 30},
-    [G_DRIVE] = {"Drive", 0, 100, 20},
+    [G_REVERB] = {"Reverb", 0, 100, 70},             /* the returns; the sends are per track */
+    [G_DELAY] = {"Delay", 0, 100, 70},
+    [G_FILTER] = {"Filter", 0, 100, 100},            /* scales the tracks' filter and drive */
+    [G_DRIVE] = {"Drive", 0, 100, 100},
     [G_LEVEL] = {"Level", 0, 100, 80},
     [G_MIDICH] = {"MIDI ch", 0, 16, 0},
     [G_HICUT] = {"Hi cut", 0, 100, 100},
@@ -57,6 +59,10 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_FLUID] = {"Ring tone", 0, 100, 50},
     [T_LEVEL] = {"Level", 0, 100, 80},
     [T_TUNE] = {"Tune", -24, 24, 0},
+    [T_REVERB] = {"Reverb", 0, 100, 0},
+    [T_DELAY] = {"Delay", 0, 100, 0},
+    [T_FILTER] = {"Filter", 0, 100, 0},
+    [T_DRIVE] = {"Drive", 0, 100, 0},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -72,18 +78,22 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_ENVMOD] = {"Env mod", 0, 100, 60},
     [A_DECAY] = {"Decay", 0, 100, 40},
     [A_ACCENT] = {"Accent", 0, 100, 60},
-    [A_WAVE] = {"Wave", 0, 1, 0},
+    [A_WAVE] = {"Wave", 0, NACID_WAVES - 1, 0},
     [A_TUNE] = {"Tune", -24, 24, 0},
     [A_LEVEL] = {"Level", 0, 100, 70},
+    [A_REVERB] = {"Reverb", 0, 100, 10},
+    [A_DELAY] = {"Delay", 0, 100, 25},
+    [A_FILTER] = {"Filter", 0, 100, 0},
+    [A_DRIVE] = {"Drive", 0, 100, 35},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0},
+    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25},
+    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20},
+    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0},
+    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
@@ -176,7 +186,11 @@ void ne_aparam_text(int i, int v, char *b)
     switch (i) {
     case A_SCALE: cpy(b, SCALE[(unsigned)v < NACID_SCALES ? v : 0]); return;
     case A_MUTE: cpy(b, v ? "Muted" : "On"); return;
-    case A_WAVE: cpy(b, v ? "Square" : "Saw"); return;
+    case A_WAVE: {
+        static const char *const WAVE[NACID_WAVES] = {"Saw", "Square", "Pulse", "Tri", "Sine", "Duo"};
+        cpy(b, WAVE[(unsigned)v < NACID_WAVES ? v : 0]);
+        return;
+    }
     case A_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     }
     itoa_s(v, b);
@@ -291,25 +305,28 @@ static float log2_(float x)                      /* x > 0; to about 1e-4 */
 }
 
 /* GLUE: a bus compressor on both channels together (the louder one leads). Attack 25 ms, release 120 ms;
- * the amount lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1), and most of what it
- * takes at the threshold comes back as makeup (the starting set: 30 is about +6 dB, 100 +13 dB). Over 60 it also saturates a little (a soft curve that
- * keeps full scale where it is), more towards 100: over the top. 0: off. Then the LIMITER, always on:
- * it takes any peak over -0.3 dBFS at once and lets go over 60 ms, so the output never passes 0 dBFS.
- * (Levels in log2.) */
+ * the amount lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1). Over 60 it also
+ * warms (nfm_sat, more towards 100: over the top). Its loudness is matched to what goes in (both
+ * followed over ~300 ms): it glues and warms, the volume stays (that is the MASTER's). 0: off.
+ * Then the LIMITER, always on: it takes any peak over -0.3 dBFS at once and lets go over 60 ms, so the
+ * output never passes 0 dBFS. (Levels in log2.) */
 #define GL_ATT 0.000907f                         /* 1 - exp(-1 / (0.025 s * 44100)) */
 #define GL_REL 0.000189f                         /* 120 ms */
+#define GL_MATCH 0.0048f                         /* per 64-frame block: ~300 ms */
 #define LIM_REL 0.99962f                         /* 60 ms */
 #define LIM_CEIL 0.966f                          /* -0.3 dBFS */
-static float gl_env, gl_thr, gl_slope, gl_mk, gl_sat, lim_env;
+static float gl_env, gl_thr, gl_slope, lim_env;
+static float gl_ein, gl_eout, gl_mk = 1.0f, gl_mk_to = 1.0f;   /* the loudness match */
+static nfm_sat gl_sat[2];
 static uint8_t gl_on;
 static void glue_set(int v)
 {
     float a = pct(v), ratio = 2.0f + 4.0f * a * a;
     gl_on = v > 0;
     gl_thr = (-8.0f - 20.0f * a) * (1.0f / 6.0206f);
-    gl_sat = a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f;   /* 0 .. 0.8 */
     gl_slope = 1.0f - 1.0f / ratio;
-    gl_mk = -0.8f * gl_thr * gl_slope;
+    nfm_sat_set(&gl_sat[0], a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f);   /* 0 .. 0.8 */
+    nfm_sat_set(&gl_sat[1], gl_sat[0].amount);
 }
 static inline float absf(float x) { return x < 0.0f ? -x : x; }
 static inline float glue_gain(float a, float b)  /* the compressor's gain for one frame */
@@ -317,14 +334,109 @@ static inline float glue_gain(float a, float b)  /* the compressor's gain for on
     float x = absf(a) > absf(b) ? absf(a) : absf(b), over;
     gl_env += (x > gl_env ? GL_ATT : GL_REL) * (x - gl_env);
     over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f;
-    return exp2_((over > 0.0f ? -over * gl_slope : 0.0f) + gl_mk);
+    return over > 0.0f ? exp2_(-over * gl_slope) : 1.0f;
 }
-static inline float sat(float y) { return y * (1.0f + gl_sat) / (1.0f + gl_sat * absf(y)); }
+/* a block's energy in and out: the makeup that brings it back (within 0 .. +12 dB) */
+static void glue_match(float ein, float eout)
+{
+    float want, r = gl_mk_to;
+    gl_ein += GL_MATCH * (ein - gl_ein);
+    gl_eout += GL_MATCH * (eout - gl_eout);
+    if (gl_ein < 1e-8f || gl_eout < 1e-9f)
+        return;
+    want = gl_ein / gl_eout;
+    want = want < 1.0f ? 1.0f : want > 16.0f ? 16.0f : want;
+    r = 0.5f * (r + want / r);                   /* sqrt, from the last value */
+    gl_mk_to = 0.5f * (r + want / r);
+}
 static inline float lim_gain(float a, float b)   /* the limiter's gain for one frame */
 {
     float y = absf(a) > absf(b) ? absf(a) : absf(b);
     lim_env = y > lim_env ? y : lim_env * LIM_REL;
     return lim_env > LIM_CEIL ? LIM_CEIL / lim_env : 1.0f;
+}
+
+/* GLITCHES: now and then, on a beat, Chaos plays a beat repeat (the last sixteenth or eighth again and
+ * again, for a beat or two) or the last beat backwards. The mix goes into a ring of 16384 frames
+ * (int16, 0.37 s: an eighth down to 41 BPM, a beat down to 82; longer ones are shortened), which stops
+ * taking while a glitch plays from it. A beat's chance: Chaos squared x 0.12 (40: one in ~50). */
+#define GX_LEN 16384u
+#define GX_FADE 96u                              /* frames: the edges of a slice, the way in and out */
+static int16_t gx_buf[GX_LEN][2] NE_POOL;
+static uint32_t gx_w;                            /* the next frame written (counts on) */
+static uint32_t gx_at, gx_start, gx_t, gx_len, gx_slice;   /* when, from where, how far, how long */
+static uint8_t gx_pending, gx_on, gx_rev;
+static uint32_t gx_rng = 0x676c6974u;
+static float gx_rnd(void)
+{
+    gx_rng ^= gx_rng << 13;
+    gx_rng ^= gx_rng >> 17;
+    gx_rng ^= gx_rng << 5;
+    return (float)(gx_rng >> 8) * (1.0f / 16777216.0f);
+}
+static uint32_t gx_clock;                        /* frames, in step with the sequencer's clock */
+static void glitch_step(uint32_t step, float delay, float step_len)
+{
+    float c = pct(gpar[G_CHAOS]);
+    uint32_t sl;
+    if (step % 4u || gx_on || gx_pending || gx_rnd() >= c * c * 0.12f)
+        return;
+    gx_rev = gx_rnd() < 0.4f;
+    if (gx_rev) {                                /* the last beat (or two steps) backwards */
+        sl = (uint32_t)(step_len * 4.0f);
+        if (sl > GX_LEN - 2u * GX_FADE)
+            sl = (uint32_t)(step_len * 2.0f);
+        gx_slice = gx_len = sl;
+    } else {                                     /* a sixteenth or an eighth, for a beat or two */
+        sl = (uint32_t)(step_len * (gx_rnd() < 0.5f ? 1.0f : 2.0f));
+        gx_slice = sl;
+        gx_len = (uint32_t)(step_len * (gx_rnd() < 0.6f ? 4.0f : 8.0f));
+    }
+    if (gx_slice < 4u * GX_FADE || gx_slice > GX_LEN - 2u * GX_FADE)
+        return;
+    gx_at = seq.now + (uint32_t)delay;
+    gx_pending = 1;
+}
+/* one frame through: recorded, or replaced by the glitch */
+static inline void glitch(float *a, float *b)
+{
+    uint32_t i;
+    float w, x, y;
+    if (gx_pending && (int32_t)(gx_clock - gx_at) >= 0) {
+        gx_pending = 0;
+        gx_on = 1;
+        gx_t = 0;
+        ne_glitches++;
+        gx_start = gx_w;                         /* the glitch reads what came before this frame */
+    }
+    gx_clock++;
+    if (!gx_on) {
+        i = gx_w++ & (GX_LEN - 1u);
+        x = *a * 16384.0f;
+        y = *b * 16384.0f;
+        gx_buf[i][0] = (int16_t)(x > 32767.0f ? 32767.0f : x < -32768.0f ? -32768.0f : x);
+        gx_buf[i][1] = (int16_t)(y > 32767.0f ? 32767.0f : y < -32768.0f ? -32768.0f : y);
+        return;
+    }
+    {
+        uint32_t p = gx_t % gx_slice, e = gx_slice - p;
+        i = gx_rev ? gx_start - 1u - gx_t : gx_start - gx_slice + p;
+        i &= GX_LEN - 1u;
+        w = p < GX_FADE ? (float)p / GX_FADE : e < GX_FADE ? (float)e / GX_FADE : 1.0f;
+        if (gx_rev)                              /* backwards: whole, faded only at its ends */
+            w = gx_t < GX_FADE ? (float)gx_t / GX_FADE : gx_len - gx_t < GX_FADE ? (float)(gx_len - gx_t) / GX_FADE : 1.0f;
+        else if (gx_t < GX_FADE || gx_len - gx_t < GX_FADE)
+            w = 1.0f;                            /* (the way in and out: the crossfade below) */
+    }
+    x = (float)gx_buf[i][0] * (1.0f / 16384.0f) * w;
+    y = (float)gx_buf[i][1] * (1.0f / 16384.0f) * w;
+    {   /* in and out: from the mix to the glitch and back */
+        float m = gx_t < GX_FADE ? (float)gx_t / GX_FADE : gx_len - gx_t < GX_FADE ? (float)(gx_len - gx_t) / GX_FADE : 1.0f;
+        *a += (x - *a) * m;
+        *b += (y - *b) * m;
+    }
+    if (++gx_t >= gx_len)
+        gx_on = 0;
 }
 
 static inline float svf(float x, float g, float k, float *s, int hp)
@@ -350,7 +462,7 @@ static void gset(int p, int v)
     case G_POLY: seq.max_poly = (uint8_t)v; break;
     case G_CHAOS: nfx_set_chaos(&fx, pct(v)); break;
     case G_MOTION: nfx_set_motion(&fx, pct(v)); break;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: apply_fx(p, v); break;
+    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: apply_fx(p, v); acid_route(0); break;
     case G_LEVEL: fm.master = pct(v); break;
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
     case G_GLUE: glue_set(v); break;
@@ -380,6 +492,10 @@ static void tset(int t, int p, int v)
     case T_FLUID: nfm_set_macro(&fm, t, NFM_FLUID, pct(v)); break;
     case T_LEVEL: apply_level(t); break;
     case T_TUNE: fm.slot[t].tune = (float)v; break;
+    case T_REVERB: nfx_set_slot(&fx, t, NFX_REVERB, pct(v)); break;
+    case T_DELAY: nfx_set_slot(&fx, t, NFX_DELAY, pct(v)); break;
+    case T_FILTER: nfx_set_slot(&fx, t, NFX_FILTER, pct(v)); break;
+    case T_DRIVE: nfx_set_slot(&fx, t, NFX_DRIVE, pct(v)); break;
     case T_KIND: break;                /* takes effect with the next new sound */
     }
     (void)tr;
@@ -408,28 +524,39 @@ static void aset(int p, int v)
     case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); break;
     case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); break;
     case A_ACCENT: acid.p[NACID_P_ACCENT] = pct(v); break;
-    case A_WAVE: acid.square = (uint8_t)v; break;
+    case A_WAVE: acid.wave = (uint8_t)v; break;
     case A_TUNE: acid.tune = (float)v; break;
     case A_LEVEL: acid.p[NACID_P_LEVEL] = pct(v); break;
+    case A_REVERB: case A_DELAY: case A_FILTER: case A_DRIVE: acid_route(0); break;
     }
 }
 
-/* the drums' clock steps the acid line; at the top of each of its bars the effects choose for it, as
- * for a hit (filter, drive, delay, reverb), and keep the choice for the bar */
-static const float ACID_FX_W[NFX_EFFECTS] = {0.7f, 1.0f, 0.8f, 0.4f};
-static void acid_step(void *ctx, uint32_t step, float delay, float step_len)
+/* the acid line's effects: its sends and drive as set, the moving filter by chance a bar at a time
+ * (bar: a new chance for the filter, else it stays as it is) */
+static void acid_route(int bar)
+{
+    float amt[NFX_EFFECTS], drive, send[2];
+    int filter;
+    amt[NFX_FILTER] = pct(apar[A_FILTER]);
+    amt[NFX_DRIVE] = pct(apar[A_DRIVE]);
+    amt[NFX_DELAY] = pct(apar[A_DELAY]);
+    amt[NFX_REVERB] = pct(apar[A_REVERB]);
+    nfx_route(&fx, amt, &filter, &drive, send);
+    nacid_route(&acid, bar ? filter : acid.ins_f_to > 0.5f && amt[NFX_FILTER] > 0.0f, drive, send[1], send[0]);
+}
+
+/* the drums' clock steps the acid line (and the glitches: below) */
+static void glitch_step(uint32_t step, float delay, float step_len);
+static void on_step(void *ctx, uint32_t step, float delay, float step_len)
 {
     (void)ctx;
     if (step == 0u)
         nacid_reset(&acid);
     acid.root = seq.root;
-    if (acid.pos % NACID_BAR == 0 || acid.pos >= acid.length) {
-        int ins;
-        float send[2];
-        nfx_choose(&fx, &fm, ACID_FX_W, NE_ACID, (uint32_t)(step_len * NACID_BAR), &ins, send);
-        nacid_route(&acid, ins, send[1], send[0]);
-    }
+    if (acid.pos % NACID_BAR == 0 || acid.pos >= acid.length)
+        acid_route(1);
     nacid_step(&acid, delay, step_len);
+    glitch_step(step, delay, step_len);
 }
 static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
@@ -464,7 +591,8 @@ void ne_init(void)
     nseq_init(&seq, &fm, 0x73657121u);
     nseq_set_fx(&seq, &fx);
     nacid_init(&acid, NE_SR, 0x61636964u);
-    seq.on_step = acid_step;
+    seq.on_step = on_step;
+    fm.priority_slot = 0;                        /* track 1: never a hit lost (nseq keeps it too) */
     nfx_set_source(&fx, acid_render, 0);
     for (p = 0; p < A_NPARAMS; p++)
         aset(p, AP[p].def);
@@ -561,7 +689,6 @@ void ne_acid_restore(const ne_acid_t *s)
     __asm__ volatile("" ::: "memory");
     hold = 0;
 }
-int ne_fx_owner(int which) { return nfx_owner(&fx, &fm, which); }
 
 /* ------------------------------------------------------------ MIDI clock --- */
 /* 24 ticks a quarter, 6 a step. The tempo is the ticks' (smoothed); while they come (the last within
@@ -661,6 +788,8 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     drain();
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
+    if (!seq.playing)
+        gx_on = gx_pending = 0;
     if (ne_ext && seq.now - clk_seen > 22050u) {   /* the clock stopped coming: our own tempo again */
         ne_ext = 0;
         clk_n = 0;
@@ -669,6 +798,8 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     }
     while (n) {
         uint32_t k = n > BLK ? BLK : n;
+        float ein = 0.0f, eout = 0.0f;
+        gx_clock = seq.now;
         nseq_render(&seq, l, r, (int)k);
         if (mf_on[0] | mf_on[1])
             for (j = 0; j < k; j++) {
@@ -686,14 +817,24 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
             }
         for (j = 0; j < k; j++) {
             float a = l[j], b = r[j], g, m;
+            glitch(&a, &b);
             if (gl_on) {
+                ein += a * a + b * b;
                 g = glue_gain(a, b);
                 a *= g;
                 b *= g;
-                if (gl_sat > 0.0f) {
-                    a = sat(a);
-                    b = sat(b);
+                if (gl_sat[0].amount > 0.0f) {
+                    a = nfm_sat_tick(&gl_sat[0], a);
+                    b = nfm_sat_tick(&gl_sat[1], b);
+                    if ((j & 7u) == 0u) {
+                        nfm_sat_control(&gl_sat[0]);
+                        nfm_sat_control(&gl_sat[1]);
+                    }
                 }
+                eout += a * a + b * b;
+                gl_mk += (gl_mk_to - gl_mk) * 0.002f;
+                a *= gl_mk;
+                b *= gl_mk;
             }
             g = lim_gain(a, b);
             a *= g;
@@ -704,6 +845,8 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
             out[2u * j] = (int32_t)(a * gain);
             out[2u * j + 1u] = (int32_t)(b * gain);
         }
+        if (gl_on)
+            glue_match(ein, eout);
         out += 2u * k;
         n -= k;
     }

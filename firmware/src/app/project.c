@@ -29,39 +29,61 @@ static void project_upgrade(void)
 {
     static project_t old;
     uint32_t f = proj.format;
-    int ng = PROJ_G_OF(f), nt = PROJ_T_OF(f), i, t;
+    int ng = PROJ_G_OF(f), nt = PROJ_T_OF(f), na = PROJ_A_OF(f), i, t;
     const uint8_t *p;
     proj_has_acid = f >= 3u;
     if (f == PROJ_FORMAT)
         return;
-    if (f == 2u) {                                   /* the same up to the acid line: its defaults */
-        for (i = 0; i < A_NPARAMS; i++)
-            proj.a[i] = ne_aparam_info(i)->def;
-        proj.format = PROJ_FORMAT;
-        return;
-    }
     old = proj;
     project_defaults();
+    proj_has_acid = f >= 3u;
     p = (const uint8_t *)&old + 8;                   /* the old layout, field by field */
     memcpy(proj.g, p, 2u * (uint32_t)ng);
     p += 2 * ng;
     for (t = 0; t < NE_TRACKS; t++, p += 2 * nt)
         memcpy(proj.t[t], p, 2u * (uint32_t)nt);
     memcpy(&proj.st, p, sizeof proj.st);
+    p += sizeof proj.st;
+    if (f >= 2u) {
+        proj.preset = *p;
+        p += 32;
+    }
+    if (f >= 3u) {
+        memcpy(&proj.acid, p, sizeof proj.acid);
+        p += sizeof proj.acid;
+        memcpy(proj.a, p, 2u * (uint32_t)na);
+    }
     for (i = ng; i < G_NPARAMS; i++)
         proj.g[i] = ne_param_info(i)->def;
     for (t = 0; t < NE_TRACKS; t++)
         for (i = nt; i < T_NPARAMS; i++)
             proj.t[t][i] = (int16_t)ne_tparam_def(t, i);
+    for (i = na; i < A_NPARAMS; i++)
+        proj.a[i] = ne_aparam_info(i)->def;
+    if (f < 4u) {                                    /* the effects' global values mean something else now */
+        static const uint8_t FXG[4] = {G_REVERB, G_DELAY, G_FILTER, G_DRIVE};
+        for (i = 0; i < 4; i++)
+            proj.g[FXG[i]] = ne_param_info(FXG[i])->def;
+    }
+}
+
+/* the bytes a project of format f takes */
+static uint32_t project_size(uint32_t f)
+{
+    uint32_t n = 8u + 2u * (uint32_t)PROJ_G_OF(f) + 2u * NE_TRACKS * (uint32_t)PROJ_T_OF(f) + sizeof proj.st;
+    if (f >= 2u)
+        n += 32u;
+    if (f >= 3u)
+        n += sizeof proj.acid + 2u * (uint32_t)PROJ_A_OF(f);
+    return n;
 }
 
 /* each value out of its range takes its default; the rest are kept */
 static int project_valid(int bytes)
 {
     int i, t;
-    uint32_t want = proj.format == 1u ? 8u + 2u * (12u + 4u * 14u) + sizeof proj.st + 32u
-                  : proj.format == 2u ? (uint32_t)__builtin_offsetof(project_t, acid) : sizeof proj;
-    if (proj.magic != PROJ_MAGIC || proj.format < 1u || proj.format > PROJ_FORMAT || (uint32_t)bytes < want - 32u)
+    if (proj.magic != PROJ_MAGIC || proj.format < 1u || proj.format > PROJ_FORMAT ||
+        (uint32_t)bytes < project_size(proj.format))
         return 0;
     project_upgrade();
     for (i = 0; i < G_NPARAMS; i++) {

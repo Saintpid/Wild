@@ -122,22 +122,22 @@ tap FX
 expect view 4
 shot fx.png
 tap LFO
-expect view 5
-tap GLO
 expect view 6
-shot groove.png
 tap GLO
 expect view 7
+shot groove.png
+tap GLO
+expect view 8
 turn ALGO 1
 expect view 0
 turn ALGO -1
-expect view 7
+expect view 8
 # PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
 turn PRESET 5
 expect gpar15 35
 tap GLO
 tap GLO
-expect view 7
+expect view 8
 spin K3 1
 expect gpar16 1
 turn PRESET 8
@@ -147,11 +147,15 @@ spin K3 -1
 # LIVE: the white keys play the sounds
 tap SEQ
 expect live 1
-tapkey w0
-tapkey w4
-tapkey w8
-wait 30
+key w0 down
+key w4 down
+key w8 down
+wait 5
 expect voices >1
+key w0 up
+key w4 up
+key w8 up
+wait 25
 shot live.png
 tap SEQ
 expect live 0

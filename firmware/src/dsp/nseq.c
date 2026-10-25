@@ -297,13 +297,17 @@ NFM_CODE static void global_step(nseq *q, float step_len)
             if (tr->evolve && rndf(&q->rng) * 100.0f < (float)tr->evolve) evolve(q, t);
         }
     }
-    /* Never too much: keep only the strongest hits on a crowded step. */
+    /* Never too much: keep only the strongest hits on a crowded step (track 1's always). */
     while (n > q->max_poly) {
-        int weakest = 0;
-        for (int i = 1; i < n; ++i) {
-            const nseq_track *a = &q->track[cand[i]], *b = &q->track[cand[weakest]];
+        int weakest = -1;
+        for (int i = 0; i < n; ++i) {
+            if (cand[i] == 0) continue;
+            const nseq_track *a = &q->track[cand[i]];
+            if (weakest < 0) { weakest = i; continue; }
+            const nseq_track *b = &q->track[cand[weakest]];
             if (a->step[a->last].vel < b->step[b->last].vel) weakest = i;
         }
+        if (weakest < 0) break;
         cand[weakest] = cand[--n];
     }
     for (int i = 0; i < n; ++i) {
