@@ -421,6 +421,8 @@ static int expect(const char *what, const char *val)
         got = ac->step[atoi(what + 5) % NE_ASTEPS].note;
     else if (!strncmp(what, "apar", 4))
         got = proj.a[atoi(what + 4) % A_NPARAMS];
+    else if (!strcmp(what, "limited"))
+        got = (int)ne_limited;
     else if (!strcmp(what, "glitches"))
         got = (int)ne_glitches;
     else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */

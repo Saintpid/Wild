@@ -19,6 +19,7 @@ volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
 volatile float ne_acid_level;
 volatile uint32_t ne_glitches;
+volatile uint32_t ne_limited;
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
 volatile uint16_t ne_bpm_x10 = 1120;
@@ -329,12 +330,23 @@ static void glue_set(int v)
     nfm_sat_set(&gl_sat[1], gl_sat[0].amount);
 }
 static inline float absf(float x) { return x < 0.0f ? -x : x; }
-static inline float glue_gain(float a, float b)  /* the compressor's gain for one frame */
+/* the compressor's gain for one frame: the level followed every frame, the gain worked out every 8th
+ * (log and exp are dear in the audio interrupt) and slid to between them */
+static float gl_g = 1.0f, gl_dg;
+static uint8_t gl_ctl;
+static inline float glue_gain(float a, float b)
 {
-    float x = absf(a) > absf(b) ? absf(a) : absf(b), over;
+    float x = absf(a) > absf(b) ? absf(a) : absf(b);
     gl_env += (x > gl_env ? GL_ATT : GL_REL) * (x - gl_env);
-    over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f;
-    return over > 0.0f ? exp2_(-over * gl_slope) : 1.0f;
+    if (gl_ctl == 0u) {
+        float over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f;
+        float to = over > 0.0f ? exp2_(-over * gl_slope) : 1.0f;
+        gl_dg = (to - gl_g) * 0.125f;
+        gl_ctl = 8u;
+    }
+    gl_ctl--;
+    gl_g += gl_dg;
+    return gl_g;
 }
 /* a block's energy in and out: the makeup that brings it back (within 0 .. +12 dB) */
 static void glue_match(float ein, float eout)
@@ -836,6 +848,8 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
                 b *= gl_mk;
             }
             g = lim_gain(a, b);
+            if (g < 0.891f)
+                ne_limited++;
             a *= g;
             b *= g;
             m = absf(a) > absf(b) ? absf(a) : absf(b);

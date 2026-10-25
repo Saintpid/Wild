@@ -126,6 +126,7 @@ const nfm_engine *ne_fm(void);
 const nacid *ne_acid(void);
 extern volatile float ne_acid_level;
 extern volatile uint32_t ne_glitches;                /* glitches played since boot */
+extern volatile uint32_t ne_limited;                 /* frames the limiter took more than 1 dB off */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */
 extern volatile float ne_out_level;                  /* the output's peak over the last block (tails too) */
 extern volatile uint32_t ne_dropped;                 /* commands lost to a full queue */
