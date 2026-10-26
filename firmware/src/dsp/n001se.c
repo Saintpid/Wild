@@ -22,6 +22,7 @@ volatile uint32_t ne_glitches;
 volatile uint32_t ne_limited;
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
+volatile uint8_t ne_usb_audio = 1;
 volatile uint16_t ne_bpm_x10 = 1120;
 
 /* ------------------------------------------------------------ parameters --- */
@@ -43,6 +44,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_RESO] = {"Reso", 0, 100, 0},
     [G_GLUE] = {"Glue", 0, 100, 30},
     [G_PKNOB] = {"Presets", 0, 0, 0},                 /* (hi: NE_PKNOBS - 1, below) */
+    [G_USBAUDIO] = {"USB audio", 0, 1, 1},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -152,6 +154,7 @@ void ne_param_text(int i, int v, char *b)
     switch (i) {
     case G_TEMPO: case G_POLY: itoa_s(v, b); return;
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
+    case G_USBAUDIO: cpy(b, v ? "On" : "Off"); return;
     case G_PKNOB: {
         int k = ne_pknob_target(v);
         if (k & NE_PK_ACID) {                    /* "303 Cutoff" */
@@ -478,6 +481,7 @@ static void gset(int p, int v)
     case G_LEVEL: fm.master = pct(v); break;
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
     case G_GLUE: glue_set(v); break;
+    case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     }
 }
 

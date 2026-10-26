@@ -793,9 +793,10 @@ static void ep3_tx(void)                                /* <= 63 bytes per packe
 
 #if FELUCCA_UAC
 /* ---- the audio input: audio.c produces (render start, then each block), TIMER5 consumes ---- */
-static __attribute__((noinline)) void uac_render_start(void)   /* audio ISR, before a half buffer renders */
+static __attribute__((noinline)) void uac_render_start(int on)   /* audio ISR, before a half buffer renders;
+                                                                  * off: silence packets, no resampling */
 {
-    uac.feed = uac.alt && usb.config && uac.flowing;
+    uac.feed = on && uac.alt && usb.config && uac.flowing;
     if (!uac.feed) {
         uac.go = 0;                                     /* not read (yet / any more): prime when it is */
         return;

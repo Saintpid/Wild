@@ -30,7 +30,7 @@ static void render_block(int32_t *o)                /* ALNK0: one half, measured
     uint32_t t0 = fm1_ticks(), us, budget = HALF_FRAMES * 1000000u / FS;
     om_dbg.in_audio = 1;
 #if FELUCCA_UAC
-    uac_render_start();
+    uac_render_start(ne_usb_audio);
 #endif
     {
         uint32_t k;

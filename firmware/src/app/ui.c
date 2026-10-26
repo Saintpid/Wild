@@ -53,7 +53,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
     {G_CHAOS, G_MOTION, K_NONE, K_NONE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
-    {G_LEVEL, G_MIDICH, G_PKNOB, K_NONE},
+    {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
     {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */

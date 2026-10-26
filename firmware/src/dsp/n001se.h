@@ -42,6 +42,7 @@ enum {
     G_HICUT, G_LOCUT, G_RESO,                        /* the master filter, on everything */
     G_GLUE,                                          /* the bus compressor's amount (a limiter after it) */
     G_PKNOB,                                         /* what the PRESETS encoder turns (ne_pknob_*) */
+    G_USBAUDIO,                                      /* the master output over USB: on / off (CPU) */
     G_NPARAMS
 };
 /* per-track parameters */
@@ -130,5 +131,6 @@ extern volatile uint32_t ne_limited;                 /* frames the limiter took 
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */
 extern volatile float ne_out_level;                  /* the output's peak over the last block (tails too) */
 extern volatile uint32_t ne_dropped;                 /* commands lost to a full queue */
-extern volatile uint8_t ne_ext;                      /* following MIDI clock */
+extern volatile uint8_t ne_ext;
+extern volatile uint8_t ne_usb_audio;                /* G_USBAUDIO: the USB audio input is fed */                      /* following MIDI clock */
 extern volatile uint16_t ne_bpm_x10;                 /* the tempo playing now (MIDI clock's, or G_TEMPO) */
