@@ -1,87 +1,64 @@
 # n001se: FM-slagverk som aldrig låter likadant, för M-VAVE FM-1
 
-n001se är en egen firmware för **M-VAVE FM-1** som gör den till en slumpande FM-trummaskin för live.
-Den bygger på idén bakom Beatsurfing RANDOM: minimalism med slump. Fyra ljud, varje slag lite olika,
-mönster som uppstår av sig själva, och effekter som driver långsamt. Det får aldrig bli plottrigt.
+n001se är en egen firmware för **M-VAVE FM-1** som gör den till en slumpande FM-trummaskin med en
+acidlinje, för live. Idén kommer från Beatsurfing RANDOM: minimalism med slump. Fem spår, varje slag
+lite olika, mönster som uppstår av sig själva och effekter som rör sig. Det får aldrig bli plottrigt.
 
-![Spelar](docs/img/playing.png) ![Takt 8 räknar in](docs/img/phrase.png) ![Effekter](docs/img/fx.png)
+![Spelar](docs/img/playing.png) ![Takt 4 räknar stort](docs/img/phrase.png) ![En ratt vrids](docs/img/fx.png)
 
-> **Status: första bygget (0.1.0).** Byggt och testat i simulatorn, ännu inte på riktig hårdvara.
-> Installera på egen risk. Plattformen är FiMba-1:s oförändrade: chipets egen uppdateringsmod kan
-> inte skrivas över, firmwaren faller tillbaka till ett säkert läge om den inte startar, och
-> originalfirmwaren går alltid att lägga tillbaka (se [Installera](#installera)).
+> **Status: 1.0.0, testad på FM-1.** Installera på egen risk. Plattformen är FiMba-1:s, oförändrad:
+> chipets egen uppdateringsmod kan inte skrivas över, firmwaren faller tillbaka till ett säkert läge om
+> den inte startar, och originalfirmwaren går alltid att lägga tillbaka (se [Installera](#installera)).
+
+**Hela manualen:** [docs/MANUAL.txt](docs/MANUAL.txt). Där finns alla knappar, sidor, parametrar och
+MIDI-kommandon.
 
 ## Så låter den
 
-- **Fyra ljud**, ett per spår: en FM-röst med fyra operatorer i åtta algoritmer, brus, wavefolder,
-  bitcrush och en resonator. Varje slag varierar runt ljudets grund (Deviance). Ett nytt ljud dras
-  ur en sort: kick, snare, hat, perc, click eller metal.
-- **Mönster som slumpas fram:** varje spår loopar över sin egen längd, 1–8 takter om 16 steg, så
-  spåren glider mot varandra. Ett nytt mönster lägger ett slumpat antal slag (Hits min–max, 1–64)
-  där ljudets sort brukar spela. Evolve flyttar ibland ett slag när loopen går runt.
-- **Effekter som väljer slag:** filter och drive på enstaka slag, delay och reverb (ett ljud i taget).
-  Amount är hur många slag som får effekten, Chaos hur långt inställningarna vandrar, Motion hur fort.
-- **Aldrig för mycket:** Max hits begränsar hur många ljud som slår på samma steg.
+- **Fyra FM-trummor** (spår 1–4): fyra operatorer i åtta algoritmer, brus och en resonator. Varje slag
+  varierar runt ljudets grund (Deviance). Ett nytt ljud dras ur en sort: kick, snare, hat, perc, click
+  eller metal, och perc, click och metal hamnar i en slumpad oktav.
+- **Acidlinje** (spår 5) i 303-stil: saw, square, pulse, tri, sine eller duo genom ett resonant
+  ladderfilter med envelope, accent och slide. Den har en egen slumpsequencer med skalor, oktavhopp och
+  Evolve.
+- **Mönster som slumpas fram:** varje spår loopar över sin egen längd (trummorna 1–8 takter, acid 1–4),
+  så spåren glider mot varandra. Hits min–max styr hur många slag ett nytt mönster får, och Evolve
+  flyttar ibland ett slag när loopen går runt.
+- **Effekter per spår:** reverb- och delaysends som slumpas per slag upp till nivån du satt, ett
+  rörligt filter och en varm drive med jämna övertoner som inte höjer volymen. **Chaos** ger glitchar:
+  beat repeat och reverse.
+- **Master:** hi cut, lo cut, resonans och **Glue**, en busskompressor som gör mixen tätare men inte
+  starkare. Efter den sitter alltid en limiter vid −0,3 dBFS.
 
-## Kontrollerna
+## Livespel i korthet
 
 | Kontroll | Gör |
 | --- | --- |
-| **Vita tangenter** (SEQ-läge) | De 16 stegen i takten som visas, för valt spår. Tänd = slag, svag = spelhuvudet. Tryck sätter ett slag; tryck på ett slag tar bort det när du släpper |
-| Håll ett steg + **KNOB 1 / 2** | Slagets velocity / ton (±12 halvtoner) |
-| **Svarta tangenter 1–8** | Takterna. Svag = finns i spåret, stark = spelas nu. Tryck visar och redigerar den takten och stannar där (blinkar); tryck igen så följer vyn spelhuvudet |
-| **Svart 9 / 10 / 11** | Tysta spåret / nytt mönster / nytt ljud av samma sort |
-| **PLAY** | Start / stopp |
-| **REC** | Nya mönster på alla otystade spår |
-| **SEQ** | Växla SEQ-läge och LIVE-läge (vita tangenter spelar ljuden: fyra tangenter per ljud, uppåt i skalan) |
-| **OCT− / OCT+**, **SELECT** | Välj spår |
-| **ALGORITHM** | Bläddra mellan sidorna |
-| **PRESETS** | Tempo |
-| **HOME EDIT ENV FX LFO GLO** | Sidorna (tryck igen för knappens nästa sida) |
-| **SAVE** | Spara (sparar också själv efter en ändring, men bara när den står still: en flashskrivning tystar ljudet ett ögonblick). Håll: återställ |
-| **OCT− + OCT+ i 5 s** | Uppdateringsläge (för att installera firmware) |
+| **Vita tangenter** | De 16 stegen i takten som visas. Håll ett steg och vrid för velocity och ton (acid: ton, accent, slide). I LIVE-läge spelar de ljuden |
+| **Svart 1 / 2** | Föregående / nästa takt (båda: följ uppspelningen) |
+| **Svart 3 / 4** | Undo / redo, 12 steg |
+| **Svart 5–9** | Mute spår 1–5 |
+| **Svart 10 / 11** | Nytt mönster / nytt ljud på valt spår |
+| **PLAY / REC / SEQ** | Start/stopp / nya mönster på alla spår / växla SEQ och LIVE |
+| **SAVE / ARP** | Spara / ladda preset (64 platser) |
+| **PRESETS** | Styr valfri parameter, Glue från början |
+| **HOME EDIT ENV FX LFO GLOBAL** | Sidorna. Tryck igen för knappens nästa sida |
 
-| Sida | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
-| --- | --- | --- | --- | --- |
-| Pattern (HOME) | Bars | Hits min | Hits max | Evolve |
-| Track (EDIT) | Rnd len (slumpad längd 1–N takter) | Pitch (tonomfång) | Level | Mute |
-| Sound (ENV) | Deviance | Length | Edge | Ring |
-| Tone (ENV igen) | Kind | Ring tone | | |
-| FX (FX) | Reverb | Delay | Filter | Drive (0 = av) |
-| Drift (LFO) | Chaos | Motion | | |
-| Groove (GLO) | Tempo | Swing | Loose | Max hits |
-| Setup (GLO igen) | Level | MIDI ch | | |
+I takt 4 och 8 av frasen räknas slagen 1–4 stort över sequencern, så det är lätt att lägga breaks.
+När du vrider en ratt syns parameterns namn och värde stort.
 
-**Skärmen** visar de fyra spåren med en takt var (vald takt för valt spår, spelande takt för de
-andra), varje ljuds nivå, och R / D när ljudet äger reverben / delayen. Under dem **frasen**: åtta
-takter, den åttonde röd. När den åttonde takten börjar räknas 1 2 3 4 till höger, så du vet att nästa
-varv (ett break, ett drop) kommer.
-
-### MIDI (USB och TRS)
-
-| In | Gör |
-| --- | --- |
-| C1 D1 … (36–39) | Nytt mönster på spår 1–4 (startar om det står still) |
-| C2 (48) | Nya mönster på alla spår |
-| C3–C5 (60–84) | Grundton för spår med Pitch |
-| CC 102–106 | Deviance, Length, Edge, Ring, Ring tone (alla spår) |
-| CC 107 / 108 | Chaos / Motion |
-| CC 109–112 | Filter, Drive, Delay, Reverb (0 = av) |
-| CC 113 / 114 / 115 | Swing / Loose / Max hits |
-| CC 7, 116 | Level |
-| CC 117 / 118 (≥ 64) | Nya ljud / nya mönster på alla spår |
-| CC 120, 123 | Stopp |
-| Klocka | Tempot följer, Start / Stop startar och stoppar |
+Över USB syns FM-1 som **n001se FM-1**: MIDI in och ut och en ljudingång (stereo, 44,1 kHz) som du kan
+spela in direkt i datorn.
 
 ## Installera
 
-Enklast från FiMba-1:s webbsida, som installerar vilken Felucca-firmware som helst: öppna
-<https://jadamsowers.github.io/fm1-fimba/#install> i Chrome eller Edge, anslut FM-1 med USB, välj
-`n001se.fwsc` under "Or a firmware file" och tryck **Install this file**. Ladda först ner M-VAVE:s
-originalfirmware (FM-1 V15, "PC Firmware" på m-vave.com/download) så att du alltid kan gå tillbaka;
-samma sida lägger tillbaka den under "Back to the stock firmware".
+Med M-VAVE:s **M-UPGRADE**: välj filen `n001se-1.0.0.fwsc` från [Releases](../../releases). Ladda först
+ner M-VAVE:s originalfirmware (FM-1 V15, "PC Firmware" på m-vave.com/download) så att du alltid kan gå
+tillbaka.
 
-Från kommandoraden: `python3 tools/fm1_install.py build/n001se.fwsc`.
+Det går också att installera från FiMba-1:s webbsida
+<https://jadamsowers.github.io/fm1-fimba/#install> i Chrome eller Edge ("Or a firmware file"), eller
+från kommandoraden: `python3 tools/fm1_install.py n001se-1.0.0.fwsc`.
 
 ## Bygga och testa
 

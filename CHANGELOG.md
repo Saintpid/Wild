@@ -4,6 +4,26 @@ A release is a push to `main` that changes `VERSION` to a version with no tag ye
 release build, tags the commit `vX.Y.Z` and publishes the GitHub Release with that version's notes,
 taken from its section below. Add the section in the same pull request as the `VERSION` change.
 
+## 1.0.0
+
+The first public release, tested on the FM-1 (firmware identity FM-1_814: install it with M-UPGRADE).
+
+- **Five tracks:** four FM percussion sounds (kick, snare, hat, perc, click, metal), every hit a
+  little different, and **an acid line** in the manner of a TB-303 (saw, square, pulse, tri, sine,
+  duo; a resonant ladder filter, accent, slide) with its own random sequencer.
+- **Effects per track:** reverb and delay sends that move by chance per hit up to the level set, a
+  moving filter, and a warm, loudness-compensated drive. **Chaos** brings glitches: beat repeat and
+  reverse.
+- **Master page:** hi cut, lo cut, resonance and **Glue**, a loudness-matched bus compressor with a
+  limiter at -0.3 dBFS after it.
+- **Live:** mutes for all five tracks on black keys 5-9, **undo / redo** on black 3 / 4 (12 deep),
+  64 presets (SAVE to save, ARP to load; Program Change loads), a PRESETS encoder that turns any
+  parameter (Glue by default).
+- **Screen:** the beat counts big over the tracks in the phrase's fourth and eighth bars; a knob
+  turned shows its name and value big; the selected track's row stands out.
+- **USB:** MIDI and a class-compliant audio input ("n001se FM-1"), switchable in Setup to save CPU.
+- The full manual (Swedish): [docs/MANUAL.txt](docs/MANUAL.txt).
+
 ## 0.1.0
 
 - **n001se, the first build.** Four FM percussion sounds (kick, snare, hat, perc to start; click and

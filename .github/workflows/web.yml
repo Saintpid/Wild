@@ -5,7 +5,7 @@
 #   pull request      the full test suite; the firmware package built and checked; kept with the run
 #                     as a download ("n001se-firmware")
 #   a new VERSION     a push to main whose VERSION has no tag yet is a release: a release build
-#                     (identity FM-1_8XXYYZZ), the commit tagged vX.Y.Z and published as a GitHub
+#                     (identity FM-1_<BUILD_ID>), the commit tagged vX.Y.Z and published as a GitHub
 #                     Release with the .fwsc and its CHANGELOG.md section.
 name: Test, build and publish
 
@@ -107,7 +107,9 @@ jobs:
         env:
           RELEASE: ${{ needs.version.outputs.release }}
         run: |
-          if [ -n "$RELEASE" ]; then python3 tools/build.py --release "$RELEASE"; else python3 tools/build.py; fi
+          # a release: identity FM-1_<BUILD_ID>, the short number M-UPGRADE takes (higher than the last)
+          if [ -n "$RELEASE" ]; then python3 tools/build.py --release "$RELEASE" --id "$(tr -d ' \r\n' < BUILD_ID)"
+          else python3 tools/build.py; fi
           ls -l build/*.fwsc
 
       - name: Build FoMni's package, to compare with

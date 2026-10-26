@@ -360,7 +360,8 @@ def main():
         if not 801 <= a.id <= 999:
             raise SystemExit("--id: 801..999")
         PRODUCT = f"FM-1_{a.id}"
-        name = name[:-5] + f"-{a.id}.fwsc"
+        if not a.release:                        # (a release keeps its name: the identity is BUILD_ID's)
+            name = name[:-5] + f"-{a.id}.fwsc"
     fm1pkg_make.SDK = a.sdk
     for rel, sha in SDK_SHA256.items():          # fail early without the SDK
         if hashlib.sha256(fm1pkg_make.sdk_file(rel)).hexdigest() != sha:
