@@ -1,13 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Test n001se and build the firmware package (FiMba-1's workflow, without its browser version and
-# site, which are not ported yet).
+# site, which are not ported yet, and without publishing: n001se's firmware files are handed out by its
+# author, not by CI; anyone can build one from this source, see BUILDING.md).
 #
-#   pull request      the full test suite; the firmware package built and checked; kept with the run
-#                     as a download ("n001se-firmware")
-#   a new VERSION     a push to main whose VERSION has no tag yet is a release: a release build
-#                     (identity FM-1_<BUILD_ID>), the commit tagged vX.Y.Z and published as a GitHub
-#                     Release with the .fwsc and its CHANGELOG.md section.
-name: Test, build and publish
+#   pull request, push to main   the full test suite; the firmware package built and checked
+name: Test and build
 
 on:
   pull_request:
@@ -20,37 +17,21 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  # a run on main may be releasing: let it finish
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   version:
     name: Version
     runs-on: ubuntu-latest
-    outputs:
-      # X.Y.Z when this run releases (main, VERSION not yet tagged), else empty
-      release: ${{ steps.v.outputs.release }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: VERSION, its tag and its CHANGELOG section
-        id: v
+      - name: VERSION and its CHANGELOG section
         run: |
           ver=$(tr -d ' \r\n' < VERSION)
           echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::VERSION is '$ver', not X.Y.Z"; exit 1; }
-          if git ls-remote --exit-code --tags origin "refs/tags/v$ver" >/dev/null; then
-            echo "v$ver is released: nothing to release"
-            exit 0
-          fi
-          # a new version: it needs its notes (checked on pull requests too, before it's merged)
           awk -v v="$ver" '$0 == "## " v {f = 1; next} /^## / {f = 0} f' CHANGELOG.md | grep -q . ||
             { echo "::error::CHANGELOG.md has no '## $ver' section"; exit 1; }
-          if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo "releasing $ver"
-            echo "release=$ver" >> "$GITHUB_OUTPUT"
-          else
-            echo "$ver will be released when this is on main"
-          fi
 
   tests:
     name: Tests
@@ -104,12 +85,9 @@ jobs:
         run: sh tools/get_sdk.sh "$AC79_SDK"
 
       - name: Build the firmware package
-        env:
-          RELEASE: ${{ needs.version.outputs.release }}
         run: |
-          # a release: identity FM-1_<BUILD_ID>, the short number M-UPGRADE takes (higher than the last)
-          if [ -n "$RELEASE" ]; then python3 tools/build.py --release "$RELEASE" --id "$(tr -d ' \r\n' < BUILD_ID)"
-          else python3 tools/build.py; fi
+          # (only built and checked here: n001se's firmware files are handed out by its author, not by CI)
+          python3 tools/build.py
           ls -l build/*.fwsc
 
       - name: Build FoMni's package, to compare with
@@ -128,36 +106,3 @@ jobs:
         run: |
           [ -f build/n001se.fwsc ] || cp build/n001se-*.fwsc build/n001se.fwsc   # (the tests look for this name)
           sh tests/run_tests.sh
-
-      - name: Keep the package with the run
-        uses: actions/upload-artifact@v7
-        with:
-          name: n001se-firmware
-          path: |
-            build/n001se*.fwsc
-            build/n001se.bin
-
-  release:
-    name: GitHub Release
-    if: needs.version.outputs.release != ''
-    needs: [version, tests, firmware]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v8
-        with:
-          path: dist
-
-      - name: Tag this commit and create the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VER: ${{ needs.version.outputs.release }}
-        run: |
-          { echo "### What's new in $VER"; echo
-            awk -v v="$VER" '$0 == "## " v {f = 1; next} /^## / {f = 0} f' CHANGELOG.md | sed '/./,$!d'
-            echo; sed "s/VERSION/$VER/g" .github/release-notes.md; } > notes.md
-          gh release create "v$VER" --target "$GITHUB_SHA" --title "n001se $VER" --notes-file notes.md \
-            --prerelease dist/n001se-firmware/n001se-"$VER".fwsc

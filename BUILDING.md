@@ -141,9 +141,9 @@ Before the first install, get the way back ready:
 - `python3 tools/fm1_install.py --info` reads the identity of the connected FM-1 without writing
   anything: run it first to see that the installer finds the device.
 
-## Publishing a release
+## A version
 
-CI releases: set `VERSION` to the new X.Y.Z, add its `## X.Y.Z` section to `CHANGELOG.md`, and
-merge to `main`. That run builds the release (the identity, FM-1_8XXYYZZ, is what the installer
-checks), tags the commit and publishes the GitHub Release and the site. `./build.sh --release X.Y.Z`
-makes the same release build locally.
+Set `VERSION` to the new X.Y.Z, add its `## X.Y.Z` section to `CHANGELOG.md` (CI checks it), and raise
+`BUILD_ID`. Its firmware file is `python3 tools/build.py --release X.Y.Z --id $(cat BUILD_ID)`: identity
+FM-1_<BUILD_ID>, since M-UPGRADE takes only a short identity, higher than the one installed. CI builds
+and checks the package but publishes nothing: n001se's firmware files are handed out by its author.

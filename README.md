@@ -52,13 +52,13 @@ spela in direkt i datorn.
 
 ## Installera
 
-Med M-VAVE:s **M-UPGRADE**: välj filen `n001se-1.0.0.fwsc` från [Releases](../../releases). Ladda först
-ner M-VAVE:s originalfirmware (FM-1 V15, "PC Firmware" på m-vave.com/download) så att du alltid kan gå
-tillbaka.
+Den färdiga firmwarefilen (`.fwsc`) delas ut via Patreon. Du kan också bygga den själv ur den här
+källkoden, se [Bygga och testa](#bygga-och-testa).
 
-Det går också att installera från FiMba-1:s webbsida
-<https://jadamsowers.github.io/fm1-fimba/#install> i Chrome eller Edge ("Or a firmware file"), eller
-från kommandoraden: `python3 tools/fm1_install.py n001se-1.0.0.fwsc`.
+Installera filen med M-VAVE:s **M-UPGRADE**. Ladda först ner M-VAVE:s originalfirmware (FM-1 V15, "PC
+Firmware" på m-vave.com/download) så att du alltid kan gå tillbaka. Det går också att installera från
+FiMba-1:s webbsida <https://jadamsowers.github.io/fm1-fimba/#install> i Chrome eller Edge ("Or a
+firmware file"), eller från kommandoraden: `python3 tools/fm1_install.py n001se.fwsc`.
 
 ## Bygga och testa
 

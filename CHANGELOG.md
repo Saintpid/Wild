@@ -1,12 +1,13 @@
 # Changelog
 
-A release is a push to `main` that changes `VERSION` to a version with no tag yet. CI then makes the
-release build, tags the commit `vX.Y.Z` and publishes the GitHub Release with that version's notes,
-taken from its section below. Add the section in the same pull request as the `VERSION` change.
+A version is a `VERSION` change with its section below (CI checks the section is there). Firmware
+files are not published here: the author hands them out. To build one yourself, see BUILDING.md; a
+version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
+a short identity, higher than the one installed).
 
 ## 1.0.0
 
-The first public release, tested on the FM-1 (firmware identity FM-1_814: install it with M-UPGRADE).
+The first public version, tested on the FM-1 (firmware identity FM-1_814: install it with M-UPGRADE).
 
 - **Five tracks:** four FM percussion sounds (kick, snare, hat, perc, click, metal), every hit a
   little different, and **an acid line** in the manner of a TB-303 (saw, square, pulse, tri, sine,
