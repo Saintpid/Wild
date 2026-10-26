@@ -1277,7 +1277,7 @@ static void draw_knobs(void)
         lo = kinfo(k)->lo;
         hi = kinfo(k)->hi;
         v = kval(k);
-        text_c(cx, 6, &FONT_XS, kinfo(k)->name, hot ? K_TEXT : K_DIM);
+        text_c(cx, 6, &FONT_XS, kinfo(k)->name, C_WHITE);   /* white: read on the small screen */
         ktext(k, v, t);
         {   /* the value: big, unless it has lower case (the big face has none) or is long */
             const char *q = t;
