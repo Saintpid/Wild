@@ -21,6 +21,7 @@ wait 30
 expect playing 1
 # a channel set: other channels are ignored
 spin ALGO -1
+spin ALGO -1
 expect view 8
 spin K2 5
 expect gpar11 5
@@ -31,11 +32,12 @@ midi B4 70 7F
 wait 10
 expect gpar6 100
 spin K2 -5
-# the clock: 24 ticks a beat at 20 ms = 125 BPM, followed; the tempo knob waits
+# the clock: 24 ticks a beat at 20 ms = 125 BPM, followed; the tempo knob waits (the ticks are timed
+# by the 256-frame block they land in, +-3 ms: within 2 %)
 clock 60 20
 expect ext 1
-expect bpm >1240
-expect bpm <1260
+expect bpm >1225
+expect bpm <1275
 shot ext.png
 # stop (FC), start (FA): from the top
 midi FC 0 0

@@ -178,6 +178,84 @@ static int32_t cv_text(int32_t x, int32_t y, const felucca_font_t *f, const char
     return x;
 }
 
+/* one pixel blended over the canvas: c at a / 256 */
+static inline void cv_blend(int32_t px, int32_t py, uint16_t c, uint32_t a)
+{
+    uint16_t *d = &cv_px[(uint32_t)py * cv_w + (uint32_t)px];
+    int32_t bg, br, bgg, bb, k = (int32_t)a;
+    if (a >= 256u) {
+        *d = swap16(c);
+        return;
+    }
+    bg = swap16(*d);
+    br = bg >> 11, bgg = (bg >> 5) & 63, bb = bg & 31;
+    br += (((int32_t)(c >> 11) - br) * k) / 256;
+    bgg += (((int32_t)((c >> 5) & 63u) - bgg) * k) / 256;
+    bb += (((int32_t)(c & 31u) - bb) * k) / 256;
+    *d = swap16((uint32_t)(br << 11 | bgg << 5 | bb));
+}
+
+/* a rectangle at a / 256 over what is there */
+static void cv_rect_a(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c, uint32_t a)
+{
+    int32_t x1 = x + w, y1 = y + h + cv_oy, i;
+    y += cv_oy;
+    if (x < 0)
+        x = 0;
+    if (y < cv_y0)
+        y = cv_y0;
+    if (x1 > (int32_t)cv_w)
+        x1 = (int32_t)cv_w;
+    if (y1 > cv_y1)
+        y1 = cv_y1;
+    for (; y < y1; y++)
+        for (i = x; i < x1; i++)
+            cv_blend(i, y, c, a);
+}
+
+/* a glyph's coverage 0..15 at (gx, gy), 0 outside it */
+static inline uint32_t glyph_cov(const felucca_font_t *f, const uint8_t *gd, int32_t w, int32_t gx, int32_t gy)
+{
+    uint32_t v;
+    if (gx < 0 || gy < 0 || gx >= w || gy >= (int32_t)f->h)
+        return 0;
+    v = gd[(uint32_t)gy * (((uint32_t)w + 1u) / 2u) + (uint32_t)gx / 2u];
+    return (gx & 1) ? (v & 15u) : (v >> 4);
+}
+
+/* text s times as big (1..4) at a / 256 over the canvas: the coverage sampled bilinearly, so a big
+ * face keeps soft edges; returns the end x */
+static int32_t cv_text_a(int32_t x, int32_t y, const felucca_font_t *f, const char *str, int32_t s, uint16_t c,
+                         uint32_t a)
+{
+    if (s < 1)
+        s = 1;
+    for (; *str; str++) {
+        uint32_t gi = glyph(f, (uint8_t)*str);
+        int32_t w = f->bw[gi], ox, oy, x0 = x - f->pad * s;
+        const uint8_t *gd = f->data + f->off[gi];
+        for (oy = 0; oy < (int32_t)f->h * s; oy++) {
+            int32_t py = y + oy + cv_oy, v = ((2 * oy + 1) * 8) / s - 8, gy = v >> 4, fy = v & 15;
+            if (py < cv_y0 || py >= cv_y1)
+                continue;
+            for (ox = 0; ox < w * s; ox++) {
+                int32_t px = x0 + ox, u = ((2 * ox + 1) * 8) / s - 8, gx = u >> 4, fx = u & 15;
+                uint32_t k;
+                if ((uint32_t)px >= cv_w)
+                    continue;
+                k = (glyph_cov(f, gd, w, gx, gy) * (uint32_t)(16 - fx) + glyph_cov(f, gd, w, gx + 1, gy) * (uint32_t)fx) *
+                        (uint32_t)(16 - fy) +
+                    (glyph_cov(f, gd, w, gx, gy + 1) * (uint32_t)(16 - fx) + glyph_cov(f, gd, w, gx + 1, gy + 1) * (uint32_t)fx) *
+                        (uint32_t)fy;                /* 0..15 x 256 */
+                if (k)
+                    cv_blend(px, py, c, k * a / 3840u);
+            }
+        }
+        x += f->adv[gi] * s;
+    }
+    return x;
+}
+
 static int32_t text_w(const felucca_font_t *f, const char *s)
 {
     int32_t w = 0;

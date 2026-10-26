@@ -1,17 +1,20 @@
 # presets: SAVE opens the list (a slot by SELECT, OCT-/+, PRESETS or a white key), SAVE again saves;
-# black 4 opens it to load, black 4 again loads; Program Change loads. And the Master page on black 3.
+# ARP opens it to load, ARP again loads; Program Change loads. The Master page: GLOBAL's third. Undo / redo:
+# black 3 / 4.
 wait 200
 # the Master page and back
 tap FX
 expect view 4
-tapkey b2
+tap GLO
+tap GLO
+tap GLO
 expect view 9
 spin K1 -40
 expect gpar12 60
 spin K4 70
 expect gpar15 100
 shot master.png
-tapkey b2
+tap FX
 expect view 4
 # play with the glue at 100: no louder for it (matched), never over 0 dBFS
 tap PLAY
@@ -43,25 +46,28 @@ expect preset 2
 # changed after: Tune 0, Hi cut open
 spin K3 -5
 expect tpar14 0
-tapkey b2
+tap GLO
+tap GLO
+tap GLO
 spin K1 40
 expect gpar12 100
-tapkey b2
-# black 4: the list on 003, load
-tapkey b3
+tap ENV
+tap ENV
+# ARP: the list on 003, load
+tap ARP
 expect list 2
 expect slot 2
 shot loadlist.png
-tapkey b3
+tap ARP
 wait 20
 expect list 0
 expect tpar14 5
 expect gpar12 60
 # an empty slot: kept
-tapkey b3
+tap ARP
 turn PRESET 10
 expect slot 12
-tapkey b3
+tap ARP
 wait 20
 expect tpar14 5
 # any other button closes the list
@@ -83,3 +89,27 @@ expect playing 1
 expect preset 2
 tap PLAY
 expect dropped 0
+# undo / redo on black 3 / 4: one knob turn is one edit
+tap GLO
+expect view 7
+spin K2 10
+expect gpar1 10
+wait 2000
+spin K2 10
+expect gpar1 20
+tapkey b2
+expect gpar1 10
+tapkey b2
+expect gpar1 0
+tapkey b3
+expect gpar1 10
+tapkey b3
+expect gpar1 20
+tapkey b3
+expect gpar1 20
+# a mute, undone
+tapkey b4
+expect mute 1
+tapkey b2
+expect mute 0
+shot undo.png

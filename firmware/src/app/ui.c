@@ -31,8 +31,7 @@
 enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_FX, V_DRIFT, V_GROOVE, V_SETUP, V_MASTER, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "FX bus", "Drift",
                                               "Groove", "Setup", "Master"};
-#define B_BLACK3 NB                    /* the Master page's "button": black 3 */
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_BLACK3};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -63,13 +62,14 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
 #define NBLACK 11
 static const uint8_t WHITE_K[NWHITE] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 static const uint8_t BLACK_K[NBLACK] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25};
-enum { BK_BARDN, BK_BARUP, BK_MASTER, BK_LOAD, BK_MUTE1, BK_MUTE5 = BK_MUTE1 + 4, BK_PATTERN, BK_SOUND };
+enum { BK_BARDN, BK_BARUP, BK_UNDO, BK_REDO, BK_MUTE1, BK_MUTE5 = BK_MUTE1 + 4, BK_PATTERN, BK_SOUND };
 enum { L_NONE, L_SAVE, L_LOAD };       /* the preset list open */
 static const int8_t LIVE_NOTE[4] = {0, 3, 7, 10};   /* LIVE: the four keys of a sound, up its scale */
 
 /* colours: near black, grey ink, one colour per track; red is only the phrase's last bar */
 #define K_BG RGB(16, 16, 18)
 #define K_PANEL RGB(32, 32, 36)
+#define K_SEL RGB(56, 56, 62)                  /* the selected track's row */
 #define K_LINE RGB(58, 58, 64)
 #define K_DIM RGB(118, 118, 126)
 #define K_TEXT RGB(232, 232, 236)
@@ -100,7 +100,10 @@ static struct {
     uint8_t held_flags;                /* ...an acid step's accent and slide */
     uint8_t voices;                    /* the CPU guard's voice limit now */
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
-    uint8_t back_view;                 /* the page before the Master page */
+    uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
+    char pop[2][16];                   /* ...the parameter and its value */
+    int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
+    uint32_t beat_t;                   /* ...when it came */
     uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
     float meter[UI_TRACKS];
 } ui;
@@ -169,12 +172,6 @@ static int view_knob(int i)
 {
     return ui.track == NE_ACID && ui.view <= V_TFX ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
 }
-static void say_knob(int k)
-{
-    char t[16];
-    ktext(k, kval(k), t);
-    say(kinfo(k)->name, t);
-}
 
 static void tpar_set(int t, int p, int v)
 {
@@ -228,13 +225,103 @@ static int32_t accel(int role, int32_t s, int range)
     return s * (int32_t)m;
 }
 
+/* ------------------------------------------------------------ undo --- */
+static int track_bars(int t);
+/* The whole project before each edit, UNDO_N deep: undo_h[0 .. undo_c - 1] are the states to undo to,
+ * undo_h[undo_c + 1 .. undo_n - 1] the ones to redo. One turn of a knob (the same knob, changes less than
+ * UNDO_JOIN apart) or one held step is one edit. */
+#define UNDO_N 12
+#define UNDO_JOIN 1500u
+static project_t undo_h[UNDO_N];
+static uint8_t undo_c, undo_n;
+static uint32_t undo_key, undo_ms;
+static void undo_take(project_t *p)
+{
+    *p = proj;
+    ne_snapshot(&p->st);
+    ne_acid_snapshot(&p->acid);
+}
+/* before an edit; key: what is edited (0: an edit of its own, never joined) */
+static void undo_mark(uint32_t key)
+{
+    uint32_t now = plat_ms();
+    int join = key && key == undo_key && now - undo_ms < UNDO_JOIN;
+    undo_key = key;
+    undo_ms = now;
+    if (join)
+        return;
+    if (undo_c >= UNDO_N - 1) {                      /* full: the oldest goes */
+        int i;
+        for (i = 0; i + 1 < UNDO_N; i++)
+            undo_h[i] = undo_h[i + 1];
+        undo_c--;
+    }
+    undo_take(&undo_h[undo_c++]);
+    undo_n = undo_c;
+}
+/* back (d -1) or forward (+1): only what differs goes to the engine (the patterns and sounds stop the
+ * sound a moment, the settings do not) */
+static void undo_go(int d)
+{
+    const project_t *now, *to;
+    int i, t, st, ac;
+    if (d < 0 ? !undo_c : undo_c + 1 >= undo_n) {
+        say("NOTHING TO", d < 0 ? "UNDO" : "REDO");
+        return;
+    }
+    undo_take(&undo_h[undo_c]);                      /* the state now: where a redo comes back to */
+    if (undo_n < undo_c + 1)
+        undo_n = (uint8_t)(undo_c + 1);
+    now = &undo_h[undo_c];
+    undo_c = (uint8_t)(undo_c + d);
+    to = &undo_h[undo_c];
+    st = memcmp(&now->st, &to->st, sizeof to->st) != 0;
+    ac = memcmp(&now->acid, &to->acid, sizeof to->acid) != 0;
+    if (st)
+        ne_restore(&to->st);
+    if (ac)
+        ne_acid_restore(&to->acid);
+    for (i = 0; i < G_NPARAMS; i++)
+        if (proj.g[i] != to->g[i])
+            ne_set(i, proj.g[i] = to->g[i]);
+    for (t = 0; t < NE_TRACKS; t++)
+        for (i = 0; i < T_NPARAMS; i++)
+            if (proj.t[t][i] != to->t[t][i]) {
+                proj.t[t][i] = to->t[t][i];
+                if (!st || i != T_BARS)              /* (the restored state holds its length) */
+                    ne_tset(t, i, proj.t[t][i]);
+            }
+    for (i = 0; i < A_NPARAMS; i++)
+        if (proj.a[i] != to->a[i]) {
+            proj.a[i] = to->a[i];
+            if (!ac || i != A_BARS)
+                ne_aset(i, proj.a[i]);
+        }
+    undo_key = 0;
+    ui.held_step = -1;
+    if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
+        ui.bar_lock = 0;
+    mark_dirty();
+    {
+        char b[16];
+        itoa_u(d < 0 ? undo_c : (uint32_t)(undo_n - 1 - undo_c), b);
+        s_cpy(b + s_len(b), " LEFT");
+        say(d < 0 ? "UNDO" : "REDO", b);
+    }
+}
+
+/* a knob turned: its change, and its name and value big over the tracks a moment */
 static void turn(int role, int k, int32_t e)
 {
     const ne_param_t *p;
     if (!e || k == K_NONE)
         return;
     p = kinfo(k);
+    undo_mark(1u << 24 | (uint32_t)k << 8 | ui.track);
     knob_set(k, kval(k) + accel(role, e, p->hi - p->lo));
+    s_cpy(ui.pop[0], p->name);
+    ktext(k, kval(k), ui.pop[1]);
+    ui.pop_t = plat_ms() | 1u;
 }
 
 /* ------------------------------------------------------------ pattern --- */
@@ -297,6 +384,7 @@ static void white_down(int w)
         say("PAST THE END", b);
         return;
     }
+    undo_mark(2u << 24 | (uint32_t)t << 8 | (uint32_t)s);   /* the press and its edits: one */
     ui.held_step = (int8_t)s;
     ui.held_edited = 0;
     ui.held_was_on = (uint8_t)step_on(t, s);
@@ -350,6 +438,7 @@ static void say_note(int note)
 static void acid_step_edit(int knob, int32_t e)
 {
     int note = ui.held_note, f = ui.held_flags;
+    undo_mark(2u << 24 | (uint32_t)NE_ACID << 8 | (uint32_t)ui.held_step);
     if (knob == 0) {
         note += (int)e;
         note = note < -12 ? -12 : note > 24 ? 24 : note;
@@ -373,6 +462,7 @@ static void step_edit(int knob, int32_t e)
 {
     int t = ui.track, s = ui.held_step, vel = ui.held_vel, note = ui.held_note;
     char b[16];
+    undo_mark(2u << 24 | (uint32_t)t << 8 | (uint32_t)s);
     if (knob == 0) {
         vel += (int)accel(EN_K1, e, 127) * 4;
         vel = vel < 1 ? 1 : vel > 127 ? 127 : vel;
@@ -461,23 +551,12 @@ static void black_down(int b)
         say_bar(nb);
         return;
     }
-    if (b == BK_MASTER) {
-        if (ui.view == V_MASTER) {
-            set_view(ui.back_view);
-        } else {
-            ui.back_view = ui.view;
-            set_view(V_MASTER);
-        }
-        return;
-    }
-    if (b == BK_LOAD) {
-        if (ui.list == L_LOAD)
-            list_go();
-        else
-            list_open(L_LOAD);
+    if (b == BK_UNDO || b == BK_REDO) {
+        undo_go(b == BK_UNDO ? -1 : 1);
         return;
     }
     if (b >= BK_MUTE1 && b <= BK_MUTE5) {
+        undo_mark(0);
         int m = b - BK_MUTE1;
         char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + m), 0};
         if (m == NE_ACID)
@@ -491,10 +570,12 @@ static void black_down(int b)
             say(a, "MUTED");
         }
     } else if (b == BK_PATTERN) {
+        undo_mark(0);
         ne_generate(t);
         mark_dirty();
         say("NEW PATTERN", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
+        undo_mark(0);
         new_sound(t);
         mark_dirty();
         say("NEW SOUND", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
@@ -502,7 +583,7 @@ static void black_down(int b)
 }
 
 /* ------------------------------------------------------------ presets --- */
-/* SAVE or black 4 opens the list on the last slot used; the same key again saves / loads the slot on it,
+/* SAVE or ARP opens the list on the last slot used; the same key again saves / loads the slot on it,
  * any other button closes it. A save erases a flash sector: the sound stops a moment. */
 static int slot_used(int n) { return (int)(ui.used[n >> 5] >> (n & 31) & 1u); }
 static void slot_name(int n, char *b)               /* "005" */
@@ -532,6 +613,11 @@ static int preset_load(int n)
 {
     char b[8];
     slot_name(n, b);
+    if (!plat_preset_used(n)) {
+        say("PRESET", "EMPTY");
+        return -1;
+    }
+    undo_mark(0);
     if (project_preset_load(n) != 0) {
         say("PRESET", "EMPTY");
         return -1;
@@ -571,6 +657,7 @@ static void reset_defaults(void)
 {
     int16_t keep = proj.g[G_MIDICH];
     int t;
+    undo_mark(0);
     project_defaults();
     proj.g[G_MIDICH] = keep;
     ne_play(0);
@@ -599,7 +686,7 @@ static void button(int b)
     if (ui.list && b != B_PLAY) {                    /* the list: its arrows, SAVE; anything else closes it */
         if (b == B_OCTDN || b == B_OCTUP)
             list_move(b == B_OCTUP ? 1 : -1);
-        else if (b == B_SAVE && ui.list == L_SAVE)
+        else if ((b == B_SAVE && ui.list == L_SAVE) || (b == B_ARP && ui.list == L_LOAD))
             list_go();
         else
             ui.list = L_NONE;
@@ -612,6 +699,7 @@ static void button(int b)
             ui.bar_lock = 0;
         break;
     case B_REC:
+        undo_mark(0);
         ne_generate(-1);
         mark_dirty();
         say("NEW PATTERNS", "ALL TRACKS");
@@ -631,6 +719,7 @@ static void button(int b)
         }
         list_open(L_SAVE);
         break;
+    case B_ARP: list_open(L_LOAD); break;
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
             if (VIEW_BTN[v] == b) {
@@ -654,6 +743,7 @@ static void midi_cc(uint32_t cc, uint32_t v)
     static const uint8_t MAC[5] = {T_DEV, T_STRESS, T_SPIKE, T_BLEED, T_FLUID};
     static const uint8_t FXG[4] = {G_FILTER, G_DRIVE, G_DELAY, G_REVERB};
     int pc = (int)(v * 100u / 127u), t;
+    undo_mark(3u << 24 | cc);
     if (cc >= 102u && cc <= 106u) {
         for (t = 0; t < NE_TRACKS; t++)
             tpar_set(t, MAC[cc - 102u], pc);
@@ -698,6 +788,8 @@ static void midi_in(void)
         if (proj.g[G_MIDICH] && (st & 0x0Fu) + 1u != (uint32_t)proj.g[G_MIDICH])
             continue;
         if (type == 0x90u && d2) {
+            if (d1 >= 36u && d1 <= 48u)
+                undo_mark(0);
             ne_midi_note((int)d1, (int)d2);
             if (d1 >= 36u && d1 <= 48u)
                 mark_dirty();
@@ -762,16 +854,14 @@ static void input(void)
         else
             select_track(ui.track + (e > 0 ? 1 : -1));
     }
-    if ((e = plat_enc(EN_ALGO)) != 0)                /* the pages, not Master (black 3's) */
-        set_view(ui.view == V_MASTER ? ui.back_view : (ui.view + (e > 0 ? 1 : V_MASTER - 1)) % V_MASTER);
+    if ((e = plat_enc(EN_ALGO)) != 0)                /* the pages */
+        set_view((ui.view + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS);
     if ((e = plat_enc(EN_PRESET)) != 0) {
         int k = ne_pknob_target(proj.g[G_PKNOB]);   /* (NE_PK_TRACK is KT: the selected track's) */
-        if (ui.list) {
+        if (ui.list)
             list_move((int)e);
-        } else {
+        else
             turn(EN_PRESET, k, e);
-            say_knob(k);
-        }
     }
     for (i = 0; i < 4; i++)
         if ((e = plat_enc(EN_K1 + (int)i)) != 0) {
@@ -919,7 +1009,7 @@ static void draw_track(int t, int32_t y)
     if (bar < 0)
         bar = 0;
     if (sel)
-        cv_round(2, y, 236, ROW_H - 1, 5, K_PANEL);
+        cv_round(2, y, 236, ROW_H - 1, 5, K_SEL);
     {   /* the meter: the sound's level, a bar left of the name */
         int m = (int)(ui.meter[t] * 15.0f);
         cv_rect(6, y + 3, 3, 14, K_LINE);
@@ -956,7 +1046,7 @@ static void draw_track(int t, int32_t y)
             continue;
         }
         if (!on) {
-            cv_round(x, y + 2, 9, 15, 3, here ? K_DIM : sel ? K_LINE : mix(K_BG, K_LINE, 10));
+            cv_round(x, y + 2, 9, 15, 3, here ? K_DIM : sel ? mix(K_LINE, K_DIM, 4) : mix(K_BG, K_LINE, 10));
             continue;
         }
         if (acid) {     /* a note: brighter with an accent; a slide reaches into the next step */
@@ -1039,16 +1129,83 @@ static void draw_list(void)
         if (n == proj.preset)
             cv_round(222, y + 6, 6, 6, 3, K_DIM);
     }
-    cv_text(10, 128, &FONT_XS, ui.list == L_SAVE ? "SAVE again: save   other: cancel" : "BLACK 4 again: load   other: cancel",
+    cv_text(10, 128, &FONT_XS, ui.list == L_SAVE ? "SAVE again: save   other: cancel" : "ARP again: load   other: cancel",
             K_DIM);
     cv_blit(0, MAIN_Y);
 }
 
+/* Over the tracks, see-through: in the phrase's fourth and eighth bars the beat counts big, each one
+ * fading out until the next comes (the eighth's in red); a knob turned shows its name and value big, and
+ * fades away once it rests. Their strength now, 0..256 (0: not shown). */
+#define BEAT_A 150u                    /* a beat's count as it comes */
+#define POP_HOLD 400u                  /* the knob's box: full this long after the last change, */
+#define POP_FADE 500u                  /* ...then gone over this */
+static uint32_t beat_alpha(void)
+{
+    int ps = phrase_step(), bar = ps < 0 ? -1 : ps / NE_BAR, beat = ps < 0 ? -1 : ps / 4;
+    uint32_t len, age;
+    if (bar != 3 && bar != 7)
+        beat = -1;
+    if (beat != ui.beat) {
+        ui.beat = (int16_t)beat;
+        ui.beat_t = plat_ms();
+    }
+    if (beat < 0)
+        return 0;
+    len = 600000u / (ne_bpm_x10 ? ne_bpm_x10 : 1200u);
+    age = plat_ms() - ui.beat_t;
+    return age >= len ? 0u : BEAT_A * (len - age) / len;
+}
+static uint32_t pop_alpha(void)
+{
+    uint32_t age = plat_ms() - ui.pop_t;
+    if (!ui.pop_t || age >= POP_HOLD + POP_FADE) {
+        ui.pop_t = 0;
+        return 0;
+    }
+    return age <= POP_HOLD ? 256u : 256u * (POP_HOLD + POP_FADE - age) / POP_FADE;
+}
+static void draw_overlay(uint32_t ba, uint32_t pa)
+{
+    if (ba) {
+        char d[2] = {(char)('1' + ui.beat % 4), 0};
+        int32_t w = text_w(&FONT_L, d) * 4;
+        cv_text_a((240 - w) / 2, (MAIN_H - 32 * 4) / 2 - 4, &FONT_L, d, 4, ui.beat / 4 % 8 == 7 ? K_RED : K_TEXT, ba);
+    }
+    if (pa) {
+        const char *v = ui.pop[1], *q;
+        int lower = 0, s;
+        int32_t vw, vh;
+        const felucca_font_t *vf;
+        for (q = v; *q; q++)
+            lower |= *q >= 'a' && *q <= 'z';
+        vf = lower ? &FONT_L : &FONT_M;              /* the value: the big face doubled, if it has it */
+        s = lower ? 1 : 2;
+        vw = text_w(vf, v) * s;
+        if (vw > 224) {
+            vf = &FONT_L;
+            s = 1;
+            vw = text_w(vf, v);
+        }
+        vh = (int32_t)vf->h * s;
+        cv_rect_a(8, 10, 224, MAIN_H - 20, K_PANEL, pa * 7u / 8u);
+        cv_rect_a(8, 10, 224, 1, K_LINE, pa);
+        cv_rect_a(8, MAIN_H - 11, 224, 1, K_LINE, pa);
+        cv_text_a(120 - text_w(&FONT_L, ui.pop[0]) / 2, 18, &FONT_L, ui.pop[0], 1, K_TEXT, pa);
+        cv_text_a(120 - vw / 2, 18 + 32 + (MAIN_H - 20 - 8 - 32 - vh) / 2, vf, v, s, K_ACC, pa);
+    }
+}
+
 static void draw_grid(void)
 {
+    uint32_t ba = beat_alpha(), pa = pop_alpha();
     uint32_t h = hash(2166136261u, ui.track | (uint32_t)shown_bar() << 4 | (uint32_t)playing() << 8 |
                                        (uint32_t)phrase_step() << 9);
     int t, s;
+    h = hash(h, ba >> 3 | (uint32_t)ui.beat << 8 | (pa >> 3) << 20);
+    if (pa)
+        for (s = 0; s < 16; s++)
+            h = hash(h, (uint32_t)(uint8_t)ui.pop[0][s] | (uint32_t)(uint8_t)ui.pop[1][s] << 8);
     {
         const nacid *ac = ne_acid();
         h = hash(h, (uint32_t)(uint16_t)ac->last | (uint32_t)ac->length << 16 | (uint32_t)proj.a[A_MUTE] << 24 |
@@ -1083,6 +1240,7 @@ static void draw_grid(void)
         }
     }
     draw_phrase(130);
+    draw_overlay(ba, pa);
     cv_blit(0, MAIN_Y);
 }
 
@@ -1168,20 +1326,18 @@ static void leds(void)
             }
         }
     }
-    if (ui.list) {                                   /* the list: its key blinks */
-        if (blink)
-            b |= ui.list == L_SAVE ? 1u << B_SAVE : 0u;
-        if (ui.list == L_LOAD && blink)
-            k |= 1u << BLACK_K[BK_LOAD];
-    }
+    if (ui.list && blink)                            /* the list: its key blinks */
+        b |= 1u << (ui.list == L_SAVE ? B_SAVE : B_ARP);
     if (sb > 0)                                      /* the bar keys: lit where they can go */
         d |= 1u << BLACK_K[BK_BARDN];
     if (sb + 1 < track_bars(t))
         d |= 1u << BLACK_K[BK_BARUP];
     if (ui.bar_lock && blink)
         k |= 1u << BLACK_K[sb + 1 < track_bars(t) ? BK_BARUP : BK_BARDN];
-    if (ui.view == V_MASTER)
-        k |= 1u << BLACK_K[BK_MASTER];
+    if (undo_c)                                      /* undo / redo: dim while there is one */
+        d |= 1u << BLACK_K[BK_UNDO];
+    if (undo_c + 1 < undo_n)
+        d |= 1u << BLACK_K[BK_REDO];
     for (i = 0; i < UI_TRACKS; i++) {                /* the mutes: dim = on, bright with a hit, dark muted */
         if (tmuted((int)i))
             continue;
@@ -1222,6 +1378,7 @@ void ui_init(void)
     memset(&ui, 0, sizeof ui);
     ui.touched = -1;
     ui.held_step = -1;
+    ui.beat = -1;
     ui.voices = NFM_VOICES;
     lcd_fill(0, 0, 240, 240, K_BG);
 }

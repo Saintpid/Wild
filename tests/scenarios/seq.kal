@@ -128,10 +128,12 @@ expect view 7
 shot groove.png
 tap GLO
 expect view 8
+tap GLO
+expect view 9
 turn ALGO 1
 expect view 0
 turn ALGO -1
-expect view 8
+expect view 9
 # PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
 turn PRESET 5
 expect gpar15 35
