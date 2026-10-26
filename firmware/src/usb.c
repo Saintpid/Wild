@@ -214,7 +214,7 @@ static const uint8_t STR1[] = {12, 3, 'F', 0, 'i', 0, 'M', 0, 'b', 0, 'a', 0};  
 static const uint8_t STR2[] = {30, 3, 'F', 0, 'e', 0, 'l', 0, 'u', 0, 'c', 0, 'c', 0, 'a', 0, ' ', 0, 'U', 0, 'p', 0,
                                'd', 0, 'a', 0, 't', 0, 'e', 0};
 #else
-static const uint8_t STR2[] = {22, 3, 'F', 0, 'i', 0, 'M', 0, 'b', 0, 'a', 0, ' ', 0, 'F', 0, 'M', 0, '-', 0, '1', 0};   /* FiMba FM-1 */
+static const uint8_t STR2[] = {24, 3, 'n', 0, '0', 0, '0', 0, '1', 0, 's', 0, 'e', 0, ' ', 0, 'F', 0, 'M', 0, '-', 0, '1', 0};   /* n001se FM-1 */
                                                      /* product: the installers look for "FM-1" in it */
 #endif
 
