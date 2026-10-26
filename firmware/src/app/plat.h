@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* FiMba-1 platform interface (FoMni's, from X0X's): everything the app needs from the hardware.
+/* n001se platform (FiMba-1's) interface (FoMni's, from X0X's): everything the app needs from the hardware.
  *
  * The device implementation (plat_fm1.c) wraps Felucca's HAL and panel map; the
- * host implementation (host/kalimba_host.c) is a simulator fed by a script, which is
+ * host implementation (host/n001se_host.c) is a simulator fed by a script, which is
  * what lets the whole app — UI, sequencer, engines — run and be tested on a Mac.
  * Drawing goes through Felucca's lcd_fill / lcd_blit (lcd.c on the device, a
  * framebuffer on the host) and gfx.c on top. */
@@ -29,7 +29,8 @@ uint32_t plat_buttons(void);           /* held: bit B_* */
 uint32_t plat_keys(void);              /* held: bit k = key k (0 = F3) */
 int32_t plat_enc(int role);            /* detents since the last call, + = clockwise; EN_* */
 uint32_t plat_master(void);            /* MASTER pot, 0..4096 gain Q12 */
-void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys);   /* lit: bit B_*, bit key; dim: bit key */
+void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys);   /* lit: bit B_*, bit key; dim: bit key
+                                                                     (the buttons not lit are always dim) */
 
 /* USB MIDI, 4-byte USB-MIDI event packets (cable 0) */
 int plat_midi_in(uint32_t *pkt);       /* 1 = got one (called from the audio ISR) */
@@ -40,6 +41,11 @@ int plat_store_load(uint32_t obj, void *dst, uint32_t max);   /* bytes loaded, <
 int plat_store_save(uint32_t obj, const void *src, uint32_t len);   /* 0 = ok */
 #define PLAT_STORE_MAX 3840u           /* bytes per object */
 enum { OBJ_PROJ, OBJ_PANEL, OBJ_NOBJ };
+/* presets: PLAT_PRESETS numbered slots of up to PLAT_STORE_MAX bytes (flash 0x97000.., a sector each) */
+#define PLAT_PRESETS 64
+int plat_preset_load(int n, void *dst, uint32_t max);   /* bytes loaded, < 0 = empty / bad */
+int plat_preset_save(int n, const void *src, uint32_t len);   /* 0 = ok */
+int plat_preset_used(int n);                            /* 1 = holds a preset */
 /* flash: OBJ_PROJ 0xFC000, OBJ_PANEL 0xDC000 (2 sectors each, inside Felucca's data area) */
 
 /* audio load in % of the render budget, and xruns since boot (device: from the ISR) */

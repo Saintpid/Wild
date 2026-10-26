@@ -1,0 +1,276 @@
+n001se – MANUAL
+Slumpande FM-trumsequencer för M-VAVE FM-1
+Firmware 813
+
+====================================================================
+
+VAD ÄR n001se?
+
+n001se är en egen firmware som gör M-VAVE FM-1 till en sequencer för FM-slagverk med slump, gjord för livespel. Den har fem spår:
+
+  Spår 1–4: FM-trummor (Kick, Snare, Hat, Perc, Click eller Metal)
+  Spår 5:   Acid, en basslinga i 303-stil med eget filter, accent och glide
+
+Varje spår har ett eget mönster på 1–8 takter (acid 1–4), och spåren kan ha olika längd, så polyrytmer uppstår av sig själva. Mönstren skapas av slumpen inom gränser som du väljer, och de kan sakta förändras medan de spelar. Varje slag varierar också lite i klang, så ingenting låter exakt likadant två gånger.
+
+====================================================================
+
+INSTALLATION
+
+1. Öppna M-UPGRADE och välj filen n001se-XXX.fwsc.
+2. Följ instruktionerna i M-UPGRADE. En ny version måste ha ett högre nummer än den som redan är installerad.
+
+Över USB syns FM-1 som "n001se FM-1", både som MIDI-enhet och som ljudingång (stereo, 44,1 kHz). Du kan alltså spela in n001se direkt i datorn via USB-sladden.
+
+====================================================================
+
+SKÄRMEN
+
+Överst:
+  Sidans namn, prickar som visar vilken sida du är på när en knapp har flera sidor, LIVE när livespel är på, en liten prick när det finns osparade ändringar, och tempot (BPM, eller EXT när MIDI-klocka styr tempot). På Setup-sidan syns också CPU-lasten i %, och "X" med en siffra om ljudet har hackat.
+
+Mitten (sequencern):
+  En rad per spår, 1–5. Den valda raden har grå bakgrund.
+  Till vänster: en nivåmätare, spårets namn, längden ("2b" = 2 takter, "12st" = 12 steg) och R/D när spåret skickar till reverb/delay.
+  Sedan 16 steg för en takt. Starkare färg betyder högre velocity, och en liten markering visar ett tonhöjt steg. På acidspåret är accenter ljusare, och slides syns som en bro till nästa steg.
+
+Under spåren:
+  Taktnumren 1–8. Takten som visas på tangenterna är vit, och om du har låst den är den understruken.
+  Frasraden: åtta takter, där den åttonde är röd. Under den åttonde takten räknas slagen 1–4 längst till höger.
+
+Stora siffror:
+  I takt 4 och takt 8 av frasen visas slagen 1–4 stort och genomskinligt över sequencern. Varje siffra tonas ut tills nästa kommer, och i takt 8 är de röda. Det gör det lättare att hitta rätt inför breaks.
+
+Parameterrutan:
+  När du vrider en ratt syns parameterns namn och värde stort över sequencern. Rutan tonas bort strax efter att du har slutat vrida.
+
+Nederst:
+  De fyra rattarnas parametrar på den sida du är på. Värdet på ratten du vrider blir orange.
+
+====================================================================
+
+KNAPPAR
+
+PLAY       Start/stopp.
+REC        Nya mönster på alla spår.
+SEQ        Växlar mellan SEQ (stegredigering) och LIVE (spela ljuden på tangenterna).
+SAVE       Öppnar preset-listan för att spara (se PRESETS).
+           Håll SAVE 1,5 s: frågar "RESET?". Tryck SAVE igen inom 5 s för att återställa allt till grundläget (MIDI-kanalen behålls). Gör du något annat behålls allt.
+ARP        Öppnar preset-listan för att ladda. Tryck ARP igen för att ladda presetet som är valt.
+OCT- / OCT+  Väljer föregående/nästa spår. I preset-listan: flyttar en plats.
+
+Sidknappar (ett tryck till byter till knappens nästa sida):
+HOME       Pattern
+EDIT       Track
+ENV        Sound → Tone
+FX         Track FX → FX bus
+LFO        Drift
+GLOBAL     Groove → Setup → Master
+
+====================================================================
+
+VREDEN
+
+SELECT     Väljer spår. I preset-listan: väljer plats.
+ALGO       Bläddrar genom alla sidor.
+PRESETS    Snabbratt som styr valfri parameter. Grundinställningen är Glue. Vad den styr väljer du på Setup-sidan (ratten "Presets"). Det kan vara en global parameter, en parameter på valt trumspår eller en 303-parameter, till exempel "303 Cutoff". I preset-listan bläddrar den mellan platser.
+MASTER     Huvudvolym.
+K1–K4      De fyra rattarna under skärmen. Vad de gör beror på sidan.
+
+====================================================================
+
+TANGENTERNA
+
+VITA TANGENTER (16 st = de 16 stegen i takten som visas)
+
+I SEQ-läge:
+  Tryck på ett tomt steg: steget slås på.
+  Tryck och släpp ett påslaget steg: steget slås av.
+  Håll ett steg och vrid:
+    Trumspår: K1 = velocity, K2 = tonhöjd (−24 till +24)
+    Acidspåret: K1 = ton (−12 till +24), K2 = accent av/på, K3 = slide av/på (höger = på, vänster = av)
+  Ett steg som du har redigerat medan du höll det ligger kvar när du släpper.
+
+I LIVE-läge:
+  Tangenterna spelar ljuden direkt, fyra tangenter per trumljud (spår 1–4), uppåt i skalan.
+
+I preset-listan:
+  Välj plats direkt bland de 16 platserna på listans sida.
+
+SVARTA TANGENTER (11 st, från vänster)
+
+  1   Föregående takt (visa och redigera)
+  2   Nästa takt
+      1 + 2 samtidigt: följ uppspelningen igen
+  3   UNDO – ångra
+  4   REDO – gör om
+  5   Mute spår 1
+  6   Mute spår 2
+  7   Mute spår 3
+  8   Mute spår 4
+  9   Mute spår 5 (acid)
+      När du slår på ett spår igen blir det också valt för redigering.
+  10  Nytt mönster för valt spår
+  11  Nytt ljud för valt spår
+
+UNDO/REDO:
+  Upp till 12 steg bakåt. Ett rattvrid räknas som ett steg, och likaså ett hållet steg med det du ändrar medan du håller det. Undo fungerar på inställningar, mönster, ljud, mutes och presetladdningar. Inställningar ångras utan avbrott i ljudet. Att ångra ett mönster eller ljud ger ett mycket kort avbrott.
+
+====================================================================
+
+SIDORNA
+
+Trumspåren (spår 1–4):
+
+PATTERN (HOME)
+  Bars       Mönstrets längd, 1–8 takter
+  Hits min   Minsta antal slag i mönstret
+  Hits max   Största antal slag i mönstret (lika med min = exakt antal)
+  Evolve     Chans i % per varv att ett steg i mönstret ändras
+
+TRACK (EDIT)
+  Rnd len    Slumpad längd: Fixed, eller 1–N takter. Ibland blir sista takten kortare, för udda längder.
+  Pitch      Hur mycket stegen får variera i tonhöjd (+-N halvtoner), Root = ingen variation
+  Level      Spårets volym
+  Mute       Av/på
+
+SOUND (ENV, sida 1)
+  Deviance   Hur mycket klangen varierar från slag till slag
+  Length     Ljudets längd
+  Edge       Attack och skärpa
+  Ring       Resonans och klang
+
+TONE (ENV, sida 2)
+  Kind       Ljudtyp: Kick, Snare, Hat, Perc, Click, Metal. Gäller från nästa nya ljud (svart 11).
+  Ring tone  Resonansens tonhöjd
+  Tune       Stämning, −24 till +24 halvtoner
+
+TRACK FX (FX, sida 1)
+  Reverb     Send till reverb. Mängden slumpas per slag upp till nivån du satt, och ibland skickas inget alls.
+  Delay      Send till delay, på samma sätt
+  Filter     Hur ofta det rörliga filtret ligger på spåret
+  Drive      Varm mättnad med jämna övertoner, kompenserad så att volymen inte ökar
+
+Acidspåret (spår 5) har egna parametrar på samma sidor:
+
+PATTERN    Bars (1–4), Notes (hur många steg som har toner), Slides, Evolve
+TRACK      Accents, Octaves (chans för oktavhopp), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min), Level
+SOUND      Cutoff, Reso, Env mod, Decay
+TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (accentens styrka), Tune
+TRACK FX   Reverb, Delay, Filter, Drive
+
+Globala sidor:
+
+FX BUS (FX, sida 2)
+  Reverb     Reverbens returnivå (0 = av)
+  Delay      Delayens returnivå (0 = av)
+  Filter     Skalar alla spårs filter (0 = av)
+  Drive      Skalar alla spårs drive (0 = av)
+
+DRIFT (LFO)
+  Chaos      Mer slump överallt, och glitchar: beat repeat (1/16 eller 1/8) och reverse dyker upp oftare ju högre Chaos är
+  Motion     Hur snabbt effekterna glider och rör sig över tid
+
+GROOVE (GLOBAL, sida 1)
+  Tempo      60–200 BPM (står still medan MIDI-klocka styr)
+  Swing      0–100
+  Loose      Mänsklig ojämnhet i timing och styrka
+  Max hits   Hur många trumspår som får slå på samma steg, 1–4 (spår 1 slås alltid). Standard: 4
+
+SETUP (GLOBAL, sida 2)
+  Level      Totalnivå
+  MIDI ch    All eller 1–16
+  Presets    Vad PRESETS-vredet styr
+  USB audio  On/Off. Off skickar tystnad över USB och sparar CPU.
+  (CPU-lasten syns uppe till höger på den här sidan.)
+
+MASTER (GLOBAL, sida 3)
+  Hi cut     Lågpassfilter på hela mixen (100 = Open)
+  Lo cut     Högpassfilter på hela mixen (0 = Open)
+  Reso       Filtrens resonans
+  Glue       Busskompressor. 0 = av, 100 = lite över gränsen med lätt mättnad. Ljudstyrkan kompenseras, så Glue gör mixen tätare men inte starkare. Efter den sitter alltid en limiter vid −0,3 dBFS.
+
+====================================================================
+
+PRESETS
+
+64 platser.
+
+Spara:
+  1. Tryck SAVE så öppnas listan.
+  2. Välj plats med SELECT, PRESETS-vredet, OCT-/OCT+ eller en vit tangent.
+  3. Tryck SAVE igen för att spara.
+
+Ladda:
+  1. Tryck ARP så öppnas listan.
+  2. Välj plats på samma sätt som ovan.
+  3. Tryck ARP igen för att ladda.
+
+Vilken annan knapp som helst stänger listan utan att något händer. Om du laddar en tom plats behålls det du har.
+
+En preset sparar allt: mönster, ljud, acidlinjen och alla inställningar.
+
+Tänk på att en sparning tystar ljudet ett ögonblick, eftersom flashminnet skrivs.
+
+AUTOSPARNING:
+  Projektet sparas automatiskt 4 sekunder efter senaste ändringen, men bara när uppspelningen är stoppad och det är tyst. Det sparas aldrig mitt i ett liveset. När du slår på FM-1 startar den där du var.
+
+====================================================================
+
+MIDI (USB och MIDI IN-uttaget)
+
+Toner:
+  C1–E1 (36–40)   Nytt mönster för spår 1–4 (36–39) och acid (40 = E1)
+  C2 (48)         Nya mönster för alla trumspår
+  C3–C5 (60–84)   Grundton för tonhöjda spår (C3 = ingen transponering)
+  En ton startar uppspelningen om den är stoppad.
+
+Controllers (CC):
+  102–106  Ljudets makron på alla trumspår: Deviance, Length, Edge, Ring, Ring tone
+  107      Chaos
+  108      Motion
+  109      Filter (FX bus)
+  110      Drive (FX bus)
+  111      Delay (FX bus)
+  112      Reverb (FX bus)
+  113      Swing
+  114      Loose
+  115      Max hits
+  7 / 116  Level
+  117      Nya ljud på alla spår som inte är mutade (värde 64 eller högre)
+  118      Nya mönster på alla spår (värde 64 eller högre)
+  74       Acid cutoff
+  71       Acid resonans
+  120/123  Stopp
+
+Program Change 0–63:  Laddar preset 1–64.
+
+MIDI-klocka:
+  n001se följer inkommande klocka, och då visar skärmen EXT vid tempot. Start och Continue startar från början, Stop stoppar. När klockan slutar komma tar det egna tempot över igen.
+
+====================================================================
+
+LAMPOR
+
+PLAY lyser när det spelar, och SEQ lyser i SEQ-läge.
+
+Vita tangenter:
+  I SEQ-läge visar de stegen i takten. Uppspelningen syns som en svag lampa som vandrar över tangenterna.
+  I LIVE-läge lyser de med sitt ljud.
+
+Svarta tangenter:
+  1/2      Lyser svagt åt det håll du kan bläddra. Blinkar när takten är låst.
+  3/4      Lyser svagt när det finns något att ångra eller göra om.
+  5–9      Svagt = spåret spelar, starkt = slag just nu, släckt = mutat.
+
+Övriga knappar lyser svagt så att du kan läsa dem i mörker.
+
+====================================================================
+
+TIPS FÖR LIVESPEL
+
+- Låt spåren ha olika längd (Bars eller Rnd len), så glider de mot varandra och skapar polyrytmer.
+- Evolve på 5–15 håller mönstren levande utan att de tappar sin karaktär.
+- Lägg en viktig parameter på PRESETS-vredet, till exempel 303 Cutoff, Glue eller Chaos, så har du den alltid till hands oavsett sida.
+- Använd de stora taktsiffrorna i takt 4 och 8 för att lägga breaks och mutes på rätt ställe.
+- Råkade du trycka fram ett nytt mönster som du inte ville ha? Tryck UNDO (svart 3).

@@ -1,18 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Test FiMba-1, build the firmware and the browser version, publish them.
+# Test n001se and build the firmware package (FiMba-1's workflow, without its browser version and
+# site, which are not ported yet).
 #
-#   pull request      the full test suite; the firmware package built and checked; both kept with the
-#                     run as downloads ("fimba-firmware", "FiMba-1-web")
-#   push to main      the same, then the browser version published to
-#                     https://jadamsowers.github.io/fm1-fimba/, with the latest release's firmware
-#                     beside it for the page's installer (firmware/latest.json)
+#   pull request      the full test suite; the firmware package built and checked; kept with the run
+#                     as a download ("n001se-firmware")
 #   a new VERSION     a push to main whose VERSION has no tag yet is a release: a release build
-#                     (identity FM-1_8XXYYZZ, version on the splash and the Setup page), the commit
-#                     tagged vX.Y.Z and published as a GitHub Release with the .fwsc, the one-file web
-#                     app and its CHANGELOG.md section, and the site published with that firmware in its
-#                     installer, all in this one run. (A tag pushed by a run starts no other run, and
-#                     Pages keeps only the first deployment of a commit: the release can't be a
-#                     second run.)
+#                     (identity FM-1_<BUILD_ID>), the commit tagged vX.Y.Z and published as a GitHub
+#                     Release with the .fwsc and its CHANGELOG.md section.
 name: Test, build and publish
 
 on:
@@ -58,36 +52,22 @@ jobs:
             echo "$ver will be released when this is on main"
           fi
 
-  web:
-    name: Tests and the web app
+  tests:
+    name: Tests
     needs: version
     runs-on: ubuntu-latest
-    # the Emscripten version the web app is built and tested with locally
-    container: emscripten/emsdk:6.0.10
     steps:
       - uses: actions/checkout@v7
 
-      - name: Python packages (Pillow renders the screen's fonts)
-        run: python3 -m pip install --quiet --break-system-packages Pillow
-
-      - name: Tests (engine, platform, the whole app in the simulator, the WebAssembly build)
-        run: sh tests/run_tests.sh
-
-      - name: Build the web app
-        env:
-          RELEASE: ${{ needs.version.outputs.release }}
-        run: |
-          [ -n "$RELEASE" ] && export OM_VERSION="$RELEASE"
-          sh web/emu/build.sh
-          mkdir -p site
-          cp build/emu/FiMba-1.html site/index.html
-          touch site/.nojekyll
-
-      - name: Keep the web app with the run
-        uses: actions/upload-artifact@v7
+      - uses: actions/setup-python@v7
         with:
-          name: FiMba-1-web
-          path: build/emu/FiMba-1.html
+          python-version: '3.12'
+
+      - name: Python packages (Pillow renders the screen's fonts)
+        run: python3 -m pip install --quiet -r requirements.txt
+
+      - name: Tests (engine, platform, the whole app in the simulator)
+        run: sh tests/run_tests.sh
 
       - name: Keep the scenario screenshots and audio
         if: always()
@@ -96,13 +76,6 @@ jobs:
           name: scenarios
           path: build/scenarios/
           if-no-files-found: ignore
-
-      - name: Keep the site for the Pages job
-        uses: actions/upload-artifact@v7
-        with:
-          name: site
-          path: site/
-          include-hidden-files: true
 
   firmware:
     name: Firmware package
@@ -134,7 +107,9 @@ jobs:
         env:
           RELEASE: ${{ needs.version.outputs.release }}
         run: |
-          if [ -n "$RELEASE" ]; then python3 tools/build.py --release "$RELEASE"; else python3 tools/build.py; fi
+          # a release: identity FM-1_<BUILD_ID>, the short number M-UPGRADE takes (higher than the last)
+          if [ -n "$RELEASE" ]; then python3 tools/build.py --release "$RELEASE" --id "$(tr -d ' \r\n' < BUILD_ID)"
+          else python3 tools/build.py; fi
           ls -l build/*.fwsc
 
       - name: Build FoMni's package, to compare with
@@ -146,86 +121,26 @@ jobs:
 
       - name: Check the package (every CRC; all but the app byte-identical to FoMni's)
         run: |
-          pkg=$(ls build/fimba*.fwsc | head -1)
-          python3 tools/check_fwsc.py "$pkg" --app build/fimba.bin --ref build/fomni-ref/build/omni.fwsc
+          pkg=$(ls build/n001se*.fwsc | head -1)
+          python3 tools/check_fwsc.py "$pkg" --app build/n001se.bin --ref build/fomni-ref/build/omni.fwsc
 
       - name: Update-path and install tests against the package
         run: |
-          [ -f build/fimba.fwsc ] || cp build/fimba-*.fwsc build/fimba.fwsc   # (the tests look for this name)
+          [ -f build/n001se.fwsc ] || cp build/n001se-*.fwsc build/n001se.fwsc   # (the tests look for this name)
           sh tests/run_tests.sh
 
       - name: Keep the package with the run
         uses: actions/upload-artifact@v7
         with:
-          name: fimba-firmware
+          name: n001se-firmware
           path: |
-            build/fimba*.fwsc
-            build/fimba.bin
-
-  pages:
-    name: Publish the web app (and its installer's firmware) to GitHub Pages
-    # main: the latest release's firmware goes beside the page; on a release, this run's, once it's out
-    # (a release that failed publishes nothing: its rerun will)
-    if: >-
-      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
-      needs.web.result == 'success' &&
-      (needs.release.result == 'success' || (needs.version.outputs.release == '' && needs.release.result == 'skipped'))
-    needs: [version, web, release]
-    runs-on: ubuntu-latest
-    # one publish at a time, whole
-    concurrency:
-      group: pages-publish
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: site
-          path: site
-
-      - name: The latest release's firmware, for the installer
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # the highest version among the published releases (not the newest-dated: a release is dated
-          # by its commit, so v0.2.0 tagged on v0.1.0's commit sorts as older)
-          tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft \
-                  --jq '.[] | select(.isDraft | not) | .tagName' | grep -E '^v[0-9]+\.[0-9]+' | sort -V | tail -1)
-          if [ -z "$tag" ]; then echo "no release yet: the installer offers a file chooser only"; exit 0; fi
-          mkdir -p site/firmware
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'fimba-*.fwsc' --dir site/firmware
-          file=$(cd site/firmware && ls fimba-*.fwsc | head -1)
-          python3 - "$tag" "$file" <<'PY'
-          import json, sys
-          sys.path.insert(0, "tools")
-          from fm1_install import product_of
-          tag, f = sys.argv[1], sys.argv[2]
-          raw = open("site/firmware/" + f, "rb").read()
-          meta = {"version": tag.lstrip("v"), "product": product_of(raw), "file": f}
-          open("site/firmware/latest.json", "w").write(json.dumps(meta))
-          print("installer:", meta)
-          PY
-
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
-
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v5
+            build/n001se*.fwsc
+            build/n001se.bin
 
   release:
     name: GitHub Release
     if: needs.version.outputs.release != ''
-    needs: [version, web, firmware]
+    needs: [version, tests, firmware]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -244,5 +159,5 @@ jobs:
           { echo "### What's new in $VER"; echo
             awk -v v="$VER" '$0 == "## " v {f = 1; next} /^## / {f = 0} f' CHANGELOG.md | sed '/./,$!d'
             echo; sed "s/VERSION/$VER/g" .github/release-notes.md; } > notes.md
-          gh release create "v$VER" --target "$GITHUB_SHA" --title "FiMba-1 $VER (beta)" --notes-file notes.md \
-            --prerelease dist/fimba-firmware/fimba-"$VER".fwsc dist/FiMba-1-web/FiMba-1.html
+          gh release create "v$VER" --target "$GITHUB_SHA" --title "n001se $VER" --notes-file notes.md \
+            --prerelease dist/n001se-firmware/n001se-"$VER".fwsc

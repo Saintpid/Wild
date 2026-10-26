@@ -1,11 +1,11 @@
-# FiMba-1: working on an issue or a feature
+# n001se: working on an issue or a feature
 
 The steps for every GitHub issue or new feature, from the first look to the release.
 
 ## 1. Understand it
 
 - `gh issue view N --json title,body,comments` (plain `gh issue view` can print nothing here).
-- Find the code: the instrument and its music are `firmware/src/dsp/kalimba.{c,h}`; the panel and
+- Find the code: the instrument is `firmware/src/dsp/n001se.{c,h}` over `nfm` (sounds), `nseq` (patterns) and `nfx` (effects); the panel and
   the screen are `firmware/src/app/ui.c`. The host simulator and the web app build the same sources.
 - When the request leaves a real choice open (behaviour, naming, the default), ask before building.
 
@@ -19,7 +19,7 @@ The steps for every GitHub issue or new feature, from the first look to the rele
 
 ## 3. Test it
 
-- Unit tests go in `tests/host/kalimba_test.c`. Whole-app behaviour goes in a scenario,
+- Unit tests go in `tests/host/n001se_test.c`. Whole-app behaviour goes in a scenario,
   `tests/scenarios/<name>.kal` (`tap`, `spin`, `tapkey`, `expect`, `shot`): add one for a new feature.
 - Run `tests/run_tests.sh`. Everything must pass (update-loader is skipped locally without
   `AC79_SDK`). When a change moves existing behaviour, update the scenarios that assumed the old way.

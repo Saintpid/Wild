@@ -32,7 +32,7 @@ static int run(double rate_in)
     while (t_out < 40.0) {
         if (t_in <= t_out) {                             /* a half: two blocks, back to back */
             int b, k;
-            uac_render_start();
+            uac_render_start(1);
             for (b = 0; b < 2; b++) {
                 for (k = 0; k < 256; k++, ph += 1000.0 / rate_in)
                     blk[2 * k] = blk[2 * k + 1] = (int32_t)(sin(2 * M_PI * ph) * 0.5 * 8388607.0) & ~0xFF;
@@ -64,9 +64,30 @@ static int run(double rate_in)
            uac.fill_min > UA_MID / 2u && uac.fill_min < 2u * UA_MID;
 }
 
+/* G_USBAUDIO off: the stream stays up, but silent, and nothing is resampled into the ring */
+static int off(void)
+{
+    static int32_t blk[512];
+    uint32_t d[UA_MAXF], n, k, loud = 0, w;
+    int i;
+    for (k = 0; k < 512; k++)
+        blk[k] = 0x400000;
+    uac_render_start(0);
+    w = ua_w;
+    uac_tap(blk, 256);
+    for (i = 0; i < 10; i++) {
+        n = uac_packet(d);
+        for (k = 0; k < n; k++)
+            loud += d[k] != 0;
+    }
+    printf("  off: %u loud frames, ring fed %u\n", loud, ua_w - w);
+    return !uac.feed && !uac.go && loud == 0 && ua_w == w;
+}
+
 int main(void)
 {
     int ok = run(44145.0) & run(44100.0) & run(44300.0);
+    ok &= off();
     printf(ok ? "uac: ok\n" : "uac: FAILED\n");
     return !ok;
 }

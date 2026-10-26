@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* FiMba-1 platform on the FM-1 (FoMni's): plat.h over Felucca's HAL, panel map, USB rings and storage.
+/* n001se platform (FiMba-1's) on the FM-1 (FoMni's): plat.h over Felucca's HAL, panel map, USB rings and storage.
  * Part of the unity build (main.c), after the HAL, usb.c, storage.c and panel.c. */
 
 uint32_t plat_ms(void) { return fm1_ms; }
@@ -46,7 +46,7 @@ void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys)
     for (i = 0; i < NB + NKEYS; i++) {
         uint32_t id = i < NB ? panel.btn[i] : 14u + (i - NB);
         int on = i < NB ? (buttons >> i) & 1u : (keys >> (i - NB)) & 1u;
-        int dim = i >= NB && ((dim_keys >> (i - NB)) & 1u);
+        int dim = i < NB || ((dim_keys >> (i - NB)) & 1u);   /* every button glows: its name shows */
         uint8_t q = led_pos[id];
         if (q == 0xFF)
             continue;
@@ -74,6 +74,9 @@ void plat_midi_out(uint32_t pkt) { midi_out_event(pkt); }
 
 int plat_store_load(uint32_t obj, void *dst, uint32_t max) { return flash_ok ? st_load(obj, dst, max) : -1; }
 int plat_store_save(uint32_t obj, const void *src, uint32_t len) { return flash_ok ? st_save(obj, src, len) : -9; }
+int plat_preset_load(int n, void *dst, uint32_t max) { return flash_ok ? st_preset_load((uint32_t)n, dst, max) : -1; }
+int plat_preset_save(int n, const void *src, uint32_t len) { return flash_ok ? st_preset_save((uint32_t)n, src, len) : -9; }
+int plat_preset_used(int n) { return flash_ok && st_preset_used((uint32_t)n); }
 
 static volatile uint32_t audio_cpu_pct, audio_xruns;
 uint32_t plat_cpu_pct(void) { return audio_cpu_pct; }
