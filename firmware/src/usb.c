@@ -143,13 +143,18 @@ static void midi_out_event(uint32_t pkt)            /* from the audio ISR */
 /* interfaces: 0 audio control, 1 MIDI streaming, 2 audio streaming (FELUCCA_UAC), then CDC's two.
  * bcdDevice: 3.00 MIDI, +0.01 CDC, +0.10 the audio input, +0.20 n001se's names (hosts cache descriptors
  * and names per version) */
+#ifdef FELUCCA_LOADER
+#define USB_BCD_NAMES 0x00       /* the update loader stays byte-identical to the reference */
+#else
+#define USB_BCD_NAMES 0x20
+#endif
 #define CDC_IF (2 + FELUCCA_UAC)
 #define UAC_AS_IF 2u
 #define CFG_LEN (101 + 74 * FELUCCA_CDC + 74 * FELUCCA_UAC)
 #define USB_NIF (2 + FELUCCA_UAC + 2 * FELUCCA_CDC)
 #if FELUCCA_CDC
 static const uint8_t DEV_DESC[18] = {18, 1, 0x00, 0x02, 0xEF, 0x02, 0x01, 64, 0x09, 0x12, 0x01, 0x00,
-                                     0x21 + 0x10 * FELUCCA_UAC, 0x03, 1, 2, 0, 1};   /* misc/IAD */
+                                     0x01 + USB_BCD_NAMES + 0x10 * FELUCCA_UAC, 0x03, 1, 2, 0, 1};   /* misc/IAD */
 static const uint8_t CFG_DESC[] = {
     9, 2, CFG_LEN & 0xFF, CFG_LEN >> 8, USB_NIF, 1, 0, 0x80, 50,
     8, 0x0B, 0, 2 + FELUCCA_UAC, 1, 1, 0, 0,            /* IAD: audio + MIDI (IF 0-1, 0-2) */
@@ -158,7 +163,7 @@ static const uint8_t CFG_DESC[] = {
 #define FELUCCA_USB_PID 0x0001   /* the update loader is 0x0002 */
 #endif
 static const uint8_t DEV_DESC[18] = {18, 1, 0x10, 0x01, 0, 0, 0, 64, 0x09, 0x12, FELUCCA_USB_PID & 0xFF,
-                                     FELUCCA_USB_PID >> 8, 0x20 + 0x10 * FELUCCA_UAC, 0x03,
+                                     FELUCCA_USB_PID >> 8, USB_BCD_NAMES + 0x10 * FELUCCA_UAC, 0x03,
                                      1, 2, 0, 1};
 static const uint8_t CFG_DESC[] = {
     9, 2, CFG_LEN & 0xFF, CFG_LEN >> 8, USB_NIF, 1, 0, 0x80, 50,
