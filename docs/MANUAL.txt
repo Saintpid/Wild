@@ -1,232 +1,247 @@
 n001se – MANUAL
-Slumpande FM-trumsequencer för M-VAVE FM-1
-Firmware 813
+Random FM drum sequencer for the M-VAVE FM-1
+Firmware 1.1.0 (815)
 
 ====================================================================
 
-VAD ÄR n001se?
+WHAT IS n001se?
 
-n001se är en egen firmware som gör M-VAVE FM-1 till en sequencer för FM-slagverk med slump, gjord för livespel. Den har fem spår:
+n001se is a custom firmware that turns the M-VAVE FM-1 into a sequencer for random FM percussion, made for live sets. It has five tracks:
 
-  Spår 1–4: FM-trummor (Kick, Snare, Hat, Perc, Click eller Metal)
-  Spår 5:   Acid, en basslinga i 303-stil med eget filter, accent och glide
+  Tracks 1–4: FM drums (Kick, Snare, Hat, Perc, Click or Metal)
+  Track 5:    Acid, a 303-style bass line with its own filter, accent and glide
 
-Varje spår har ett eget mönster på 1–8 takter (acid 1–4), och spåren kan ha olika längd, så polyrytmer uppstår av sig själva. Mönstren skapas av slumpen inom gränser som du väljer, och de kan sakta förändras medan de spelar. Varje slag varierar också lite i klang, så ingenting låter exakt likadant två gånger.
+Each track has its own pattern of 1–8 bars (acid 1–4), and the tracks can have different lengths, so polyrhythms appear by themselves. Patterns are drawn at random within limits you choose, and they can change slowly while they play. Every hit also varies a little in tone, so nothing sounds exactly the same twice.
 
 ====================================================================
 
 INSTALLATION
 
-1. Öppna M-UPGRADE och välj filen n001se-XXX.fwsc.
-2. Följ instruktionerna i M-UPGRADE. En ny version måste ha ett högre nummer än den som redan är installerad.
+1. Open M-UPGRADE and choose the file n001se-X.Y.Z.fwsc.
+2. Follow the steps in M-UPGRADE. A new version must have a higher number than the one already installed.
 
-Över USB syns FM-1 som "n001se FM-1", både som MIDI-enhet och som ljudingång (stereo, 44,1 kHz). Du kan alltså spela in n001se direkt i datorn via USB-sladden.
-
-====================================================================
-
-SKÄRMEN
-
-Överst:
-  Sidans namn, prickar som visar vilken sida du är på när en knapp har flera sidor, LIVE när livespel är på, en liten prick när det finns osparade ändringar, och tempot (BPM, eller EXT när MIDI-klocka styr tempot). På Setup-sidan syns också CPU-lasten i %, och "X" med en siffra om ljudet har hackat.
-
-Mitten (sequencern):
-  En rad per spår, 1–5. Den valda raden har grå bakgrund.
-  Till vänster: en nivåmätare, spårets namn, längden ("2b" = 2 takter, "12st" = 12 steg) och R/D när spåret skickar till reverb/delay.
-  Sedan 16 steg för en takt. Starkare färg betyder högre velocity, och en liten markering visar ett tonhöjt steg. På acidspåret är accenter ljusare, och slides syns som en bro till nästa steg.
-
-Under spåren:
-  Taktnumren 1–8. Takten som visas på tangenterna är vit, och om du har låst den är den understruken.
-  Frasraden: åtta takter, där den åttonde är röd. Under den åttonde takten räknas slagen 1–4 längst till höger.
-
-Stora siffror:
-  I takt 4 och takt 8 av frasen visas slagen 1–4 stort och genomskinligt över sequencern. Varje siffra tonas ut tills nästa kommer, och i takt 8 är de röda. Det gör det lättare att hitta rätt inför breaks.
-
-Parameterrutan:
-  När du vrider en ratt syns parameterns namn och värde stort över sequencern. Rutan tonas bort strax efter att du har slutat vrida.
-
-Nederst:
-  De fyra rattarnas parametrar på den sida du är på. Värdet på ratten du vrider blir orange.
+Over USB the FM-1 shows up as "n001se FM-1", both as a MIDI device and as an audio input (stereo, 44.1 kHz). So you can record n001se straight into your computer over the USB cable.
 
 ====================================================================
 
-KNAPPAR
+THE SCREEN
 
-PLAY       Start/stopp.
-REC        Nya mönster på alla spår.
-SEQ        Växlar mellan SEQ (stegredigering) och LIVE (spela ljuden på tangenterna).
-SAVE       Öppnar preset-listan för att spara (se PRESETS).
-           Håll SAVE 1,5 s: frågar "RESET?". Tryck SAVE igen inom 5 s för att återställa allt till grundläget (MIDI-kanalen behålls). Gör du något annat behålls allt.
-ARP        Öppnar preset-listan för att ladda. Tryck ARP igen för att ladda presetet som är valt.
-OCT- / OCT+  Väljer föregående/nästa spår. I preset-listan: flyttar en plats.
+Top:
+  The page name, dots showing which page you are on when a button has several pages, LIVE when live play is on, a small dot when there are unsaved changes, and the tempo (BPM, or EXT when MIDI clock sets the tempo). The Setup page also shows the CPU load in %, and "X" with a number if the audio has dropped out.
 
-Sidknappar (ett tryck till byter till knappens nästa sida):
+Middle (the sequencer):
+  One row per track, 1–5. The selected row has a grey background.
+  On the left: a level meter, the track's name, its length ("2b" = 2 bars, "12st" = 12 steps) and R/D when the track sends to reverb/delay.
+  Then 16 steps for one bar. A stronger colour means a higher velocity, and a small mark shows a pitched step. On the acid track accents are brighter, and slides show as a bridge to the next step.
+
+Below the tracks:
+  The bar numbers 1–8. The bar shown on the keys is white, and underlined if you have locked it.
+  The phrase row: eight bars, the eighth red. During the eighth bar the beats count 1–4 on the far right.
+
+Big numbers:
+  In bars 4 and 8 of the phrase the beats 1–4 are shown big and see-through over the sequencer. Each number fades until the next one comes, and in bar 8 they are red. It makes it easier to find the right spot for breaks.
+
+The parameter box:
+  When you turn a knob, the parameter's name and value show big over the sequencer. The box fades away shortly after you stop turning.
+
+Bottom:
+  The parameters of the four knobs on the page you are on. The value of the knob you turn turns orange.
+
+====================================================================
+
+BUTTONS
+
+PLAY       Start/stop.
+REC        New patterns on all tracks.
+SEQ        Switches between SEQ (step editing) and LIVE (play the sounds on the keys).
+SAVE       Opens the preset list to save (see PRESETS).
+           Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
+ARP        Opens the preset list to load. Press ARP again to load the selected preset.
+OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
+
+Page buttons (another press goes to the button's next page):
 HOME       Pattern
 EDIT       Track
 ENV        Sound → Tone
-FX         Track FX → FX bus
+FX         Track FX → Mod → FX bus
 LFO        Drift
 GLOBAL     Groove → Setup → Master
 
 ====================================================================
 
-VREDEN
+ENCODERS
 
-SELECT     Väljer spår. I preset-listan: väljer plats.
-ALGO       Bläddrar genom alla sidor.
-PRESETS    Snabbratt som styr valfri parameter. Grundinställningen är Glue. Vad den styr väljer du på Setup-sidan (ratten "Presets"). Det kan vara en global parameter, en parameter på valt trumspår eller en 303-parameter, till exempel "303 Cutoff". I preset-listan bläddrar den mellan platser.
-MASTER     Huvudvolym.
-K1–K4      De fyra rattarna under skärmen. Vad de gör beror på sidan.
+SELECT     Selects the track. In the preset list: selects the slot.
+ALGO       Steps through all pages.
+PRESETS    A quick knob for any parameter. Glue by default. You choose what it controls on the Setup page (the "Presets" knob): a global parameter, a parameter of the selected drum track or a 303 parameter, for example "303 Cutoff". In the preset list it steps through the slots.
+MASTER     Main volume.
+K1–K4      The four knobs under the screen. What they do depends on the page.
 
 ====================================================================
 
-TANGENTERNA
+THE KEYS
 
-VITA TANGENTER (16 st = de 16 stegen i takten som visas)
+WHITE KEYS (16 = the 16 steps of the bar shown)
 
-I SEQ-läge:
-  Tryck på ett tomt steg: steget slås på.
-  Tryck och släpp ett påslaget steg: steget slås av.
-  Håll ett steg och vrid:
-    Trumspår: K1 = velocity, K2 = tonhöjd (−24 till +24)
-    Acidspåret: K1 = ton (−12 till +24), K2 = accent av/på, K3 = slide av/på (höger = på, vänster = av)
-  Ett steg som du har redigerat medan du höll det ligger kvar när du släpper.
+In SEQ mode:
+  Press an empty step: the step turns on.
+  Press and release a step that is on: the step turns off.
+  Hold a step and turn:
+    Drum tracks: K1 = velocity, K2 = pitch (−24 to +24)
+    The acid track: K1 = note (−12 to +24), K2 = accent off/on, K3 = slide off/on (right = on, left = off)
+  A step you edited while holding it stays when you let go.
 
-I LIVE-läge:
-  Tangenterna spelar ljuden direkt, fyra tangenter per trumljud (spår 1–4), uppåt i skalan.
+In LIVE mode:
+  The keys play the sounds directly, four keys per drum sound (tracks 1–4), up the scale.
 
-I preset-listan:
-  Välj plats direkt bland de 16 platserna på listans sida.
+In the preset list:
+  Pick a slot directly among the 16 slots on the list's page.
 
-SVARTA TANGENTER (11 st, från vänster)
+BLACK KEYS (11, from the left)
 
-  1   Föregående takt (visa och redigera)
-  2   Nästa takt
-      1 + 2 samtidigt: följ uppspelningen igen
-  3   UNDO – ångra
-  4   REDO – gör om
-  5   Mute spår 1
-  6   Mute spår 2
-  7   Mute spår 3
-  8   Mute spår 4
-  9   Mute spår 5 (acid)
-      När du slår på ett spår igen blir det också valt för redigering.
-  10  Nytt mönster för valt spår
-  11  Nytt ljud för valt spår
+  1   Previous bar (show and edit)
+  2   Next bar
+      1 + 2 together: follow the playback again
+  3   UNDO
+  4   REDO
+  5   Mute track 1
+  6   Mute track 2
+  7   Mute track 3
+  8   Mute track 4
+  9   Mute track 5 (acid)
+      Turning a track back on also selects it for editing.
+  10  New pattern for the selected track
+  11  New sound for the selected track
 
 UNDO/REDO:
-  Upp till 12 steg bakåt. Ett rattvrid räknas som ett steg, och likaså ett hållet steg med det du ändrar medan du håller det. Undo fungerar på inställningar, mönster, ljud, mutes och presetladdningar. Inställningar ångras utan avbrott i ljudet. Att ångra ett mönster eller ljud ger ett mycket kort avbrott.
+  Up to 12 steps back. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes and preset loads. Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
 
 ====================================================================
 
-SIDORNA
+THE PAGES
 
-Trumspåren (spår 1–4):
+The drum tracks (tracks 1–4):
 
 PATTERN (HOME)
-  Bars       Mönstrets längd, 1–8 takter
-  Hits min   Minsta antal slag i mönstret
-  Hits max   Största antal slag i mönstret (lika med min = exakt antal)
-  Evolve     Chans i % per varv att ett steg i mönstret ändras
+  Bars       The pattern's length, 1–8 bars
+  Hits min   The fewest hits in the pattern
+  Hits max   The most hits in the pattern (equal to min = exactly that many)
+  Evolve     Chance in % per loop that one step of the pattern changes
 
 TRACK (EDIT)
-  Rnd len    Slumpad längd: Fixed, eller 1–N takter. Ibland blir sista takten kortare, för udda längder.
-  Pitch      Hur mycket stegen får variera i tonhöjd (+-N halvtoner), Root = ingen variation
-  Level      Spårets volym
-  Mute       Av/på
+  Rnd len    Random length: Fixed, or 1–N bars. Sometimes the last bar is shorter, for odd lengths.
+  Pitch      How much the steps may vary in pitch (+-N semitones), Root = no variation
+  Level      The track's volume
+  Mute       Off/on
 
-SOUND (ENV, sida 1)
-  Deviance   Hur mycket klangen varierar från slag till slag
-  Length     Ljudets längd
-  Edge       Attack och skärpa
-  Ring       Resonans och klang
+SOUND (ENV, page 1)
+  Deviance   How much the tone varies from hit to hit
+  Length     The sound's length
+  Edge       Attack and bite
+  Ring       Resonance and ring
 
-TONE (ENV, sida 2)
-  Kind       Ljudtyp: Kick, Snare, Hat, Perc, Click, Metal. Gäller från nästa nya ljud (svart 11).
-  Ring tone  Resonansens tonhöjd
-  Tune       Stämning, −24 till +24 halvtoner
+TONE (ENV, page 2)
+  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal. Takes effect with the next new sound (black 11).
+  Ring tone  The resonance's pitch
+  Tune       Tuning, −24 to +24 semitones
 
-TRACK FX (FX, sida 1)
-  Reverb     Send till reverb. Mängden slumpas per slag upp till nivån du satt, och ibland skickas inget alls.
-  Delay      Send till delay, på samma sätt
-  Filter     Hur ofta det rörliga filtret ligger på spåret
-  Drive      Varm mättnad med jämna övertoner, kompenserad så att volymen inte ökar
+TRACK FX (FX, page 1)
+  Reverb     Send to the reverb. The amount is random per hit up to the level you set, and sometimes nothing is sent at all.
+  Delay      Send to the delay, the same way
+  Filter     How often the moving filter is on the track
+  Drive      Warm saturation with even harmonics, compensated so the volume does not rise
 
-Acidspåret (spår 5) har egna parametrar på samma sidor:
+MOD (FX, page 2)
+  A modulation effect per sound. It is not global: each track has its own.
+  Mod        The effect: Off, Phaser, Flanger, Chorus, Ringmod or Tremolo
+  Amount     How much. Phaser: the sweep's width and feedback. Flanger: the sweep's depth and feedback. Chorus: depth and amount. Ringmod: amount. Tremolo: depth.
+  Rate       Speed. The sweep runs at 0.05–8 Hz (tremolo 0.5–32 Hz). For Ringmod, Rate is the carrier's frequency, 30–1920 Hz: low gives a shaky tremolo, high a metallic ring.
+  Chance     The share of hits that get the effect, 0–100 %. Drawn for every hit, just like the sends.
+  The sweep runs all the time, also between hits, so every hit lands at a new place in the sweep. The volume is compensated, so the effect changes the tone, not the loudness.
 
-PATTERN    Bars (1–4), Notes (hur många steg som har toner), Slides, Evolve
-TRACK      Accents, Octaves (chans för oktavhopp), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min), Level
+The acid track (track 5) has its own parameters on the same pages:
+
+PATTERN    Bars (1–4), Notes (how many steps have notes), Slides, Evolve
+TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min), Level
 SOUND      Cutoff, Reso, Env mod, Decay
-TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (accentens styrka), Tune
+TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune
 TRACK FX   Reverb, Delay, Filter, Drive
+MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn per note, and a slid note keeps the previous note's choice)
 
-Globala sidor:
+Global pages:
 
-FX BUS (FX, sida 2)
-  Reverb     Reverbens returnivå (0 = av)
-  Delay      Delayens returnivå (0 = av)
-  Filter     Skalar alla spårs filter (0 = av)
-  Drive      Skalar alla spårs drive (0 = av)
+FX BUS (FX, page 3)
+  Reverb     The reverb's return level (0 = off)
+  Delay      The delay's return level (0 = off)
+  Filter     Scales every track's filter (0 = off)
+  Drive      Scales every track's drive (0 = off)
 
 DRIFT (LFO)
-  Chaos      Mer slump överallt, och glitchar: beat repeat (1/16 eller 1/8) och reverse dyker upp oftare ju högre Chaos är
-  Motion     Hur snabbt effekterna glider och rör sig över tid
+  Chaos      More randomness everywhere, and glitches that come more often the higher Chaos is:
+             Beat repeat: the last 1/32, 1/16 or 1/8 repeats.
+             Reverse: the last stretch plays backwards.
+             Tape stop: the mix slows down to a stop like a tape machine, and then you are back.
+             Where the glitches come:
+             In bars 4 and 8 of the phrase they come on the beats, and mostly in the last quarter, as a way into the next bar. They never run past the end of the bar. At Chaos 40 about one in three of those bars gets a glitch, at Chaos 100 nearly all of them.
+             In the other bars they come only now and then, always on an eighth between the beats (never on the quarters), and they are only an eighth long.
+  Motion     How fast the effects glide and move over time
 
-GROOVE (GLOBAL, sida 1)
-  Tempo      60–200 BPM (står still medan MIDI-klocka styr)
+GROOVE (GLOBAL, page 1)
+  Tempo      60–200 BPM (stays put while MIDI clock is in control)
   Swing      0–100
-  Loose      Mänsklig ojämnhet i timing och styrka
-  Max hits   Hur många trumspår som får slå på samma steg, 1–4 (spår 1 slås alltid). Standard: 4
+  Loose      Human unevenness in timing and strength
+  Max hits   How many drum tracks may hit on the same step, 1–4 (track 1 always plays). Default: 4
 
-SETUP (GLOBAL, sida 2)
-  Level      Totalnivå
-  MIDI ch    All eller 1–16
-  Presets    Vad PRESETS-vredet styr
-  USB audio  On/Off. Off skickar tystnad över USB och sparar CPU.
-  (CPU-lasten syns uppe till höger på den här sidan.)
+SETUP (GLOBAL, page 2)
+  Level      Overall level
+  MIDI ch    All or 1–16
+  Presets    What the PRESETS encoder controls
+  USB audio  On/Off. Off sends silence over USB and saves CPU.
+  (The CPU load shows at the top right of this page.)
 
-MASTER (GLOBAL, sida 3)
-  Hi cut     Lågpassfilter på hela mixen (100 = Open)
-  Lo cut     Högpassfilter på hela mixen (0 = Open)
-  Reso       Filtrens resonans
-  Glue       Busskompressor. 0 = av, 100 = lite över gränsen med lätt mättnad. Ljudstyrkan kompenseras, så Glue gör mixen tätare men inte starkare. Efter den sitter alltid en limiter vid −0,3 dBFS.
+MASTER (GLOBAL, page 3)
+  Hi cut     Low-pass filter on the whole mix (100 = Open)
+  Lo cut     High-pass filter on the whole mix (0 = Open)
+  Reso       The filters' resonance
+  Glue       Bus compressor. 0 = off, 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter but not louder. After it there is always a limiter at −0.3 dBFS.
 
 ====================================================================
 
 PRESETS
 
-64 platser.
+64 slots.
 
-Spara:
-  1. Tryck SAVE så öppnas listan.
-  2. Välj plats med SELECT, PRESETS-vredet, OCT-/OCT+ eller en vit tangent.
-  3. Tryck SAVE igen för att spara.
+Save:
+  1. Press SAVE to open the list.
+  2. Pick a slot with SELECT, the PRESETS encoder, OCT-/OCT+ or a white key.
+  3. Press SAVE again to save.
 
-Ladda:
-  1. Tryck ARP så öppnas listan.
-  2. Välj plats på samma sätt som ovan.
-  3. Tryck ARP igen för att ladda.
+Load:
+  1. Press ARP to open the list.
+  2. Pick a slot the same way as above.
+  3. Press ARP again to load.
 
-Vilken annan knapp som helst stänger listan utan att något händer. Om du laddar en tom plats behålls det du har.
+Any other button closes the list without doing anything. Loading an empty slot keeps what you have.
 
-En preset sparar allt: mönster, ljud, acidlinjen och alla inställningar.
+A preset saves everything: patterns, sounds, the acid line and all settings.
 
-Tänk på att en sparning tystar ljudet ett ögonblick, eftersom flashminnet skrivs.
+Note that saving mutes the sound for a moment, because the flash memory is being written.
 
-AUTOSPARNING:
-  Projektet sparas automatiskt 4 sekunder efter senaste ändringen, men bara när uppspelningen är stoppad och det är tyst. Det sparas aldrig mitt i ett liveset. När du slår på FM-1 startar den där du var.
+AUTOSAVE:
+  The project saves itself 4 seconds after the last change, but only when playback is stopped and it is quiet. It never saves in the middle of a live set. When you switch the FM-1 on, it starts where you were.
 
 ====================================================================
 
-MIDI (USB och MIDI IN-uttaget)
+MIDI (USB and the MIDI IN socket)
 
-Toner:
-  C1–E1 (36–40)   Nytt mönster för spår 1–4 (36–39) och acid (40 = E1)
-  C2 (48)         Nya mönster för alla trumspår
-  C3–C5 (60–84)   Grundton för tonhöjda spår (C3 = ingen transponering)
-  En ton startar uppspelningen om den är stoppad.
+Notes:
+  C1–E1 (36–40)   New pattern for tracks 1–4 (36–39) and acid (40 = E1)
+  C2 (48)         New patterns for all drum tracks
+  C3–C5 (60–84)   Root note for the pitched tracks (C3 = no transposition)
+  A note starts playback if it is stopped.
 
 Controllers (CC):
-  102–106  Ljudets makron på alla trumspår: Deviance, Length, Edge, Ring, Ring tone
+  102–106  The sound macros on all drum tracks: Deviance, Length, Edge, Ring, Ring tone
   107      Chaos
   108      Motion
   109      Filter (FX bus)
@@ -237,40 +252,41 @@ Controllers (CC):
   114      Loose
   115      Max hits
   7 / 116  Level
-  117      Nya ljud på alla spår som inte är mutade (värde 64 eller högre)
-  118      Nya mönster på alla spår (värde 64 eller högre)
+  117      New sounds on all tracks that are not muted (value 64 or higher)
+  118      New patterns on all tracks (value 64 or higher)
   74       Acid cutoff
-  71       Acid resonans
-  120/123  Stopp
+  71       Acid resonance
+  120/123  Stop
 
-Program Change 0–63:  Laddar preset 1–64.
+Program Change 0–63:  Loads preset 1–64.
 
-MIDI-klocka:
-  n001se följer inkommande klocka, och då visar skärmen EXT vid tempot. Start och Continue startar från början, Stop stoppar. När klockan slutar komma tar det egna tempot över igen.
-
-====================================================================
-
-LAMPOR
-
-PLAY lyser när det spelar, och SEQ lyser i SEQ-läge.
-
-Vita tangenter:
-  I SEQ-läge visar de stegen i takten. Uppspelningen syns som en svag lampa som vandrar över tangenterna.
-  I LIVE-läge lyser de med sitt ljud.
-
-Svarta tangenter:
-  1/2      Lyser svagt åt det håll du kan bläddra. Blinkar när takten är låst.
-  3/4      Lyser svagt när det finns något att ångra eller göra om.
-  5–9      Svagt = spåret spelar, starkt = slag just nu, släckt = mutat.
-
-Övriga knappar lyser svagt så att du kan läsa dem i mörker.
+MIDI clock:
+  n001se follows incoming clock, and the screen then shows EXT by the tempo. Start and Continue start from the top, Stop stops. When the clock stops coming, its own tempo takes over again.
 
 ====================================================================
 
-TIPS FÖR LIVESPEL
+LIGHTS
 
-- Låt spåren ha olika längd (Bars eller Rnd len), så glider de mot varandra och skapar polyrytmer.
-- Evolve på 5–15 håller mönstren levande utan att de tappar sin karaktär.
-- Lägg en viktig parameter på PRESETS-vredet, till exempel 303 Cutoff, Glue eller Chaos, så har du den alltid till hands oavsett sida.
-- Använd de stora taktsiffrorna i takt 4 och 8 för att lägga breaks och mutes på rätt ställe.
-- Råkade du trycka fram ett nytt mönster som du inte ville ha? Tryck UNDO (svart 3).
+PLAY is lit while playing, and SEQ is lit in SEQ mode.
+
+White keys:
+  In SEQ mode they show the steps of the bar. The playback shows as a faint light walking over the keys.
+  In LIVE mode they light up with their sound.
+
+Black keys:
+  1/2      Faintly lit in the direction you can go. Blink when the bar is locked.
+  3/4      Faintly lit when there is something to undo or redo.
+  5–9      Faint = the track plays, bright = a hit right now, off = muted.
+
+The other buttons are faintly lit so you can read them in the dark.
+
+====================================================================
+
+TIPS FOR LIVE SETS
+
+- Give the tracks different lengths (Bars or Rnd len), so they drift against each other and make polyrhythms.
+- Evolve at 5–15 keeps the patterns alive without losing their character.
+- Put an important parameter on the PRESETS encoder, for example 303 Cutoff, Glue or Chaos, so you always have it at hand whatever the page.
+- Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
+- Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
+- Pulled up a new pattern you did not want? Press UNDO (black 3).

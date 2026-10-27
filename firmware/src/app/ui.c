@@ -20,7 +20,8 @@
  *                  after a change, once stopped and quiet); held: reset
  *   Program Change n    loads preset n + 1
  *
- *   FX             the selected track's effects (reverb, delay, filter, drive); again: the bus (returns)
+ *   FX             the selected track's effects (reverb, delay, filter, drive); again: its modulation
+ *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
  * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, FX); a step key sets a note,
  * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide. CC 74 / 71: its cutoff / resonance.
@@ -28,20 +29,21 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_FX, V_DRIFT, V_GROOVE, V_SETUP, V_MASTER, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "FX bus", "Drift",
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_GROOVE, V_SETUP, V_MASTER, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "Mod", "FX bus", "Drift",
                                               "Groove", "Setup", "Master"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
 #define UI_TRACKS (NE_TRACKS + 1)      /* the four drum tracks and the acid line */
-static const uint8_t ACID_KNOB[V_TFX + 1][4] = {    /* the track pages, for the acid line */
+static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the acid line */
     {KA | A_BARS, KA | A_NOTES, KA | A_SLIDES, KA | A_EVOLVE},
     {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_LEVEL},
     {KA | A_CUTOFF, KA | A_RESO, KA | A_ENVMOD, KA | A_DECAY},
     {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, K_NONE},
     {KA | A_REVERB, KA | A_DELAY, KA | A_FILTER, KA | A_DRIVE},
+    {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
@@ -49,6 +51,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
+    {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
     {G_CHAOS, G_MOTION, K_NONE, K_NONE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
@@ -170,7 +173,7 @@ static void ktext(int k, int v, char *t)
 }
 static int view_knob(int i)
 {
-    return ui.track == NE_ACID && ui.view <= V_TFX ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
+    return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
 }
 
 static void tpar_set(int t, int p, int v)

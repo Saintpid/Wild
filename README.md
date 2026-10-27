@@ -1,88 +1,92 @@
-# n001se: FM-slagverk som aldrig låter likadant, för M-VAVE FM-1
+# n001se: FM percussion that never sounds the same, for the M-VAVE FM-1
 
-n001se är en egen firmware för **M-VAVE FM-1** som gör den till en slumpande FM-trummaskin med en
-acidlinje, för live. Idén kommer från Beatsurfing RANDOM: minimalism med slump. Fem spår, varje slag
-lite olika, mönster som uppstår av sig själva och effekter som rör sig. Det får aldrig bli plottrigt.
+n001se is a custom firmware for the **M-VAVE FM-1** that turns it into a random FM drum machine with
+an acid line, for live sets. The idea comes from Beatsurfing RANDOM: minimalism with chance. Five
+tracks, every hit a little different, patterns that appear by themselves and effects that move. It
+must never get cluttered.
 
-![Spelar](docs/img/playing.png) ![Takt 4 räknar stort](docs/img/phrase.png) ![En ratt vrids](docs/img/fx.png)
+![Playing](docs/img/playing.png) ![Bar 4 counts big](docs/img/phrase.png) ![A knob turned](docs/img/fx.png)
 
-> **Status: 1.0.0, testad på FM-1.** Installera på egen risk. Plattformen är FiMba-1:s, oförändrad:
-> chipets egen uppdateringsmod kan inte skrivas över, firmwaren faller tillbaka till ett säkert läge om
-> den inte startar, och originalfirmwaren går alltid att lägga tillbaka (se [Installera](#installera)).
+> **Status: 1.1.0, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
+> unchanged: the chip's own update mode cannot be overwritten, the firmware falls back to a safe mode
+> if it does not start, and the original firmware can always be put back (see [Install](#install)).
 
-**Hela manualen:** [docs/MANUAL.txt](docs/MANUAL.txt). Där finns alla knappar, sidor, parametrar och
-MIDI-kommandon.
+**The full manual:** [docs/MANUAL.txt](docs/MANUAL.txt). It has every button, page, parameter and MIDI
+command.
 
-## Så låter den
+## What it sounds like
 
-- **Fyra FM-trummor** (spår 1–4): fyra operatorer i åtta algoritmer, brus och en resonator. Varje slag
-  varierar runt ljudets grund (Deviance). Ett nytt ljud dras ur en sort: kick, snare, hat, perc, click
-  eller metal, och perc, click och metal hamnar i en slumpad oktav.
-- **Acidlinje** (spår 5) i 303-stil: saw, square, pulse, tri, sine eller duo genom ett resonant
-  ladderfilter med envelope, accent och slide. Den har en egen slumpsequencer med skalor, oktavhopp och
-  Evolve.
-- **Mönster som slumpas fram:** varje spår loopar över sin egen längd (trummorna 1–8 takter, acid 1–4),
-  så spåren glider mot varandra. Hits min–max styr hur många slag ett nytt mönster får, och Evolve
-  flyttar ibland ett slag när loopen går runt.
-- **Effekter per spår:** reverb- och delaysends som slumpas per slag upp till nivån du satt, ett
-  rörligt filter och en varm drive med jämna övertoner som inte höjer volymen. **Chaos** ger glitchar:
-  beat repeat och reverse.
-- **Master:** hi cut, lo cut, resonans och **Glue**, en busskompressor som gör mixen tätare men inte
-  starkare. Efter den sitter alltid en limiter vid −0,3 dBFS.
+- **Four FM drums** (tracks 1–4): four operators in eight algorithms, noise and a resonator. Every
+  hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
+  perc, click or metal, and perc, click and metal land in a random octave.
+- **An acid line** (track 5) in 303 style: saw, square, pulse, tri, sine or duo through a resonant
+  ladder filter with envelope, accent and slide. It has its own random sequencer with scales, octave
+  jumps and Evolve.
+- **Patterns drawn at random:** each track loops over its own length (drums 1–8 bars, acid 1–4), so
+  the tracks drift against each other. Hits min–max sets how many hits a new pattern gets, and Evolve
+  now and then moves a hit when the loop comes round.
+- **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
+  filter, a warm drive with even harmonics that does not raise the volume, and a **modulation effect**
+  per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.
+- **Chaos** brings glitches: beat repeat, reverse and tape stop. They gather at the end of bars 4 and
+  8 of the phrase, as fills into the next bar; elsewhere they are short, an eighth off the beat.
+- **Master:** hi cut, lo cut, resonance and **Glue**, a bus compressor that makes the mix tighter but
+  not louder. After it there is always a limiter at −0.3 dBFS.
 
-## Livespel i korthet
+## Live play in short
 
-| Kontroll | Gör |
+| Control | Does |
 | --- | --- |
-| **Vita tangenter** | De 16 stegen i takten som visas. Håll ett steg och vrid för velocity och ton (acid: ton, accent, slide). I LIVE-läge spelar de ljuden |
-| **Svart 1 / 2** | Föregående / nästa takt (båda: följ uppspelningen) |
-| **Svart 3 / 4** | Undo / redo, 12 steg |
-| **Svart 5–9** | Mute spår 1–5 |
-| **Svart 10 / 11** | Nytt mönster / nytt ljud på valt spår |
-| **PLAY / REC / SEQ** | Start/stopp / nya mönster på alla spår / växla SEQ och LIVE |
-| **SAVE / ARP** | Spara / ladda preset (64 platser) |
-| **PRESETS** | Styr valfri parameter, Glue från början |
-| **HOME EDIT ENV FX LFO GLOBAL** | Sidorna. Tryck igen för knappens nästa sida |
+| **White keys** | The 16 steps of the bar shown. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **Black 1 / 2** | Previous / next bar (both: follow the playback) |
+| **Black 3 / 4** | Undo / redo, 12 steps |
+| **Black 5–9** | Mute tracks 1–5 |
+| **Black 10 / 11** | New pattern / new sound on the selected track |
+| **PLAY / REC / SEQ** | Start/stop / new patterns on all tracks / switch SEQ and LIVE |
+| **SAVE / ARP** | Save / load a preset (64 slots) |
+| **PRESETS** | Controls any parameter, Glue to start with |
+| **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
-I takt 4 och 8 av frasen räknas slagen 1–4 stort över sequencern, så det är lätt att lägga breaks.
-När du vrider en ratt syns parameterns namn och värde stort.
+In bars 4 and 8 of the phrase the beats 1–4 count big over the sequencer, so it is easy to place
+breaks. When you turn a knob, the parameter's name and value show big.
 
-Över USB syns FM-1 som **n001se FM-1**: MIDI in och ut och en ljudingång (stereo, 44,1 kHz) som du kan
-spela in direkt i datorn.
+Over USB the FM-1 shows up as **n001se FM-1**: MIDI in and out and an audio input (stereo, 44.1 kHz)
+that you can record straight into your computer.
 
-## Installera
+## Install
 
-Den färdiga firmwarefilen (`.fwsc`) delas ut via Patreon. Du kan också bygga den själv ur den här
-källkoden, se [Bygga och testa](#bygga-och-testa).
+The ready-built firmware file (`.fwsc`) is handed out on the author's Patreon. You can also build it
+yourself from this source, see [Build and test](#build-and-test).
 
-Installera filen med M-VAVE:s **M-UPGRADE**. Ladda först ner M-VAVE:s originalfirmware (FM-1 V15, "PC
-Firmware" på m-vave.com/download) så att du alltid kan gå tillbaka. Det går också att installera från
-FiMba-1:s webbsida <https://jadamsowers.github.io/fm1-fimba/#install> i Chrome eller Edge ("Or a
-firmware file"), eller från kommandoraden: `python3 tools/fm1_install.py n001se.fwsc`.
+Install the file with M-VAVE's **M-UPGRADE**. First download M-VAVE's original firmware (FM-1 V15,
+"PC Firmware" at m-vave.com/download) so you can always go back. It can also be installed from
+FiMba-1's web page <https://jadamsowers.github.io/fm1-fimba/#install> in Chrome or Edge ("Or a
+firmware file"), or from the command line: `python3 tools/fm1_install.py n001se.fwsc`.
 
-## Bygga och testa
+## Build and test
 
-Detaljerna finns i [BUILDING.md](BUILDING.md) (JieLis Linux-verktygskedja och tre filer ur AC79-SDK:n).
+The details are in [BUILDING.md](BUILDING.md) (JieLi's Linux toolchain and three files from the AC79
+SDK).
 
 ```
-tests/run_tests.sh      # motorn, plattformen och hela appen i simulatorn
+tests/run_tests.sh      # the engine, the platform and the whole app in the simulator
 ./build.sh              # build/n001se.fwsc
 ```
 
-**Simulatorn** (`build/host/n001se_host SKRIPT UTMAPP`) kör hela firmwaren på datorn från ett skript
-(`tests/scenarios/*.kal`): skärmbilder, ljud och MIDI kommer ut. Bilderna här är dess.
+**The simulator** (`build/host/n001se_host SCRIPT OUTDIR`) runs the whole firmware on a computer from
+a script (`tests/scenarios/*.kal`): screenshots, audio and MIDI come out. The pictures here are its.
 
-## Släktträd och tack
+## Family tree and thanks
 
-n001se står på en kedja av öppen firmware för FM-1:
-[Felucca](https://github.com/hugelton/Felucca) (Leo Kuroshita, Hügelton Instruments) gjorde FM-1
-programmerbar; [X0X](https://github.com/charlesvestal/fm1-x0x) och
-[FoMni](https://github.com/charlesvestal/fm1-fomni) (Charles Vestal) byggde andra instrument på den
-plattformen och lade till simulatorn; [FiMba-1](https://github.com/jadamsowers/fm1-fimba) (Adam
-Sowers) är kalimban som n001se är byggd ur. Plattform, uppdatering, säkert läge och simulator är
-deras. Ljudmotorn, sequencern, effekterna och gränssnittet är n001se:s.
+n001se stands on a chain of open firmware for the FM-1:
+[Felucca](https://github.com/hugelton/Felucca) (Leo Kuroshita, Hügelton Instruments) made the FM-1
+programmable; [X0X](https://github.com/charlesvestal/fm1-x0x) and
+[FoMni](https://github.com/charlesvestal/fm1-fomni) (Charles Vestal) built other instruments on that
+platform and added the simulator; [FiMba-1](https://github.com/jadamsowers/fm1-fimba) (Adam Sowers)
+is the kalimba n001se is built from. The platform, the updater, the safe mode and the simulator are
+theirs. The sound engine, the sequencer, the effects and the interface are n001se's.
 
-## Licens
+## License
 
-GPL-3.0-only, som hela kedjan. Se [LICENSING.md](LICENSING.md). "M-VAVE" och "FM-1" är sina ägares
-varumärken; n001se är fristående och inte knuten till dem.
+GPL-3.0-only, like the whole chain. See [LICENSING.md](LICENSING.md). "M-VAVE" and "FM-1" are
+trademarks of their owners; n001se is independent and not affiliated with them.

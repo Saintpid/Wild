@@ -176,6 +176,12 @@ NFM_CODE static void play(nacid *a, nacid_note st, int tie)
     if (!legato) {
         a->freq = a->target;
         a->env = 1.0f;
+        /* the modulation effect: this note's chance (a slid note keeps the one before's) */
+        if (a->mod.type == NFM_MOD_OFF || a->mod.chance <= 0.0f ||
+            ((a->mod.type == NFM_MOD_FLANGER || a->mod.type == NFM_MOD_CHORUS) && !a->ms.line))
+            a->mod_to = 0.0f;
+        else
+            a->mod_to = a->mod.chance >= 1.0f || rndf(&a->rng) < a->mod.chance ? 1.0f : 0.0f;
     }
     a->gate_on = 1;
     a->sounding = 1;
@@ -229,6 +235,7 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
     const float att = 1.0f - exp2f_(-1.4427f / (0.002f * a->sr)), rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
     const float fade = 1.0f - exp2f_(-1.4427f / (0.01f * a->sr));
     float lvl = a->p[NACID_P_LEVEL] * 0.6f * e->master;
+    nfm_mod_block(&a->mod, a->sr, n);
     for (int i = 0; i < n; ++i, ++a->now) {
         if (a->pending && (int32_t)(a->now - a->at) >= 0) {
             a->pending = 0;
@@ -308,6 +315,13 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             float lp = gg * bp + a->is2;
             a->is2 = gg * bp + lp;
             o += (lp + (bp * 1.5f - lp) * e->ins_morph - o) * a->ins_f;
+        }
+        if (a->mod.type != NFM_MOD_OFF && (a->mod_to > 0.0f || a->mod_mix > 0.001f)) {
+            float y = nfm_mod_tick(&a->mod, &a->ms, o, i);
+            a->mod_mix += (a->mod_to - a->mod_mix) * fade;
+            o += (y - o) * a->mod_mix;
+        } else {
+            a->mod_mix = 0.0f;
         }
         out_l[i] += o;
         out_r[i] += o;

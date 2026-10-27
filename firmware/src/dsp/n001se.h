@@ -10,8 +10,10 @@
  *             pattern places a random number of hits (Hits low..high) where the kind likes them.
  *   FX        per sound: reverb and delay sends, the share of its hits in a moving filter, a warm drive
  *             (loudness matched). Globally: the reverb's and delay's returns, the filter's and drive's
- *             scale; Chaos how far the settings wander, Motion how fast. Chaos also brings GLITCHES now
- *             and then, on the beat: a beat repeat or a beat played backwards.
+ *             scale; Chaos how far the settings wander, Motion how fast. A modulation effect per sound
+ *             (phaser, flanger, chorus, ring modulator, tremolo) on a share of its hits. Chaos also
+ *             brings GLITCHES: a beat repeat, a stretch played backwards or a tape stop, mostly at the
+ *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat.
  *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor (loudness matched) and a limiter
  *             at -0.3 dBFS. Track 1 and the acid line never lose a hit to the others.
  *
@@ -53,6 +55,7 @@ enum {
     T_FLUID, T_LEVEL,
     T_TUNE,                                          /* semitones on the sound (reset by a new sound) */
     T_REVERB, T_DELAY, T_FILTER, T_DRIVE,            /* its effects: sends, the filter's share, drive */
+    T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE,         /* its modulation effect (NFM_MOD_*), on a share of hits */
     T_NPARAMS
 };
 /* the acid line's parameters */
@@ -62,6 +65,7 @@ enum {
     A_CUTOFF, A_RESO, A_ENVMOD, A_DECAY,
     A_ACCENT, A_WAVE, A_TUNE, A_LEVEL,
     A_REVERB, A_DELAY, A_FILTER, A_DRIVE,
+    A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE,
     A_NPARAMS
 };
 typedef struct {

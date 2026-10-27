@@ -69,6 +69,10 @@ typedef struct {
     float is1, is2;
     nfm_sat sat;
     float drive_to;
+    /* the modulation effect (nfm's), on a share of the notes: faded in and out note by note */
+    nfm_mod mod;
+    nfm_mod_state ms;              /* ms.line: set by the owner (NFM_MOD_LEN frames), else no flanger / chorus */
+    float mod_mix, mod_to;
     float peak;                    /* the level now, for a meter */
 } nacid;
 

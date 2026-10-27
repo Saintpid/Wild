@@ -14,6 +14,8 @@ static nseq seq;
 static nfx fx NE_POOL;                 /* the delay and reverb lines: 180 kB */
 static nacid acid;
 static void acid_route(int bar);
+/* the modulation effects' delay lines (flanger, chorus): one per drum voice, one for the acid line */
+static int16_t mod_lines[NFM_VOICES + 1][NFM_MOD_LEN] NE_POOL;
 
 volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
@@ -66,6 +68,10 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_DELAY] = {"Delay", 0, 100, 0},
     [T_FILTER] = {"Filter", 0, 100, 0},
     [T_DRIVE] = {"Drive", 0, 100, 0},
+    [T_MOD] = {"Mod", 0, NFM_MODS - 1, 0},
+    [T_MODAMT] = {"Amount", 0, 100, 50},
+    [T_MODRATE] = {"Rate", 0, 100, 30},
+    [T_MODCHANCE] = {"Chance", 0, 100, 60},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -88,15 +94,19 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_DELAY] = {"Delay", 0, 100, 25},
     [A_FILTER] = {"Filter", 0, 100, 0},
     [A_DRIVE] = {"Drive", 0, 100, 35},
+    [A_MOD] = {"Mod", 0, NFM_MODS - 1, 0},
+    [A_MODAMT] = {"Amount", 0, 100, 50},
+    [A_MODRATE] = {"Rate", 0, 100, 30},
+    [A_MODCHANCE] = {"Chance", 0, 100, 60},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10},
+    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60},
+    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60},
+    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60},
+    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
@@ -106,8 +116,10 @@ static const uint8_t PKNOB[] = {
     NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
     NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
+    NE_PK_TRACK | T_MODAMT, NE_PK_TRACK | T_MODRATE, NE_PK_TRACK | T_MODCHANCE,
     NE_PK_ACID | A_CUTOFF, NE_PK_ACID | A_RESO, NE_PK_ACID | A_ENVMOD, NE_PK_ACID | A_DECAY,
     NE_PK_ACID | A_ACCENT, NE_PK_ACID | A_TUNE, NE_PK_ACID | A_LEVEL,
+    NE_PK_ACID | A_MODAMT, NE_PK_ACID | A_MODRATE,
 };
 #define NE_PKNOBS ((int)sizeof PKNOB)
 int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v : 0]; }
@@ -148,6 +160,7 @@ static void cpy(char *d, const char *s)
     while ((*d++ = *s++))
         ;
 }
+static const char *const MOD_NAME[NFM_MODS] = {"Off", "Phaser", "Flanger", "Chorus", "Ringmod", "Tremolo"};
 
 void ne_param_text(int i, int v, char *b)
 {
@@ -180,6 +193,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_RANDLEN: if (v) { b[0] = '1'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Fixed"); return;
     case T_PITCH: if (v) { b[0] = '+'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Root"); return;
     case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
+    case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     }
     itoa_s(v, b);
 }
@@ -196,6 +210,7 @@ void ne_aparam_text(int i, int v, char *b)
         return;
     }
     case A_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
+    case A_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     }
     itoa_s(v, b);
 }
@@ -207,7 +222,7 @@ typedef struct {
     int8_t t;
     int16_t a, b, c, d;
 } cmd_t;
-#define QN 128u                        /* a project_apply() posts ~70 before the audio starts */
+#define QN 256u                        /* a project_apply() posts ~120 before the audio starts */
 static cmd_t q[QN];
 static volatile uint32_t q_w, q_r;
 static volatile uint8_t hold;          /* ne_restore() is writing: the render stays silent */
@@ -371,16 +386,24 @@ static inline float lim_gain(float a, float b)   /* the limiter's gain for one f
     return lim_env > LIM_CEIL ? LIM_CEIL / lim_env : 1.0f;
 }
 
-/* GLITCHES: now and then, on a beat, Chaos plays a beat repeat (the last sixteenth or eighth again and
- * again, for a beat or two) or the last beat backwards. The mix goes into a ring of 16384 frames
- * (int16, 0.37 s: an eighth down to 41 BPM, a beat down to 82; longer ones are shortened), which stops
- * taking while a glitch plays from it. A beat's chance: Chaos squared x 0.12 (40: one in ~50). */
+/* GLITCHES, by Chaos: a beat repeat (the last sixteenth, eighth or thirty-second again and again), a
+ * stretch played backwards, or a TAPE STOP (the mix slowing down to nothing). In the phrase's bars 4 and
+ * 8 they come on the beat, and most in its last quarter, the way into the next bar: never past the bar's
+ * end. Elsewhere only now and then, on an eighth off the beat (the "and"), an eighth long.
+ * The mix goes into a ring of 16384 frames (int16, 0.37 s: an eighth down to 41 BPM, a beat down to 82;
+ * longer ones are shortened), which stops taking while a repeat or a reverse plays from it (a tape stop
+ * goes on recording: it plays what is coming, slower and slower).
+ * Chances, Chaos squared x: 0.9 each eighth of bar 4's and 8's last quarter, 0.15 each of their other
+ * beats, 0.08 each offbeat eighth elsewhere (40: one fill in three, elsewhere one in about three
+ * phrases). */
 #define GX_LEN 16384u
 #define GX_FADE 96u                              /* frames: the edges of a slice, the way in and out */
+enum { GX_REPEAT, GX_REVERSE, GX_TAPE };
 static int16_t gx_buf[GX_LEN][2] NE_POOL;
 static uint32_t gx_w;                            /* the next frame written (counts on) */
 static uint32_t gx_at, gx_start, gx_t, gx_len, gx_slice;   /* when, from where, how far, how long */
-static uint8_t gx_pending, gx_on, gx_rev;
+static uint8_t gx_pending, gx_on, gx_mode;
+static float gx_rp, gx_dr;                       /* the tape: how far it has played, its slowing per frame */
 static uint32_t gx_rng = 0x676c6974u;
 static float gx_rnd(void)
 {
@@ -392,25 +415,50 @@ static float gx_rnd(void)
 static uint32_t gx_clock;                        /* frames, in step with the sequencer's clock */
 static void glitch_step(uint32_t step, float delay, float step_len)
 {
-    float c = pct(gpar[G_CHAOS]);
-    uint32_t sl;
-    if (step % 4u || gx_on || gx_pending || gx_rnd() >= c * c * 0.12f)
+    float c = pct(gpar[G_CHAOS]), chance, r;
+    uint32_t ps = step % (8u * NE_BAR), pos = ps % NE_BAR, left = NE_BAR - pos, n, sl, len;
+    int fill = ps / NE_BAR == 3u || ps / NE_BAR == 7u;
+    if (gx_on || gx_pending)
         return;
-    gx_rev = gx_rnd() < 0.4f;
-    if (gx_rev) {                                /* the last beat (or two steps) backwards */
-        sl = (uint32_t)(step_len * 4.0f);
-        if (sl > GX_LEN - 2u * GX_FADE)
-            sl = (uint32_t)(step_len * 2.0f);
-        gx_slice = gx_len = sl;
-    } else {                                     /* a sixteenth or an eighth, for a beat or two */
-        sl = (uint32_t)(step_len * (gx_rnd() < 0.5f ? 1.0f : 2.0f));
-        gx_slice = sl;
-        gx_len = (uint32_t)(step_len * (gx_rnd() < 0.6f ? 4.0f : 8.0f));
+    if (fill)                                    /* bars 4 and 8: on the beat, the last quarter by eighths */
+        chance = pos >= 12u ? (pos & 1u ? 0.0f : 0.9f) : (pos & 3u ? 0.0f : 0.15f);
+    else                                         /* elsewhere: the eighth off the beat */
+        chance = pos % 4u == 2u ? 0.08f : 0.0f;
+    if (chance <= 0.0f || gx_rnd() >= c * c * chance)
+        return;
+    n = fill ? (left < 4u ? left : 4u) : 2u;     /* its length in steps: to the bar's end at most */
+    if (fill && left > 4u && gx_rnd() < 0.4f)
+        n = left < 8u ? left : 8u;
+    r = gx_rnd();
+    gx_mode = r < 0.3f ? GX_REVERSE : r < 0.55f ? GX_TAPE : GX_REPEAT;
+    len = (uint32_t)(step_len * (float)n);
+    if (gx_mode == GX_REVERSE) {                 /* the last stretch as long as it, backwards */
+        while (len > GX_LEN - 2u * GX_FADE && n > 1u)
+            len = (uint32_t)(step_len * (float)(n >>= 1));
+        sl = len;
+    } else if (gx_mode == GX_TAPE) {             /* it falls behind by half its length: within the ring */
+        while (len / 2u > GX_LEN - 4u * GX_FADE && n > 1u)
+            len = (uint32_t)(step_len * (float)(n >>= 1));
+        sl = len;
+        gx_rp = 0.0f;
+        gx_dr = 1.0f / (float)len;
+    } else {                                     /* a sixteenth or an eighth; at the end of a fill a 32nd */
+        float k = fill && pos >= 12u && gx_rnd() < 0.5f ? 0.5f : gx_rnd() < 0.5f || !fill ? 1.0f : 2.0f;
+        sl = (uint32_t)(step_len * k);
     }
-    if (gx_slice < 4u * GX_FADE || gx_slice > GX_LEN - 2u * GX_FADE)
+    if (sl < 4u * GX_FADE || sl > GX_LEN - 2u * GX_FADE || len < 4u * GX_FADE)
         return;
+    gx_slice = sl;
+    gx_len = len;
     gx_at = seq.now + (uint32_t)delay;
     gx_pending = 1;
+}
+static inline void gx_put(float a, float b)
+{
+    uint32_t i = gx_w++ & (GX_LEN - 1u);
+    float x = a * 16384.0f, y = b * 16384.0f;
+    gx_buf[i][0] = (int16_t)(x > 32767.0f ? 32767.0f : x < -32768.0f ? -32768.0f : x);
+    gx_buf[i][1] = (int16_t)(y > 32767.0f ? 32767.0f : y < -32768.0f ? -32768.0f : y);
 }
 /* one frame through: recorded, or replaced by the glitch */
 static inline void glitch(float *a, float *b)
@@ -426,25 +474,33 @@ static inline void glitch(float *a, float *b)
     }
     gx_clock++;
     if (!gx_on) {
-        i = gx_w++ & (GX_LEN - 1u);
-        x = *a * 16384.0f;
-        y = *b * 16384.0f;
-        gx_buf[i][0] = (int16_t)(x > 32767.0f ? 32767.0f : x < -32768.0f ? -32768.0f : x);
-        gx_buf[i][1] = (int16_t)(y > 32767.0f ? 32767.0f : y < -32768.0f ? -32768.0f : y);
+        gx_put(*a, *b);
         return;
     }
-    {
+    if (gx_mode == GX_TAPE) {                    /* the speed falls from 1 to 0: read behind, in between */
+        float sp = 1.0f - (float)gx_t * gx_dr, f;
+        uint32_t j;
+        gx_put(*a, *b);
+        i = (uint32_t)gx_rp;
+        f = gx_rp - (float)i;
+        j = (gx_start + i + 1u) & (GX_LEN - 1u);
+        i = (gx_start + i) & (GX_LEN - 1u);
+        w = (1.0f / 16384.0f) * (sp < 0.25f ? sp * 4.0f : 1.0f);   /* quieter as it stops */
+        x = ((float)gx_buf[i][0] + ((float)gx_buf[j][0] - (float)gx_buf[i][0]) * f) * w;
+        y = ((float)gx_buf[i][1] + ((float)gx_buf[j][1] - (float)gx_buf[i][1]) * f) * w;
+        gx_rp += sp > 0.0f ? sp : 0.0f;
+    } else {
         uint32_t p = gx_t % gx_slice, e = gx_slice - p;
-        i = gx_rev ? gx_start - 1u - gx_t : gx_start - gx_slice + p;
+        i = gx_mode == GX_REVERSE ? gx_start - 1u - gx_t : gx_start - gx_slice + p;
         i &= GX_LEN - 1u;
         w = p < GX_FADE ? (float)p / GX_FADE : e < GX_FADE ? (float)e / GX_FADE : 1.0f;
-        if (gx_rev)                              /* backwards: whole, faded only at its ends */
+        if (gx_mode == GX_REVERSE)               /* backwards: whole, faded only at its ends */
             w = gx_t < GX_FADE ? (float)gx_t / GX_FADE : gx_len - gx_t < GX_FADE ? (float)(gx_len - gx_t) / GX_FADE : 1.0f;
         else if (gx_t < GX_FADE || gx_len - gx_t < GX_FADE)
             w = 1.0f;                            /* (the way in and out: the crossfade below) */
+        x = (float)gx_buf[i][0] * (1.0f / 16384.0f) * w;
+        y = (float)gx_buf[i][1] * (1.0f / 16384.0f) * w;
     }
-    x = (float)gx_buf[i][0] * (1.0f / 16384.0f) * w;
-    y = (float)gx_buf[i][1] * (1.0f / 16384.0f) * w;
     {   /* in and out: from the mix to the glitch and back */
         float m = gx_t < GX_FADE ? (float)gx_t / GX_FADE : gx_len - gx_t < GX_FADE ? (float)(gx_len - gx_t) / GX_FADE : 1.0f;
         *a += (x - *a) * m;
@@ -512,6 +568,10 @@ static void tset(int t, int p, int v)
     case T_DELAY: nfx_set_slot(&fx, t, NFX_DELAY, pct(v)); break;
     case T_FILTER: nfx_set_slot(&fx, t, NFX_FILTER, pct(v)); break;
     case T_DRIVE: nfx_set_slot(&fx, t, NFX_DRIVE, pct(v)); break;
+    case T_MOD: fm.mod[t].type = (uint8_t)v; break;
+    case T_MODAMT: fm.mod[t].amount = pct(v); break;
+    case T_MODRATE: fm.mod[t].rate = pct(v); break;
+    case T_MODCHANCE: fm.mod[t].chance = pct(v); break;
     case T_KIND: break;                /* takes effect with the next new sound */
     }
     (void)tr;
@@ -544,6 +604,10 @@ static void aset(int p, int v)
     case A_TUNE: acid.tune = (float)v; break;
     case A_LEVEL: acid.p[NACID_P_LEVEL] = pct(v); break;
     case A_REVERB: case A_DELAY: case A_FILTER: case A_DRIVE: acid_route(0); break;
+    case A_MOD: acid.mod.type = (uint8_t)v; break;
+    case A_MODAMT: acid.mod.amount = pct(v); break;
+    case A_MODRATE: acid.mod.rate = pct(v); break;
+    case A_MODCHANCE: acid.mod.chance = pct(v); break;
     }
 }
 
@@ -606,6 +670,9 @@ void ne_init(void)
     nseq_init(&seq, &fm, 0x73657121u);
     nseq_set_fx(&seq, &fx);
     nacid_init(&acid, NE_SR, 0x61636964u);
+    nfm_set_mod_lines(&fm, mod_lines[0]);
+    acid.ms.line = mod_lines[NFM_VOICES];
+    nfm_mod_reset(&acid.ms);
     seq.on_step = on_step;
     fm.priority_slot = 0;                        /* track 1: never a hit lost (nseq keeps it too) */
     nfx_set_source(&fx, acid_render, 0);
