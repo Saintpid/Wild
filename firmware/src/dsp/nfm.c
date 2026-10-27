@@ -618,6 +618,13 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->send_rev = v->send_dly = 0.0f;
     v->ins_s1 = v->ins_s2 = 0.0f;
     nfm_sat_set(&v->sat, 0.0f);
+    {   /* the sound's modulation effect, on a share of its hits */
+        const nfm_mod *m = &e->mod[s];
+        int need_line = m->type == NFM_MOD_FLANGER || m->type == NFM_MOD_CHORUS;
+        v->mod_on = m->type != NFM_MOD_OFF && m->chance > 0.0f && (!need_line || v->ms.line) &&
+                    (m->chance >= 1.0f || rng_uni(&e->rng) < m->chance);
+        if (v->mod_on) nfm_mod_reset(&v->ms);
+    }
     return (int)(v - e->voice);
 }
 
@@ -672,6 +679,134 @@ NFM_CODE void nfm_sat_control(nfm_sat *s)
     r = 0.5f * (r + want / r);
     r = 0.5f * (r + want / r);
     s->adapt = r;
+}
+
+/* ---- the modulation effects -------------------------------------------- */
+
+/* The LFO is a sine, 0..1. Rate 0..1: 0.05..8 Hz (tremolo 0.5..32 Hz); the ring modulator's carrier
+ * 30..1920 Hz. A block's values are worked out at its two ends and slid between. */
+NFM_CODE static float mod_lfo_hz(const nfm_mod *m)
+{
+    return m->type == NFM_MOD_TREMOLO ? 0.5f * exp2_approx(m->rate * 6.0f) : 0.05f * exp2_approx(m->rate * 7.3219281f);
+}
+/* phaser: the allpasses' corner, 200 Hz up to 200 x 2^(1 + 5 amount), as a coefficient */
+NFM_CODE static float mod_ap(const nfm_mod *m, float u, float sr)
+{
+    float f = 200.0f * exp2_approx(u * (1.0f + 5.0f * m->amount));
+    float x = f / sr * 0.5f;
+    if (x > 0.2f) x = 0.2f;
+    float t = sin_cyc(x) / sin_cyc(x + 0.25f);
+    return (t - 1.0f) / (t + 1.0f);
+}
+/* flanger 0.5..(1 + 3 amount) ms, chorus 7..(9 + 5 amount) ms: the delay in frames */
+NFM_CODE static float mod_delay(const nfm_mod *m, float u, float sr)
+{
+    float ms = m->type == NFM_MOD_FLANGER ? 0.5f + u * (0.5f + 3.0f * m->amount)
+                                          : 7.0f + u * (2.0f + 5.0f * m->amount);
+    return ms * 0.001f * sr;
+}
+
+NFM_CODE void nfm_mod_block(nfm_mod *m, float sr, int n)
+{
+    if (m->type == NFM_MOD_OFF || n <= 0) return;
+    float l1, ph1 = m->ph + mod_lfo_hz(m) * (float)n / sr;
+    float rn = 1.0f / (float)n;
+    m->l0 = 0.5f + 0.5f * sin_cyc(m->ph);
+    l1 = 0.5f + 0.5f * sin_cyc(ph1);
+    m->dl = (l1 - m->l0) * rn;
+    m->ph = wrap1(ph1);
+    switch (m->type) {
+    case NFM_MOD_PHASER:
+        m->a0 = mod_ap(m, m->l0, sr);
+        m->da = (mod_ap(m, l1, sr) - m->a0) * rn;
+        break;
+    case NFM_MOD_FLANGER: case NFM_MOD_CHORUS:
+        m->d0 = mod_delay(m, m->l0, sr);
+        m->dd = (mod_delay(m, l1, sr) - m->d0) * rn;
+        break;
+    case NFM_MOD_RING:
+        m->car = wrap1(m->car + m->c_inc * m->nprev);
+        m->c_inc = 30.0f * exp2_approx(m->rate * 6.0f) / sr;
+        break;
+    }
+    m->nprev = (float)n;
+}
+
+NFM_CODE void nfm_mod_reset(nfm_mod_state *s)
+{
+    for (int k = 0; k < 4; ++k) s->x1[k] = s->y1[k] = 0.0f;
+    s->fb = 0.0f;
+    s->ein = s->eout = 0.0f;
+    s->g = 1.0f;
+    s->w = 0;
+    if (s->line) nfm_zero(s->line, NFM_MOD_LEN * 2u);
+}
+
+/* the levels in and out followed, every 16th frame the gain that matches them (within 0.5..2: sqrt by
+ * two Newton steps from the last value) */
+NFM_CODE static inline float mod_match(nfm_mod_state *s, float x, float y, int i)
+{
+    s->ein += 0.001f * (x * x - s->ein);
+    s->eout += 0.001f * (y * y - s->eout);
+    if ((i & 15) == 0 && s->eout > 1e-10f && s->ein > 1e-10f) {
+        float want = s->ein / s->eout, r = s->g;
+        want = want > 4.0f ? 4.0f : want < 0.25f ? 0.25f : want;
+        r = 0.5f * (r + want / r);
+        s->g = 0.5f * (r + want / r);
+    }
+    return y * s->g;
+}
+
+NFM_CODE float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i)
+{
+    float fi = (float)i;
+    switch (m->type) {
+    case NFM_MOD_PHASER: {       /* four first-order allpasses with feedback, mixed with the dry: notches */
+        float a = m->a0 + m->da * fi, y = x + s->fb * (0.2f + 0.5f * m->amount);
+        for (int k = 0; k < 4; ++k) {
+            float o = a * y + s->x1[k] - a * s->y1[k];
+            s->x1[k] = y;
+            s->y1[k] = o;
+            y = o;
+        }
+        s->fb = y;
+        return mod_match(s, x, x + (y - x) * (0.35f + 0.15f * m->amount), i);
+    }
+    case NFM_MOD_FLANGER: case NFM_MOD_CHORUS: {
+        if (!s->line) return x;
+        float d = m->d0 + m->dd * fi;
+        int di = (int)d;
+        float t = d - (float)di;
+        uint16_t w = s->w;
+        float a = (float)s->line[(w - di) & (NFM_MOD_LEN - 1)], b = (float)s->line[(w - di - 1) & (NFM_MOD_LEN - 1)];
+        float del = (a + (b - a) * t) * (1.0f / 8192.0f), in, y;
+        if (m->type == NFM_MOD_FLANGER) {
+            in = x + del * (0.3f + 0.55f * m->amount);
+            y = (x + del) * 0.6f;
+        } else {
+            float wet = 0.35f + 0.45f * m->amount;
+            in = x;
+            y = (x + del * wet) / (1.0f + 0.5f * wet);
+        }
+        in *= 8192.0f;
+        s->line[w & (NFM_MOD_LEN - 1)] = (int16_t)(in > 32767.0f ? 32767.0f : in < -32768.0f ? -32768.0f : in);
+        s->w = (uint16_t)(w + 1u);
+        return mod_match(s, x, y, i);
+    }
+    case NFM_MOD_RING:
+        return mod_match(s, x, x + (x * sin_cyc(m->car + m->c_inc * fi) - x) * (0.3f + 0.7f * m->amount), i);
+    case NFM_MOD_TREMOLO:      /* its average loudness made up, nearly */
+        return x * (1.0f - m->amount * (m->l0 + m->dl * fi)) * (1.0f + 0.5f * m->amount);
+    }
+    return x;
+}
+
+NFM_CODE void nfm_set_mod_lines(nfm_engine *e, int16_t *lines)
+{
+    for (int v = 0; v < NFM_VOICES; ++v) {
+        e->voice[v].ms.line = lines ? lines + v * NFM_MOD_LEN : 0;
+        nfm_mod_reset(&e->voice[v].ms);
+    }
 }
 
 NFM_CODE int nfm_voice_alive(const nfm_engine *e, int voice, uint32_t age)
@@ -835,6 +970,7 @@ NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *r
     nfm_zero(out_r, (unsigned)n * 4u);
     if (rev) nfm_zero(rev, (unsigned)n * 4u);
     if (dly) nfm_zero(dly, (unsigned)n * 4u);
+    for (int si = 0; si < NFM_SLOTS; ++si) nfm_mod_block(&e->mod[si], e->sr, n);
     for (int vi = 0; vi < NFM_VOICES; ++vi) {
         nfm_voice *v = &e->voice[vi];
         for (int i = 0; i < n && v->slot >= 0; ++i) {
@@ -844,6 +980,7 @@ NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *r
             }
             --v->ctl;
             float x = voice_tick(e, v, &e->rng);
+            if (v->mod_on) x = nfm_mod_tick(&e->mod[v->slot], &v->ms, x, i);
             out_l[i] += x * v->gain_l;
             out_r[i] += x * v->gain_r;
             float mono = x * (v->gain_l + v->gain_r) * 0.5f;

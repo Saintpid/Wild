@@ -5,6 +5,21 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.1.0
+
+Firmware identity FM-1_815.
+
+- **A modulation effect per sound** (FX, page 2: Mod): phaser, flanger, chorus, ring modulator or
+  tremolo, for each drum track and the acid line, with Amount, Rate and Chance (the share of hits, or
+  notes, that get it, drawn per hit). Its sweep runs on between hits, and its loudness is matched to
+  what goes in. Projects and presets from 1.0.0 load with it off.
+- **Chaos has rules now.** In bars 4 and 8 of the phrase glitches come on the beat, mostly in the last
+  quarter, and never run past the bar's end. Elsewhere they come only on an eighth off the beat, an
+  eighth long.
+- **Tape stop**, a new glitch: the mix slows down to a stop and comes back. Beat repeat can now also
+  repeat a 32nd at the end of a fill.
+- The texts here, the manual included, are in English.
+
 ## 1.0.0
 
 The first public version, tested on the FM-1 (firmware identity FM-1_814: install it with M-UPGRADE).
@@ -23,7 +38,7 @@ The first public version, tested on the FM-1 (firmware identity FM-1_814: instal
 - **Screen:** the beat counts big over the tracks in the phrase's fourth and eighth bars; a knob
   turned shows its name and value big; the selected track's row stands out.
 - **USB:** MIDI and a class-compliant audio input ("n001se FM-1"), switchable in Setup to save CPU.
-- The full manual (Swedish): [docs/MANUAL.txt](docs/MANUAL.txt).
+- The full manual: [docs/MANUAL.txt](docs/MANUAL.txt).
 
 ## 0.1.0
 

@@ -122,24 +122,24 @@ tap FX
 expect view 4
 shot fx.png
 tap LFO
-expect view 6
-tap GLO
 expect view 7
-shot groove.png
 tap GLO
 expect view 8
+shot groove.png
 tap GLO
 expect view 9
+tap GLO
+expect view 10
 turn ALGO 1
 expect view 0
 turn ALGO -1
-expect view 9
+expect view 10
 # PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
 turn PRESET 5
 expect gpar15 35
 tap GLO
 tap GLO
-expect view 8
+expect view 9
 spin K3 1
 expect gpar16 1
 turn PRESET 8

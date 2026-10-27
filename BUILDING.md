@@ -1,4 +1,4 @@
-# Building FiMba-1
+# Building n001se
 
 The build makes three files in `build/`:
 

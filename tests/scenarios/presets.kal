@@ -8,7 +8,7 @@ expect view 4
 tap GLO
 tap GLO
 tap GLO
-expect view 9
+expect view 10
 spin K1 -40
 expect gpar12 60
 spin K4 70
@@ -91,7 +91,7 @@ tap PLAY
 expect dropped 0
 # undo / redo on black 3 / 4: one knob turn is one edit
 tap GLO
-expect view 7
+expect view 8
 spin K2 10
 expect gpar1 10
 wait 2000

@@ -1,5 +1,6 @@
-# effects per track: the selected track's sends and inserts on FX, the bus on FX again; Chaos brings
-# glitches (beat repeat, reverse) on the beat; a drive changes the colour, not the loudness
+# effects per track: the selected track's sends and inserts on FX, its modulation effect on FX again, the
+# bus on FX a third time; Chaos brings glitches (beat repeat, reverse, tape stop); a drive changes the
+# colour, not the loudness
 wait 200
 tap FX
 expect view 4
@@ -11,6 +12,16 @@ expect tpar15 40
 shot trackfx.png
 tap FX
 expect view 5
+# the kick's modulation effect: off, then a phaser on every hit
+expect tpar19 0
+expect tpar22 60
+spin K1 1
+expect tpar19 1
+spin K4 40
+expect tpar22 100
+shot modfx.png
+tap FX
+expect view 6
 shot fxbus.png
 # the acid line's own
 tap OCT-

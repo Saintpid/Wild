@@ -114,6 +114,34 @@ typedef struct {
     float pre, bias, off, comp;
     float dc, ein, eout, adapt;
 } nfm_sat;
+/* A sound's modulation effect: phaser, flanger, chorus, ring modulator or tremolo, on a share of its
+ * hits (chance), with its own LFO that runs on between hits. The settings and the LFO are the sound's
+ * (nfm_mod, stepped once a block by nfm_mod_block); what each hit needs to remember is its own
+ * (nfm_mod_state: the allpasses, a delay line for the flanger and chorus). Like the drive, it changes
+ * the colour, not the loudness: what comes out is matched to what goes in (the tremolo by its depth). */
+enum { NFM_MOD_OFF, NFM_MOD_PHASER, NFM_MOD_FLANGER, NFM_MOD_CHORUS, NFM_MOD_RING, NFM_MOD_TREMOLO, NFM_MODS };
+#define NFM_MOD_LEN 1024      /* a delay line's frames (int16): 23 ms */
+typedef struct {
+    uint8_t type;             /* NFM_MOD_* */
+    float amount, rate, chance;   /* 0..1 each */
+    float ph, car;            /* the LFO's and the ring modulator's phases (cycles) */
+    /* this block's, per frame i: value = v0 + dv * i */
+    float l0, dl;             /* the LFO, 0..1 */
+    float a0, da;             /* phaser: the allpass coefficient */
+    float d0, dd;             /* flanger, chorus: the delay in frames */
+    float c_inc;              /* ring: the carrier, cycles a frame */
+    float nprev;              /* the last block's frames (the carrier's phase moves on by them) */
+} nfm_mod;
+typedef struct {
+    float x1[4], y1[4], fb;   /* the phaser's four allpasses and its feedback */
+    float ein, eout, g;       /* the loudness match: what goes in and out, followed (~20 ms); the gain */
+    int16_t *line;            /* NFM_MOD_LEN frames, or 0 (no flanger, chorus) */
+    uint16_t w;
+} nfm_mod_state;
+void nfm_mod_block(nfm_mod *m, float sr, int n);
+void nfm_mod_reset(nfm_mod_state *s);
+float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i);
+
 void nfm_sat_set(nfm_sat *s, float amount);
 float nfm_sat_tick(nfm_sat *s, float x);
 void nfm_sat_control(nfm_sat *s);   /* every few samples: the loudness match */
@@ -144,6 +172,8 @@ typedef struct {
     float send_rev, send_dly;
     float ins_s1, ins_s2;    /* insert filter state */
     nfm_sat sat;             /* the drive: warm, even, loudness-matched (nfm_sat_*) */
+    uint8_t mod_on;          /* the sound's modulation effect plays on this hit */
+    nfm_mod_state ms;
 } nfm_voice;
 
 typedef struct {
@@ -161,7 +191,11 @@ typedef struct {
     int voice_limit;
     /* This slot's hits are never stolen by another's (-1: none): a kick that never drops out. */
     int priority_slot;
+    nfm_mod mod[NFM_SLOTS];  /* each sound's modulation effect (type 0: none) */
 } nfm_engine;
+/* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
+ * NFM_MOD_LEN]); without them those two are not played. */
+void nfm_set_mod_lines(nfm_engine *e, int16_t *lines);
 
 enum { NFM_INS_FILTER = 1, NFM_INS_DRIVE = 2 };
 
