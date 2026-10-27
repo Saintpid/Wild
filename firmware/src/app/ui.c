@@ -15,6 +15,8 @@
  *   PLAY start / stop    REC new patterns for every unmuted track    SEQ the mode
  *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
  *   PRESETS        the knob of the Setup page's choice (Glue by default)
+ *   SEL            a SCENE by chance: which tracks play and how much of each effect each sound gets (SEL
+ *                  lit); SEL again: back to how it was before, whatever changed meanwhile
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
@@ -53,7 +55,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
-    {G_CHAOS, G_MOTION, K_NONE, K_NONE},
+    {G_CHAOS, G_MOTION, G_MUTADE, K_NONE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
     {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
@@ -103,6 +105,7 @@ static struct {
     uint8_t held_flags;                /* ...an acid step's accent and slide */
     uint8_t voices;                    /* the CPU guard's voice limit now */
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
+    uint8_t scene;                     /* SEL: a scene by chance plays (what was before: sc_*) */
     uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
     char pop[2][16];                   /* ...the parameter and its value */
     int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
@@ -524,6 +527,61 @@ static void new_sound(int t)
     }
 }
 
+/* SEL: a SCENE by chance. Which tracks play (each by a chance of 0.6, at least two) and each sound's
+ * effects: its sends, filter share, drive and modulation effect. What they were is kept, and SEL again
+ * puts it all back, whatever was turned in the scene. A preset loaded or a reset ends the scene there. */
+#define SC_N 9
+static const uint8_t SC_T[SC_N] = {T_MUTE, T_REVERB, T_DELAY, T_FILTER, T_DRIVE, T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE};
+static const uint8_t SC_A[SC_N] = {A_MUTE, A_REVERB, A_DELAY, A_FILTER, A_DRIVE, A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE};
+static int16_t sc_was[UI_TRACKS][SC_N];
+static void sc_set(int t, int i, int v)
+{
+    if (t == NE_ACID)
+        knob_set(KA | SC_A[i], v);
+    else
+        tpar_set(t, SC_T[i], v);
+}
+static int rnd_or0(int zero_pct, int lo, int hi) { return rnd_in(0, 99) < zero_pct ? 0 : rnd_in(lo, hi); }
+static void scene(void)
+{
+    int t, i, plays = 0;
+    undo_mark(0);
+    if (ui.scene) {
+        for (t = 0; t < UI_TRACKS; t++)
+            for (i = 0; i < SC_N; i++)
+                sc_set(t, i, sc_was[t][i]);
+        ui.scene = 0;
+        say("SCENE", "BACK");
+        return;
+    }
+    ui_rng ^= plat_ms();
+    for (t = 0; t < UI_TRACKS; t++)
+        for (i = 0; i < SC_N; i++)
+            sc_was[t][i] = t == NE_ACID ? proj.a[SC_A[i]] : proj.t[t][SC_T[i]];
+    for (t = 0; t < UI_TRACKS; t++) {
+        int on = rnd_in(0, 99) < 60;
+        plays += on;
+        sc_set(t, 0, !on);
+        sc_set(t, 1, rnd_or0(35, 5, 60));            /* reverb */
+        sc_set(t, 2, rnd_or0(35, 5, 60));            /* delay */
+        sc_set(t, 3, rnd_or0(40, 10, 70));           /* filter */
+        sc_set(t, 4, rnd_or0(40, 10, 60));           /* drive */
+        sc_set(t, 5, rnd_or0(50, 1, NFM_MODS - 1));  /* mod */
+        sc_set(t, 6, rnd_in(20, 90));
+        sc_set(t, 7, rnd_in(5, 80));
+        sc_set(t, 8, rnd_in(30, 100));
+    }
+    while (plays < 2) {                              /* at least two play */
+        t = rnd_in(0, UI_TRACKS - 1);
+        if (t == NE_ACID ? proj.a[A_MUTE] : proj.t[t][T_MUTE]) {
+            sc_set(t, 0, 0);
+            plays++;
+        }
+    }
+    ui.scene = 1;
+    say("SCENE", "BY CHANCE");
+}
+
 static void say_bar(int b)
 {
     char s[16] = "BAR ";
@@ -626,6 +684,7 @@ static int preset_load(int n)
         return -1;
     }
     ui.bar_lock = 0;
+    ui.scene = 0;
     if (ui.view_bar >= track_bars(ui.track))
         ui.view_bar = 0;
     mark_dirty();                                    /* the project now: saved when quiet */
@@ -663,6 +722,7 @@ static void reset_defaults(void)
     undo_mark(0);
     project_defaults();
     proj.g[G_MIDICH] = keep;
+    ui.scene = 0;
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
     for (t = 0; t < NE_TRACKS; t++) {
@@ -723,6 +783,7 @@ static void button(int b)
         list_open(L_SAVE);
         break;
     case B_ARP: list_open(L_LOAD); break;
+    case B_SEL: scene(); break;
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
             if (VIEW_BTN[v] == b) {
@@ -1312,6 +1373,8 @@ static void leds(void)
         b |= 1u << B_PLAY;
     if (!ui.live)
         b |= 1u << B_SEQ;
+    if (ui.scene)
+        b |= 1u << B_SEL;
     if (ui.live) {
         for (i = 0; i < NWHITE; i++)
             if (ui.meter[i >> 2] > 0.15f)

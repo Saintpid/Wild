@@ -425,6 +425,15 @@ static int expect(const char *what, const char *val)
         got = (int)ne_limited;
     else if (!strcmp(what, "glitches"))
         got = (int)ne_glitches;
+    else if (!strcmp(what, "mutades"))           /* Mutade's quarters */
+        got = (int)ne_mutades;
+    else if (!strcmp(what, "mutediff")) {        /* the tracks whose mute plays other than set (bits) */
+        int t;
+        for (got = 0, t = 0; t < NE_TRACKS; t++)
+            got |= (ne_seq()->track[t].mute != proj.t[t][T_MUTE]) << t;
+        got |= (ne_acid()->mute != proj.a[A_MUTE]) << NE_TRACKS;
+    } else if (!strcmp(what, "scene"))
+        got = ui.scene;
     else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */
         got = (int)(ne_acid_level * 1000.0f);
     else if (!strcmp(what, "list"))              /* the preset list open: 1 save, 2 load */

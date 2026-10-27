@@ -1,6 +1,6 @@
 n001se – MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
-Firmware 1.1.0 (815)
+Firmware 1.2.0 (816)
 
 ====================================================================
 
@@ -58,6 +58,7 @@ SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
+SEL        A scene by chance: which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. SEL is lit while the scene plays. Press SEL again and everything is back as it was before, even if you turned things meanwhile. Loading a preset or a reset ends the scene where it is.
 
 Page buttons (another press goes to the button's next page):
 HOME       Pattern
@@ -185,6 +186,7 @@ DRIFT (LFO)
              In bars 4 and 8 of the phrase they come on the beats, and mostly in the last quarter, as a way into the next bar. They never run past the end of the bar. At Chaos 40 about one in three of those bars gets a glitch, at Chaos 100 nearly all of them.
              In the other bars they come only now and then, always on an eighth between the beats (never on the quarters), and they are only an eighth long.
   Motion     How fast the effects glide and move over time
+  Mutade     In bars 4 and 8 of the phrase a different set of tracks plays by chance, a quarter at a time: muted tracks may come in and playing ones drop out. It happens most often in the last quarter. At the next quarter it is back to your mutes (or a new set), and after the bar it is always back. 0 = off (the default).
 
 GROOVE (GLOBAL, page 1)
   Tempo      60–200 BPM (stays put while MIDI clock is in control)
@@ -289,4 +291,6 @@ TIPS FOR LIVE SETS
 - Put an important parameter on the PRESETS encoder, for example 303 Cutoff, Glue or Chaos, so you always have it at hand whatever the page.
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
+- Mutade at 30–50 builds tension before every round without touching the mutes yourself.
+- Press SEL for a new scene in the middle of a set, and SEL again to land back.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).

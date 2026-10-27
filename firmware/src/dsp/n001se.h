@@ -13,7 +13,9 @@
  *             scale; Chaos how far the settings wander, Motion how fast. A modulation effect per sound
  *             (phaser, flanger, chorus, ring modulator, tremolo) on a share of its hits. Chaos also
  *             brings GLITCHES: a beat repeat, a stretch played backwards or a tape stop, mostly at the
- *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat.
+ *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat. MUTADE, in
+ *             the same bars, mutes and unmutes tracks by chance a quarter at a time, and always goes
+ *             back to the mutes as set.
  *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor (loudness matched) and a limiter
  *             at -0.3 dBFS. Track 1 and the acid line never lose a hit to the others.
  *
@@ -45,6 +47,7 @@ enum {
     G_GLUE,                                          /* the bus compressor's amount (a limiter after it) */
     G_PKNOB,                                         /* what the PRESETS encoder turns (ne_pknob_*) */
     G_USBAUDIO,                                      /* the master output over USB: on / off (CPU) */
+    G_MUTADE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
     G_NPARAMS
 };
 /* per-track parameters */
@@ -131,6 +134,7 @@ const nfm_engine *ne_fm(void);
 const nacid *ne_acid(void);
 extern volatile float ne_acid_level;
 extern volatile uint32_t ne_glitches;                /* glitches played since boot */
+extern volatile uint32_t ne_mutades;                 /* Mutade's quarters since boot */
 extern volatile uint32_t ne_limited;                 /* frames the limiter took more than 1 dB off */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */
 extern volatile float ne_out_level;                  /* the output's peak over the last block (tails too) */

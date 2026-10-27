@@ -21,6 +21,7 @@ volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
 volatile float ne_acid_level;
 volatile uint32_t ne_glitches;
+volatile uint32_t ne_mutades;
 volatile uint32_t ne_limited;
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
@@ -47,6 +48,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_GLUE] = {"Glue", 0, 100, 30},
     [G_PKNOB] = {"Presets", 0, 0, 0},                 /* (hi: NE_PKNOBS - 1, below) */
     [G_USBAUDIO] = {"USB audio", 0, 1, 1},
+    [G_MUTADE] = {"Mutade", 0, 100, 0},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -111,7 +113,7 @@ static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
 static const uint8_t PKNOB[] = {
-    G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
+    G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTADE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
     G_HICUT, G_LOCUT, G_RESO,
     NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
@@ -180,7 +182,7 @@ void ne_param_text(int i, int v, char *b)
     }
     case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
     case G_LOCUT: if (!v) { cpy(b, "Open"); return; } break;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: if (!v) { cpy(b, "Off"); return; } break;
+    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTADE: if (!v) { cpy(b, "Off"); return; } break;
     }
     itoa_s(v, b);
 }
@@ -538,6 +540,7 @@ static void gset(int p, int v)
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
     case G_GLUE: glue_set(v); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
+    case G_MUTADE: break;                        /* (read at the quarters) */
     }
 }
 
@@ -625,6 +628,57 @@ static void acid_route(int bar)
     nacid_route(&acid, bar ? filter : acid.ins_f_to > 0.5f && amt[NFX_FILTER] > 0.0f, drive, send[1], send[0]);
 }
 
+/* MUTADE: in the phrase's bars 4 and 8, a quarter at a time, by chance a different set of tracks plays:
+ * each track's mute flipped with a chance of 0.45 (at least one changes, at least one plays). At the
+ * next quarter it is back to the mutes as set (tpar, apar), or another set. A quarter's chance: Mutade
+ * x 0.4, the last quarter x 0.8. Decided at the step before (the sequencer has picked a step's hits by
+ * the time it tells us of it). */
+static uint8_t mx_on;
+static float gx_rnd(void);
+static void mute_set(int t, int m)
+{
+    if (t == NE_ACID)
+        acid.mute = (uint8_t)m;
+    else
+        nseq_set_flag(&seq, t, NSEQ_FLAG_MUTE, m);
+}
+static void mutade_step(uint32_t step)
+{
+    uint32_t ps = (step + 1u) % (8u * NE_BAR), pos = ps % NE_BAR;
+    float m = pct(gpar[G_MUTADE]);
+    int t, flip = 0, plays = 0;
+    uint8_t mu[NE_TRACKS + 1];
+    if (pos % 4u)
+        return;
+    if (mx_on) {                                 /* back to the mutes as set */
+        for (t = 0; t < NE_TRACKS; t++)
+            mute_set(t, tpar[t][T_MUTE]);
+        mute_set(NE_ACID, apar[A_MUTE]);
+        mx_on = 0;
+    }
+    if ((ps / NE_BAR != 3u && ps / NE_BAR != 7u) || m <= 0.0f || gx_rnd() >= m * (pos == 12u ? 0.8f : 0.4f))
+        return;
+    for (t = 0; t <= NE_TRACKS; t++) {
+        mu[t] = (uint8_t)(t == NE_ACID ? apar[A_MUTE] : tpar[t][T_MUTE]);
+        if (gx_rnd() < 0.45f) {
+            mu[t] ^= 1u;
+            flip = 1;
+        }
+    }
+    if (!flip) {
+        t = (int)(gx_rnd() * (float)(NE_TRACKS + 1)) % (NE_TRACKS + 1);
+        mu[t] ^= 1u;
+    }
+    for (t = 0; t <= NE_TRACKS; t++)
+        plays += !mu[t];
+    if (!plays)                                  /* never silence: one plays */
+        mu[(int)(gx_rnd() * (float)(NE_TRACKS + 1)) % (NE_TRACKS + 1)] = 0;
+    for (t = 0; t <= NE_TRACKS; t++)
+        mute_set(t, mu[t]);
+    mx_on = 1;
+    ne_mutades++;
+}
+
 /* the drums' clock steps the acid line (and the glitches: below) */
 static void glitch_step(uint32_t step, float delay, float step_len);
 static void on_step(void *ctx, uint32_t step, float delay, float step_len)
@@ -636,6 +690,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
     nacid_step(&acid, delay, step_len);
     glitch_step(step, delay, step_len);
+    mutade_step(step);
 }
 static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
@@ -870,8 +925,11 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     drain();
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
-    if (!seq.playing)
+    if (!seq.playing) {
         gx_on = gx_pending = 0;
+        if (mx_on)
+            mutade_step(NE_BAR - 1u);            /* (a step before a first beat outside bars 4 and 8) */
+    }
     if (ne_ext && seq.now - clk_seen > 22050u) {   /* the clock stopped coming: our own tempo again */
         ne_ext = 0;
         clk_n = 0;

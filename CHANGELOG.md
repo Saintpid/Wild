@@ -5,6 +5,18 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.2.0
+
+Firmware identity FM-1_816.
+
+- **SEL: a scene by chance.** SEL draws which tracks play (at least two) and each sound's effects:
+  reverb and delay sends, filter share, drive and modulation effect. SEL is lit while the scene
+  plays; SEL again puts everything back as it was before, whatever was turned in the scene. Loading a
+  preset or a reset ends the scene where it is.
+- **Mutade** (Drift page, knob 3): in bars 4 and 8 of the phrase, a quarter at a time, a different
+  set of tracks plays by chance (muted ones may come in, playing ones drop out), most often in the
+  last quarter. It always goes back to the mutes as set. 0 = off, the default.
+
 ## 1.1.0
 
 Firmware identity FM-1_815.
