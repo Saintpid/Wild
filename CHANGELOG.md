@@ -5,6 +5,14 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.3.1
+
+Firmware identity FM-1_818.
+
+- **SEL mode Chance:** while the scene by chance plays, the mute keys (black 5-9) set the original's
+  mutes, not the scene's: choose what plays when SEL brings the original back. Their lights show the
+  original's mutes meanwhile.
+
 ## 1.3.0
 
 Firmware identity FM-1_817.

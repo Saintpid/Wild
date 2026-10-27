@@ -7,7 +7,7 @@ must never get cluttered.
 
 ![Playing](docs/img/playing.png) ![Bar 4 counts big](docs/img/phrase.png) ![A knob turned](docs/img/fx.png)
 
-> **Status: 1.3.0, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
+> **Status: 1.3.1, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
 > unchanged: the chip's own update mode cannot be overwritten, the firmware falls back to a safe mode
 > if it does not start, and the original firmware can always be put back (see [Install](#install)).
 

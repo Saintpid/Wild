@@ -1,6 +1,6 @@
 n001se – MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
-Firmware 1.3.0 (817)
+Firmware 1.3.1 (818)
 
 ====================================================================
 
@@ -59,7 +59,7 @@ SAVE       Opens the preset list to save (see PRESETS).
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
 SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 4), SEL mode:
-           Chance: a scene by chance. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. Press SEL again and everything is back as it was before, even if you turned things meanwhile.
+           Chance: a scene by chance. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. Press SEL again and everything is back as it was before, even if you turned things meanwhile. While the scene plays, the mute keys (black 5–9) set the original's mutes, not the scene's: you choose what will play when you come back. Their lights show the original's mutes meanwhile.
            A/B: two scenes to switch between. The first press makes a copy of everything (patterns, sounds, effects, settings) and you go on in the copy, B: change anything, make new rhythms, new sounds. Press SEL and you are back in A, just as you left it. Press again and you are in B where you last were. So you can work up two scenes and switch between them.
            Copy: a copy to play with that is never kept. SEL makes a copy of everything and you change what you like. SEL again takes you back to the original, and the changes are gone. The next SEL makes a new copy.
            SEL is lit while you are in the scene, in B or in the copy. The Setup and Scene pages are never swapped. Changing SEL mode, loading a preset or a reset forgets the copy. Swapping patterns or sounds gives a very short break in the sound.

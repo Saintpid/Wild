@@ -538,11 +538,14 @@ static void new_sound(int t)
 
 /* SEL: a SCENE by chance. Which tracks play (each by a chance of 0.6, at least two) and each sound's
  * effects: its sends, filter share, drive and modulation effect. What they were is kept, and SEL again
- * puts it all back, whatever was turned in the scene. A preset loaded or a reset ends the scene there. */
+ * puts it all back, whatever was turned in the scene. In the scene the mute keys set the kept mutes (the
+ * original's), so what plays after it is chosen during it. A preset loaded or a reset ends the scene there. */
 #define SC_N 9
 static const uint8_t SC_T[SC_N] = {T_MUTE, T_REVERB, T_DELAY, T_FILTER, T_DRIVE, T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE};
 static const uint8_t SC_A[SC_N] = {A_MUTE, A_REVERB, A_DELAY, A_FILTER, A_DRIVE, A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE};
 static int16_t sc_was[UI_TRACKS][SC_N];
+/* in a scene by chance, the mute keys set the original's mutes: what plays when SEL brings it back */
+static int sc_chance(void) { return ui.scene && proj.g[G_SELMODE] == NE_SEL_CHANCE; }
 static void sc_set(int t, int i, int v)
 {
     if (t == NE_ACID)
@@ -676,9 +679,14 @@ static void black_down(int b)
         return;
     }
     if (b >= BK_MUTE1 && b <= BK_MUTE5) {
-        undo_mark(0);
         int m = b - BK_MUTE1;
         char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + m), 0};
+        if (sc_chance()) {                           /* in a scene by chance: the original's mutes */
+            sc_was[m][0] = (int16_t)!sc_was[m][0];
+            say(a, sc_was[m][0] ? "MUTED AFTER" : "ON AFTER");
+            return;
+        }
+        undo_mark(0);
         if (m == NE_ACID)
             knob_set(KA | A_MUTE, !proj.a[A_MUTE]);
         else
@@ -1464,7 +1472,7 @@ static void leds(void)
     if (undo_c + 1 < undo_n)
         d |= 1u << BLACK_K[BK_REDO];
     for (i = 0; i < UI_TRACKS; i++) {                /* the mutes: dim = on, bright with a hit, dark muted */
-        if (tmuted((int)i))
+        if (sc_chance() ? sc_was[i][0] : tmuted((int)i))   /* (a scene by chance: the original's) */
             continue;
         if (ui.meter[i] > 0.15f)
             k |= 1u << BLACK_K[BK_MUTE1 + i];
