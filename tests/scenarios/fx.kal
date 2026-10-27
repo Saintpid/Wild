@@ -23,6 +23,15 @@ shot modfx.png
 tap FX
 expect view 6
 shot fxbus.png
+# SEL: a scene by chance (the kick's reverb is 40 before it); SEL again: back
+tap SEL
+expect scene 1
+tap SEL
+expect scene 0
+expect tpar15 40
+expect tpar19 1
+expect tpar22 100
+expect mute 0
 # the acid line's own
 tap OCT-
 tap FX
@@ -31,15 +40,20 @@ expect apar16 10
 expect apar19 35
 spin K4 20
 expect apar19 55
-# Chaos up: glitches come
+# Chaos up: glitches come; Mutade up: in bars 4 and 8 other tracks play, and always back after
 tap LFO
 spin K1 60
 expect gpar4 100
+spin K3 100
+expect gpar18 100
 tap PLAY
 wav chaos.wav
 wait 8000
 wavstop
 expect glitches >0
+expect mutades >0
 expect peak_db_max -0.2
 tap PLAY
+wait 50
+expect mutediff 0
 expect dropped 0
