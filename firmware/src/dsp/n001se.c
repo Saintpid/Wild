@@ -49,6 +49,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_PKNOB] = {"Presets", 0, 0, 0},                 /* (hi: NE_PKNOBS - 1, below) */
     [G_USBAUDIO] = {"USB audio", 0, 1, 1},
     [G_MUTADE] = {"Mutade", 0, 100, 0},
+    [G_SELMODE] = {"SEL mode", 0, NE_SEL_MODES - 1, NE_SEL_CHANCE},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -170,6 +171,7 @@ void ne_param_text(int i, int v, char *b)
     case G_TEMPO: case G_POLY: itoa_s(v, b); return;
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
     case G_USBAUDIO: cpy(b, v ? "On" : "Off"); return;
+    case G_SELMODE: cpy(b, v == NE_SEL_AB ? "A/B" : v == NE_SEL_COPY ? "Copy" : "Chance"); return;
     case G_PKNOB: {
         int k = ne_pknob_target(v);
         if (k & NE_PK_ACID) {                    /* "303 Cutoff" */
@@ -541,6 +543,7 @@ static void gset(int p, int v)
     case G_GLUE: glue_set(v); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     case G_MUTADE: break;                        /* (read at the quarters) */
+    case G_SELMODE: break;                       /* (the UI's) */
     }
 }
 

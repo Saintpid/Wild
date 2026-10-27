@@ -1,6 +1,6 @@
 n001se – MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
-Firmware 1.2.0 (816)
+Firmware 1.3.0 (817)
 
 ====================================================================
 
@@ -58,7 +58,11 @@ SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
-SEL        A scene by chance: which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. SEL is lit while the scene plays. Press SEL again and everything is back as it was before, even if you turned things meanwhile. Loading a preset or a reset ends the scene where it is.
+SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 4), SEL mode:
+           Chance: a scene by chance. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. Press SEL again and everything is back as it was before, even if you turned things meanwhile.
+           A/B: two scenes to switch between. The first press makes a copy of everything (patterns, sounds, effects, settings) and you go on in the copy, B: change anything, make new rhythms, new sounds. Press SEL and you are back in A, just as you left it. Press again and you are in B where you last were. So you can work up two scenes and switch between them.
+           Copy: a copy to play with that is never kept. SEL makes a copy of everything and you change what you like. SEL again takes you back to the original, and the changes are gone. The next SEL makes a new copy.
+           SEL is lit while you are in the scene, in B or in the copy. The Setup and Scene pages are never swapped. Changing SEL mode, loading a preset or a reset forgets the copy. Swapping patterns or sounds gives a very short break in the sound.
 
 Page buttons (another press goes to the button's next page):
 HOME       Pattern
@@ -66,7 +70,7 @@ EDIT       Track
 ENV        Sound → Tone
 FX         Track FX → Mod → FX bus
 LFO        Drift
-GLOBAL     Groove → Setup → Master
+GLOBAL     Master → Groove → Setup → Scene
 
 ====================================================================
 
@@ -188,24 +192,27 @@ DRIFT (LFO)
   Motion     How fast the effects glide and move over time
   Mutade     In bars 4 and 8 of the phrase a different set of tracks plays by chance, a quarter at a time: muted tracks may come in and playing ones drop out. It happens most often in the last quarter. At the next quarter it is back to your mutes (or a new set), and after the bar it is always back. 0 = off (the default).
 
-GROOVE (GLOBAL, page 1)
+MASTER (GLOBAL, page 1)
+  Hi cut     Low-pass filter on the whole mix (100 = Open)
+  Lo cut     High-pass filter on the whole mix (0 = Open)
+  Reso       The filters' resonance
+  Glue       Bus compressor. 0 = off, 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter but not louder. After it there is always a limiter at −0.3 dBFS.
+
+GROOVE (GLOBAL, page 2)
   Tempo      60–200 BPM (stays put while MIDI clock is in control)
   Swing      0–100
   Loose      Human unevenness in timing and strength
   Max hits   How many drum tracks may hit on the same step, 1–4 (track 1 always plays). Default: 4
 
-SETUP (GLOBAL, page 2)
+SETUP (GLOBAL, page 3)
   Level      Overall level
   MIDI ch    All or 1–16
   Presets    What the PRESETS encoder controls
   USB audio  On/Off. Off sends silence over USB and saves CPU.
   (The CPU load shows at the top right of this page.)
 
-MASTER (GLOBAL, page 3)
-  Hi cut     Low-pass filter on the whole mix (100 = Open)
-  Lo cut     High-pass filter on the whole mix (0 = Open)
-  Reso       The filters' resonance
-  Glue       Bus compressor. 0 = off, 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter but not louder. After it there is always a limiter at −0.3 dBFS.
+SCENE (GLOBAL, page 4)
+  SEL mode   Chance, A/B or Copy: what SEL does (see SEL under BUTTONS). Default: Chance
 
 ====================================================================
 
@@ -292,5 +299,5 @@ TIPS FOR LIVE SETS
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
 - Mutade at 30–50 builds tension before every round without touching the mutes yourself.
-- Press SEL for a new scene in the middle of a set, and SEL again to land back.
+- Press SEL for a new scene in the middle of a set, and SEL again to land back. With SEL mode A/B you can build a second version of the whole set and switch to it for a big change.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).
