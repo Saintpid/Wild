@@ -48,8 +48,10 @@ enum {
     G_PKNOB,                                         /* what the PRESETS encoder turns (ne_pknob_*) */
     G_USBAUDIO,                                      /* the master output over USB: on / off (CPU) */
     G_MUTADE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
+    G_SELMODE,                                       /* what SEL does (the UI's): NE_SEL_* */
     G_NPARAMS
 };
+enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };
 /* per-track parameters */
 enum {
     T_BARS, T_RANDLEN, T_HITLO, T_HITHI,

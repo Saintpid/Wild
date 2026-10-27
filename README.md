@@ -7,7 +7,7 @@ must never get cluttered.
 
 ![Playing](docs/img/playing.png) ![Bar 4 counts big](docs/img/phrase.png) ![A knob turned](docs/img/fx.png)
 
-> **Status: 1.2.0, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
+> **Status: 1.3.0, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
 > unchanged: the chip's own update mode cannot be overwritten, the firmware falls back to a safe mode
 > if it does not start, and the original firmware can always be put back (see [Install](#install)).
 
@@ -46,7 +46,7 @@ command.
 | **PLAY / REC / SEQ** | Start/stop / new patterns on all tracks / switch SEQ and LIVE |
 | **SAVE / ARP** | Save / load a preset (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
-| **SEL** | A scene by chance: which tracks play and how much effect each sound gets. Again: back to before |
+| **SEL** | Scenes, by the SEL mode: a scene by chance, two scenes (A/B) to switch between, or a copy to play with. Again: back |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
 In bars 4 and 8 of the phrase the beats 1–4 count big over the sequencer, so it is easy to place

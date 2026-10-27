@@ -15,8 +15,9 @@
  *   PLAY start / stop    REC new patterns for every unmuted track    SEQ the mode
  *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
  *   PRESETS        the knob of the Setup page's choice (Glue by default)
- *   SEL            a SCENE by chance: which tracks play and how much of each effect each sound gets (SEL
- *                  lit); SEL again: back to how it was before, whatever changed meanwhile
+ *   SEL            by the Scene page's SEL mode: Chance, a scene by chance (which tracks play, how much of
+ *                  each effect each sound gets), SEL again back; A/B, two scenes to work on and swap; Copy,
+ *                  a copy to play with, SEL again back to the original (SEL lit: in the scene, B, the copy)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
@@ -31,10 +32,10 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_GROOVE, V_SETUP, V_MASTER, NVIEWS };
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "Mod", "FX bus", "Drift",
-                                              "Groove", "Setup", "Master"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO};
+                                              "Master", "Groove", "Setup", "Scene"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -56,9 +57,10 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
     {G_CHAOS, G_MOTION, G_MUTADE, K_NONE},
+    {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
-    {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
+    {G_SELMODE, K_NONE, K_NONE, K_NONE},
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -195,6 +197,7 @@ static void tpar_set(int t, int p, int v)
     mark_dirty();
 }
 
+static void sel_forget(void);
 static void knob_set(int k, int v)
 {
     const ne_param_t *p = kinfo(k);
@@ -213,6 +216,8 @@ static void knob_set(int k, int v)
             return;
         proj.g[k] = (int16_t)v;
         ne_set(k, v);
+        if (k == G_SELMODE)
+            sel_forget();
     }
     mark_dirty();
 }
@@ -265,24 +270,15 @@ static void undo_mark(uint32_t key)
     undo_take(&undo_h[undo_c++]);
     undo_n = undo_c;
 }
-/* back (d -1) or forward (+1): only what differs goes to the engine (the patterns and sounds stop the
- * sound a moment, the settings do not) */
-static void undo_go(int d)
+/* the project and the engine to another state: only what differs goes to the engine (the patterns and
+ * sounds stop the sound a moment, the settings do not) */
+static void state_go(const project_t *to)
 {
-    const project_t *now, *to;
+    static project_t now;
     int i, t, st, ac;
-    if (d < 0 ? !undo_c : undo_c + 1 >= undo_n) {
-        say("NOTHING TO", d < 0 ? "UNDO" : "REDO");
-        return;
-    }
-    undo_take(&undo_h[undo_c]);                      /* the state now: where a redo comes back to */
-    if (undo_n < undo_c + 1)
-        undo_n = (uint8_t)(undo_c + 1);
-    now = &undo_h[undo_c];
-    undo_c = (uint8_t)(undo_c + d);
-    to = &undo_h[undo_c];
-    st = memcmp(&now->st, &to->st, sizeof to->st) != 0;
-    ac = memcmp(&now->acid, &to->acid, sizeof to->acid) != 0;
+    undo_take(&now);
+    st = memcmp(&now.st, &to->st, sizeof to->st) != 0;
+    ac = memcmp(&now.acid, &to->acid, sizeof to->acid) != 0;
     if (st)
         ne_restore(&to->st);
     if (ac)
@@ -303,11 +299,24 @@ static void undo_go(int d)
             if (!ac || i != A_BARS)
                 ne_aset(i, proj.a[i]);
         }
-    undo_key = 0;
     ui.held_step = -1;
     if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
         ui.bar_lock = 0;
     mark_dirty();
+}
+/* back (d -1) or forward (+1) */
+static void undo_go(int d)
+{
+    if (d < 0 ? !undo_c : undo_c + 1 >= undo_n) {
+        say("NOTHING TO", d < 0 ? "UNDO" : "REDO");
+        return;
+    }
+    undo_take(&undo_h[undo_c]);                      /* the state now: where a redo comes back to */
+    if (undo_n < undo_c + 1)
+        undo_n = (uint8_t)(undo_c + 1);
+    undo_c = (uint8_t)(undo_c + d);
+    state_go(&undo_h[undo_c]);
+    undo_key = 0;
     {
         char b[16];
         itoa_u(d < 0 ? undo_c : (uint32_t)(undo_n - 1 - undo_c), b);
@@ -582,6 +591,56 @@ static void scene(void)
     say("SCENE", "BY CHANCE");
 }
 
+/* SEL's other modes (Scene page: SEL mode). A/B: the first SEL keeps a copy of everything (patterns,
+ * sounds, settings) and goes on in it; each SEL after swaps the two, so both can be worked on and played
+ * in turn (SEL lit: in B). Copy: SEL keeps the state as it is and goes on in a copy of it; SEL again goes
+ * back to what was kept, and what was done in the copy is gone (SEL lit: in the copy). The Setup and
+ * Scene pages' values are never swapped. Changing the mode, loading a preset or a reset forget the copy. */
+static project_t sel_keep;                           /* A/B: the other scene; Copy: the original */
+static uint8_t sel_have;
+static void sel_forget(void)
+{
+    ui.scene = 0;
+    sel_have = 0;
+}
+static void sel_go(const project_t *to)
+{
+    static project_t t;
+    static const uint8_t KEEP[] = {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE};
+    uint32_t i;
+    t = *to;
+    for (i = 0; i < sizeof KEEP; i++)
+        t.g[KEEP[i]] = proj.g[KEEP[i]];
+    state_go(&t);
+}
+static void sel_press(void)
+{
+    static project_t now;
+    int m = proj.g[G_SELMODE];
+    if (m == NE_SEL_CHANCE) {
+        scene();
+        return;
+    }
+    undo_mark(0);
+    if (m == NE_SEL_AB) {
+        undo_take(&now);
+        if (sel_have)
+            sel_go(&sel_keep);
+        sel_keep = now;
+        sel_have = 1;
+        ui.scene ^= 1u;
+        say("SCENE", ui.scene ? "B" : "A");
+    } else if (!ui.scene) {
+        undo_take(&sel_keep);
+        ui.scene = 1;
+        say("COPY", "CHANGE ANYTHING");
+    } else {
+        sel_go(&sel_keep);
+        ui.scene = 0;
+        say("BACK TO", "THE ORIGINAL");
+    }
+}
+
 static void say_bar(int b)
 {
     char s[16] = "BAR ";
@@ -684,7 +743,7 @@ static int preset_load(int n)
         return -1;
     }
     ui.bar_lock = 0;
-    ui.scene = 0;
+    sel_forget();
     if (ui.view_bar >= track_bars(ui.track))
         ui.view_bar = 0;
     mark_dirty();                                    /* the project now: saved when quiet */
@@ -722,7 +781,7 @@ static void reset_defaults(void)
     undo_mark(0);
     project_defaults();
     proj.g[G_MIDICH] = keep;
-    ui.scene = 0;
+    sel_forget();
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
     for (t = 0; t < NE_TRACKS; t++) {
@@ -783,7 +842,7 @@ static void button(int b)
         list_open(L_SAVE);
         break;
     case B_ARP: list_open(L_LOAD); break;
-    case B_SEL: scene(); break;
+    case B_SEL: sel_press(); break;
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
             if (VIEW_BTN[v] == b) {

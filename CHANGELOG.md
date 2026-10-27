@@ -5,6 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.3.0
+
+Firmware identity FM-1_817.
+
+- **SEL has three modes**, chosen on the new Scene page (GLOBAL, page 4): **Chance** (as before, a
+  scene by chance), **A/B** (the first SEL copies everything, patterns, sounds, effects and settings,
+  and each SEL after swaps between the two, so two scenes can be worked up and switched between) and
+  **Copy** (SEL plays on in a copy; SEL again goes back to the original and the copy's changes are
+  gone). The Setup and Scene pages are never swapped.
+- **GLOBAL opens on the Master page** (hi cut, lo cut, resonance, Glue), then Groove, Setup, Scene.
+
 ## 1.2.0
 
 Firmware identity FM-1_816.

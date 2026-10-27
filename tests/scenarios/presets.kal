@@ -1,14 +1,12 @@
 # presets: SAVE opens the list (a slot by SELECT, OCT-/+, PRESETS or a white key), SAVE again saves;
-# ARP opens it to load, ARP again loads; Program Change loads. The Master page: GLOBAL's third. Undo / redo:
+# ARP opens it to load, ARP again loads; Program Change loads. The Master page: GLOBAL's first. Undo / redo:
 # black 3 / 4.
 wait 200
 # the Master page and back
 tap FX
 expect view 4
 tap GLO
-tap GLO
-tap GLO
-expect view 10
+expect view 8
 spin K1 -40
 expect gpar12 60
 spin K4 70
@@ -46,8 +44,6 @@ expect preset 2
 # changed after: Tune 0, Hi cut open
 spin K3 -5
 expect tpar14 0
-tap GLO
-tap GLO
 tap GLO
 spin K1 40
 expect gpar12 100
@@ -91,7 +87,8 @@ tap PLAY
 expect dropped 0
 # undo / redo on black 3 / 4: one knob turn is one edit
 tap GLO
-expect view 8
+tap GLO
+expect view 9
 spin K2 10
 expect gpar1 10
 wait 2000
