@@ -26,8 +26,13 @@ shot fxbus.png
 # SEL: a scene by chance (the kick's reverb is 40 before it); SEL again: back
 tap SEL
 expect scene 1
+# in the scene, the mute keys set the original's mutes: the kick muted after it
+tapkey b4
 tap SEL
 expect scene 0
+expect mute 1
+tapkey b4
+expect mute 0
 expect tpar15 40
 expect tpar19 1
 expect tpar22 100
