@@ -56,6 +56,8 @@ wav chaos.wav
 wait 8000
 wavstop
 expect glitches >0
+# a beat repeat is an eighth at most (two sixteenths: 200)
+expect repeat_max <201
 expect mutades >0
 expect peak_db_max -0.2
 tap PLAY

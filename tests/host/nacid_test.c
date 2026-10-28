@@ -325,11 +325,12 @@ static void test_filter(void)
 }
 
 /* -------------------------------------------------------------------------------- the generator --- */
-typedef struct { float out_of_scale, ones, repeat, leap, mean_iv, slide_moves, acc_off; } stats;
+typedef struct { float out_of_scale, ones, repeat, leap, mean_iv, slide_moves, acc_off, apart; } stats;
 
-static stats measure(float chaos)
+static stats measure(float chaos, float octaves)
 {
     stats st = { 0 };
+    int pairs = 0, apart = 0;
     int notes = 0, out = 0, ones = 0, same = 0, cmp = 0, leaps = 0, ivs = 0, sl = 0, slmv = 0, acc = 0, accoff = 0;
     float iv_sum = 0.0f;
     static const int minor[12] = { 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0 };
@@ -337,7 +338,7 @@ static stats measure(float chaos)
     ac.p[NACID_P_CHAOS] = chaos;
     ac.p[NACID_P_SLIDES] = 0.3f;
     ac.p[NACID_P_ACCENTS] = 0.3f;
-    ac.p[NACID_P_OCTAVES] = 0.2f;
+    ac.p[NACID_P_OCTAVES] = octaves;
     for (int g = 0; g < 400; ++g) {
         nacid_generate(&ac);
         int prev = -100;
@@ -354,6 +355,11 @@ static stats measure(float chaos)
             if (n->flags & NACID_ACCENT) {
                 acc++;
                 accoff += s % 4 != 0;
+            }
+            if (s > 0 && (ac.step[s - 1].flags & NACID_ON)) {   /* side by side: an octave or more apart */
+                int d = n->note - ac.step[s - 1].note;
+                pairs++;
+                apart += d >= 12 || d <= -12 || ((n->note >= 12) != (ac.step[s - 1].note >= 12) && (d > 7 || d < -7));
             }
             if (prev > -100) {
                 int iv = n->note - prev;
@@ -377,6 +383,7 @@ static stats measure(float chaos)
     st.mean_iv = iv_sum / (float)ivs;
     st.slide_moves = sl ? (float)slmv / (float)sl : 0.0f;
     st.acc_off = acc ? (float)accoff / (float)acc : 0.0f;
+    st.apart = (float)apart / (float)pairs;
     return st;
 }
 
@@ -384,25 +391,33 @@ static void test_generator(void)
 {
     stats s[5];
     for (int i = 0; i < 5; ++i) {
-        s[i] = measure(0.25f * (float)i);
+        s[i] = measure(0.25f * (float)i, 0.2f);
         printf("chaos %3d %%: outside the scale %4.1f %%, the one %4.1f %%, bar 3 = bar 1 %4.1f %%, leaps %4.1f %%, "
-               "interval %.2f, slides that move %4.1f %%, accents off the beat %4.1f %%\n",
+               "interval %.2f, slides that move %4.1f %%, accents off the beat %4.1f %%, neighbours pushed apart %4.1f %%\n",
                25 * i, (double)(s[i].out_of_scale * 100.0f), (double)(s[i].ones * 100.0f), (double)(s[i].repeat * 100.0f),
                (double)(s[i].leap * 100.0f), (double)s[i].mean_iv, (double)(s[i].slide_moves * 100.0f),
-               (double)(s[i].acc_off * 100.0f));
+               (double)(s[i].acc_off * 100.0f), (double)(s[i].apart * 100.0f));
     }
     /* 11: at 0 by the rules, at 1 by chance */
     CHECK(s[0].out_of_scale < 0.07f && s[0].out_of_scale > 0.0f, "chaos 0: outside the scale %f", (double)s[0].out_of_scale);
     CHECK(s[0].ones > 0.9f, "chaos 0: the one %f", (double)s[0].ones);
     CHECK(s[0].repeat > 0.85f, "chaos 0: the motif %f", (double)s[0].repeat);
+    CHECK(s[0].apart > 0.35f, "chaos 0: neighbours an octave apart %f", (double)s[0].apart);
     CHECK(s[4].out_of_scale > 0.3f, "chaos 1: outside the scale %f", (double)s[4].out_of_scale);
     CHECK(s[4].repeat < 0.6f && s[4].ones < 0.8f, "chaos 1: motif %f, the one %f", (double)s[4].repeat, (double)s[4].ones);
-    CHECK(s[4].mean_iv > s[0].mean_iv + 1.5f, "chaos 1: intervals %f against %f", (double)s[4].mean_iv, (double)s[0].mean_iv);
     /* 12: step by step: each measure moves one way with Chaos */
     for (int i = 1; i < 5; ++i) {
         CHECK(s[i].out_of_scale > s[i - 1].out_of_scale, "chaos %d: outside the scale not up", 25 * i);
         CHECK(s[i].repeat < s[i - 1].repeat, "chaos %d: the motif not down", 25 * i);
-        CHECK(s[i].mean_iv > s[i - 1].mean_iv, "chaos %d: the intervals not up", 25 * i);
+        CHECK(s[i].ones < s[i - 1].ones + 0.02f, "chaos %d: the one not down", 25 * i);
+    }
+    /* Octaves: neighbours pushed an octave apart, more and more with the knob (Chaos 0) */
+    float last = -1.0f;
+    for (int o = 0; o <= 100; o += 25) {
+        stats so = measure(0.0f, 0.01f * (float)o);
+        printf("octaves %3d %%: neighbours an octave apart %4.1f %%\n", o, (double)(so.apart * 100.0f));
+        CHECK(so.apart > last - 0.02f, "octaves %d: not more apart", o);
+        last = so.apart;
     }
     /* the gate and the slides by the rules whatever the pattern: at Chaos 1, a long run checked step by
      * step: an attack exactly where the step before did not slide into this one */

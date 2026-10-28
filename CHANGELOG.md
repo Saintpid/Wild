@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.4.1
+
+Firmware identity FM-1_820.
+
+- **More octaves in the acid line, the 303 way.** Notes side by side are pushed apart: next to a
+  low note the next one goes up an octave, and after one up the next comes back down (now and then
+  below the root). The same Octaves setting gives about 40 % of neighbouring notes an octave apart
+  where 1.4.0 gave about 25 %; at 35 % and up most of the line jumps. Octaves starts at 30 % in a
+  new project (a saved project keeps its value). Chaos loosens the rule as it loosens the others.
+- **Beat repeat, shorter and with the swing.** A repeat lasts an eighth at most, and an eighth goes
+  by before the next glitch, so a fill becomes a repeat, a pause, a repeat. With swing its sixteenths
+  and thirty-seconds come on the swung grid (long, short), so the repeat keeps the groove. In bars 4
+  and 8 the eighths of the third quarter can bring a glitch too.
+
 ## 1.4.0
 
 Firmware identity FM-1_819.

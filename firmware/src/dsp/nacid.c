@@ -63,7 +63,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
 {
     NFM_DATA static const float def[NACID_PARAMS] = {
         [NACID_P_DENSITY] = 0.6f, [NACID_P_SLIDES] = 0.2f, [NACID_P_ACCENTS] = 0.25f,
-        [NACID_P_OCTAVES] = 0.15f, [NACID_P_EVOLVE] = 0.15f, [NACID_P_CUTOFF] = 0.3f,
+        [NACID_P_OCTAVES] = 0.3f, [NACID_P_EVOLVE] = 0.15f, [NACID_P_CUTOFF] = 0.3f,
         [NACID_P_RESO] = 0.7f, [NACID_P_ENVMOD] = 0.6f, [NACID_P_DECAY] = 0.4f,
         [NACID_P_ACCENT] = 0.6f, [NACID_P_LEVEL] = 0.7f, [NACID_P_CHAOS] = 0.25f,
     };
@@ -136,17 +136,33 @@ NFM_CODE static int pick_pitch(nacid *a, int s)
     return 0;
 }
 
-/* the octave on a pitch: up likelier off the beat (the root low on the one), down now and then; with
- * Chaos two up too */
+/* the octave on a pitch, the 303 way: notes side by side pushed apart, one up, the next down. Next to
+ * a note in the low register (right before it) one up is likely; next to one up, back down (now and
+ * then below the root); apart from that, up likelier off the beat (the root low on the one). With
+ * Chaos two up too, and the neighbour counts less. */
 NFM_CODE static int8_t octave(nacid *a, int s, int pitch)
 {
-    int p = s % NACID_BAR;
-    float c = a->p[NACID_P_CHAOS], w = p == 0 ? 0.3f : p % 4 == 0 ? 0.7f : p % 2 ? 1.25f : 1.35f;
-    int n = pitch;
-    if (rndf(&a->rng) < clamp1(a->p[NACID_P_OCTAVES] * lerp(w, 1.0f, c) * (1.0f + c))) {
-        float r = rndf(&a->rng);
-        n += r < lerp(0.2f, 0.3f, c) ? -12 : r < 1.0f - 0.35f * c * c ? 12 : 24;
+    int p = s % NACID_BAR, n = pitch;
+    float c = a->p[NACID_P_CHAOS], o = a->p[NACID_P_OCTAVES], r = rndf(&a->rng);
+    float w = p == 0 ? 0.3f : p % 4 == 0 ? 0.7f : p % 2 ? 1.25f : 1.35f;
+    float up = o * 1.0f * lerp(w, 1.0f, c), down = o * 0.3f;
+    if (s > 0 && (a->step[s - 1].flags & NACID_ON)) {
+        if (a->step[s - 1].note >= 12) {                       /* after one up: down again */
+            up *= lerp(0.15f, 1.0f, c);
+            down = o * lerp(0.6f, 0.35f, c);
+        } else if (a->step[s - 1].note < 0) {                  /* after one below: up */
+            up = lerp(0.3f + o, up, c);
+            down *= lerp(0.2f, 1.0f, c);
+        } else {                                               /* after one low: push this up */
+            up *= lerp(1.7f, 1.0f, c);
+        }
     }
+    up = clamp1(up * (1.0f + c));
+    down = clamp1(down);
+    if (r < up)
+        n += rndf(&a->rng) < 0.35f * c * c ? 24 : 12;
+    else if (r < up + down)
+        n -= 12;
     return (int8_t)(n > 24 ? n - 12 : n);
 }
 
