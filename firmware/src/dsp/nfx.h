@@ -15,7 +15,8 @@
  * SPACE moves the room: the reverb between a few rooms and halls (its length
  * and tone), the delay between a sixteenth, an eighth, a dotted eighth and a
  * quarter. It stays at each for bars on end and glides to the next over 1-4
- * bars (the delay crossfades between two taps, so no pitch bends). 0: the
+ * bars (the delay's time glides like an analog delay's, so its repeats bend
+ * in pitch on the way). 0: the
  * home room and a dotted eighth, still; 1: a shift every eight bars or so.
  *
  * Portable C99 like nfm; no libc, no malloc. Memory: two 32768-sample int16
@@ -82,7 +83,7 @@ typedef struct {
     /* delay: ping-pong, int16 storage */
     int16_t dl[NFX_DELAY_LEN], dr[NFX_DELAY_LEN];
     uint32_t dpos;
-    float dtime, dtime2;           /* the two taps in samples (SPACE crossfades from the first to the second) */
+    float dtime, dtime2;           /* the delay time in samples, and where it is going (SPACE glides it) */
     float dlp_l, dlp_r;
 
     /* reverb: allpass diffusion into a 4-line feedback delay network */

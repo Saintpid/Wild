@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.6.1
+
+Firmware identity FM-1_823.
+
+- **Space moves the delay like an analog delay.** Instead of fading from one length to the next,
+  the delay time glides there, so the repeats bend in pitch on the way: up when it gets shorter,
+  down when it gets longer, smoothly at both ends. A 1-bar glide between a quarter and a sixteenth
+  bends the most (about five semitones at its fastest), a 4-bar glide only a little.
+
 ## 1.6.0
 
 Firmware identity FM-1_822.

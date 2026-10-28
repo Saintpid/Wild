@@ -201,14 +201,20 @@ NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
     e->ins_k = 2.0f - 1.85f * m[NFX_M_RESO].cur;
     e->ins_morph = m[NFX_M_MORPH].cur;
 
-    /* Delay: SPACE's two taps, tempo-synced; a new tempo glides like tape. */
-    float six = sr * 60.0f / fx->bpm / 4.0f, k = 1.0f - exp2f_(-1.4427f * (float)n / (sr * 0.15f));
+    /* Delay: tempo-synced; SPACE glides the time from one station to the next like an analog delay,
+     * so the repeats bend in pitch on the way (smoothly at both ends). The render loop follows the
+     * goal like tape, so a new tempo glides too. */
+    float six = sr * 60.0f / fx->bpm / 4.0f;
     float t1 = six * dl_st[fx->dl_from], t2 = six * dl_st[fx->dl_to];
     /* Too long for the buffer (slow tempo, small FM1 buffer): halve, so it stays on the grid. */
     while (t1 > NFX_DELAY_LEN - 2) t1 *= 0.5f;
     while (t2 > NFX_DELAY_LEN - 2) t2 *= 0.5f;
-    fx->dtime += (t1 - fx->dtime) * k;
-    fx->dtime2 += (t2 - fx->dtime2) * k;
+    float dx = fx->dl_x * fx->dl_x * (3.0f - 2.0f * fx->dl_x);
+    fx->dtime2 = t1 + (t2 - t1) * dx;
+    if (fx->dl_x < 1.0f && (fx->dl_x += fx->dl_inc * (float)n) >= 1.0f) {
+        fx->dl_x = 1.0f;
+        fx->dl_from = fx->dl_to;
+    }
 
     /* Reverb: SPACE's rooms, gliding (smoothly at both ends) */
     float x = fx->rv_x * fx->rv_x * (3.0f - 2.0f * fx->rv_x);
@@ -259,24 +265,16 @@ NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int
         if (fx->src) fx->src(fx->src_ctx, out_l, out_r, rev, dly, c);
 
         float fb = 0.15f + 0.5f * fx->mod[NFX_M_DFEEDBACK].cur;
+        float kt = 1.0f - exp2f_(-1.4427f / (fx->sr * 0.15f));
         float dtone = 1.0f - exp2f_(-9.0647202f * (1200.0f * exp2f_(fx->mod[NFX_M_DTONE].cur * 2.9f)) / fx->sr);
         float dret = fx->on[NFX_DELAY] ? fx->amount[NFX_DELAY] : 0.0f;    /* the returns */
         float rret = fx->on[NFX_REVERB] ? 1.2f * fx->amount[NFX_REVERB] : 0.0f;
         for (int i = 0; i < c; ++i) {
-            /* Ping-pong delay: input to the left, each side feeds the other; SPACE fades from one
-             * tap to the other */
+            /* Ping-pong delay: input to the left, each side feeds the other; the time follows its
+             * goal like tape (0.15 s) */
+            fx->dtime += (fx->dtime2 - fx->dtime) * kt;
             float yl = delay_read(fx->dl, fx->dpos, fx->dtime);
             float yr = delay_read(fx->dr, fx->dpos, fx->dtime);
-            if (fx->dl_x < 1.0f) {
-                float w = fx->dl_x * fx->dl_x * (3.0f - 2.0f * fx->dl_x);
-                yl += (delay_read(fx->dl, fx->dpos, fx->dtime2) - yl) * w;
-                yr += (delay_read(fx->dr, fx->dpos, fx->dtime2) - yr) * w;
-                if ((fx->dl_x += fx->dl_inc) >= 1.0f) {   /* there: the second tap is the first */
-                    fx->dl_x = 1.0f;
-                    fx->dl_from = fx->dl_to;
-                    fx->dtime = fx->dtime2;
-                }
-            }
             fx->dlp_l += dtone * (yr - fx->dlp_l);
             fx->dlp_r += dtone * (yl - fx->dlp_r);
             fx->dpos = (fx->dpos + 1u) & (NFX_DELAY_LEN - 1);
