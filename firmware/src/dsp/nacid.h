@@ -1,7 +1,21 @@
-/* nacid: an acid bass line, the fifth track. One voice in the manner of a TB-303: a saw or square
- * oscillator, a resonant four-pole low-pass with a decaying envelope on its cutoff, accent and slide;
- * and its own random sequencer, the same idea as nseq's: a pattern drawn from a scale, with notes,
- * rests, accents, slides and octave jumps by chance, that evolves a little each loop.
+/* nacid: an acid bass line, the fifth track. One voice in the manner of a TB-303: an oscillator that
+ * never stops, the 303's filter (a diode ladder whose first stage sits an octave lower, with a
+ * high-pass in its resonance feedback: about 18 dB/oct in the octave above the cutoff, bass that stays
+ * when the resonance goes up), a decaying envelope on the cutoff, accent on the VCA and the cutoff
+ * through a sweep capacitor that builds up over accents in a row, and the 303's slide: an RC on the
+ * pitch, the same speed whatever the interval, so a big slide may not get there before the next note.
+ *
+ * The gate as a 303's: a note's gate is half a step; a step with SLIDE holds it to the next step, which
+ * then glides to its note without a new attack (no VCA or filter envelope again), and a rest after it
+ * closes the gate. The SLIDE flag sits on the note that slides on, into the next (also from the last
+ * step into the first).
+ *
+ * Its own random sequencer: the rhythm first (likelier on the one, the beats and the offbeat eighths,
+ * rests between), as a motif that repeats over the bars with variations; then the notes (the root and
+ * the fifth most, small steps mostly, now and then a leap or a note outside the scale), the octaves,
+ * accents where they push the rhythm, and slides where they move: most where the next note is another,
+ * an octave above all. Chaos (0..1) moves every one of those chances towards none: at 1 the scale, the
+ * beat and the motif are gone.
  *
  * The drums' sequencer clocks it (nacid_step, from nseq's step hook), so swing and tempo are shared.
  * Its sound goes through the drums' effects: nacid_render adds to the dry bus and to the reverb and
@@ -35,6 +49,7 @@ enum {
     NACID_P_EVOLVE,                /* chance per loop that one step changes */
     NACID_P_CUTOFF, NACID_P_RESO, NACID_P_ENVMOD, NACID_P_DECAY, NACID_P_ACCENT,
     NACID_P_LEVEL,
+    NACID_P_CHAOS,                 /* the generator: 0 by the rules, 1 by chance */
     NACID_PARAMS
 };
 
@@ -52,16 +67,19 @@ typedef struct {
     uint32_t at;
     uint8_t pending;
     nacid_note next;
-    uint8_t next_tie;              /* the step after it slides on: hold the gate */
+    uint8_t next_slide;            /* it slides on: its gate is held into the next step */
     float step_len;
     /* the voice */
     uint32_t now;
-    float phase, phase2, freq, target, glide;
-    float env, acc_env, amp;       /* cutoff envelope, accent envelope, the gate's amplitude */
+    float phase, phase2, freq;     /* the oscillator: it runs on, notes or not */
+    float cv, cv_to, glide;        /* the pitch in semitones over C2 and where it goes, the slide's RC */
+    float env, amp;                /* the cutoff envelope, the VCA */
+    float acc_env, acc_vca, acc_cap;   /* the accent: its envelope, on the VCA, the sweep capacitor */
     float gate;                    /* samples until the gate closes, < 0 held */
-    uint8_t gate_on, accent, sounding;
-    float s[4];                    /* the ladder */
-    float g, k, comp;              /* its coefficients (every 8 samples) */
+    uint8_t gate_on, accent, acc_gate, attack, sounding;
+    float s[4], sf, so;            /* the ladder, the feedback's high-pass, the output's */
+    float ga, gb, k, comp;         /* its coefficients (every 8 samples) */
+    float dk_env, dk_acc, chg, dis;
     uint8_t ctl;
     /* the effects: the filter faded in and out, the drive, sends, from nacid_route */
     float ins_f, ins_f_to;
@@ -88,7 +106,7 @@ void nacid_stop(nacid *a);         /* the gate closes */
 void nacid_step(nacid *a, float delay, float step_len);
 /* The effects from now: the moving filter in or out, the drive (0..1), the send levels. */
 void nacid_route(nacid *a, int filter, float drive, float send_rev, float send_dly);
-/* Play one note now, outside the pattern (accent: 0 / 1). */
+/* Play one note now, outside the pattern (accent: 0 / 1): a new attack, never a slide. */
 void nacid_hit(nacid *a, int note, int accent);
 
 /* Add n frames to the bus and the sends; the inserts take the engine's settings. */

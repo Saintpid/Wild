@@ -5,6 +5,38 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.4.0
+
+Firmware identity FM-1_819.
+
+The acid line is rebuilt after the TB-303, its sequencer and its sound.
+
+- **A musical generator.** A new pattern starts from the rhythm: notes likelier on the one, the
+  beats and the offbeat eighths, with rests between. It is a motif, a bar or half a bar twice, that
+  repeats over the bars with small variations, most at the end of bars 2 and 4. Then the notes: the
+  root and the fifth most, then the third and the seventh, mostly small steps or repeats with a leap
+  now and then, and now and then a note outside the scale. Then the octaves (up likelier off the
+  beat), accents where they push the rhythm (off the beat, after a rest), and slides where they move
+  the line: most into a different note, and most of all into an octave jump.
+- **Chaos for the acid line** (Tone page, KNOB 4, 0–100 %, 25 % to start with). At 0 % the line
+  follows the rules above; at 100 % the scale, the beat and the motif are gone: any note, wild
+  octaves (up to two), accents and slides anywhere. In between, every chance moves step by step.
+- **The 303's gate and slide.** A note's gate is half a step. A slide holds the gate into the next
+  step, which glides to its note with no new attack: the VCA and the filter envelope go on as they
+  are. A note that is not slid into is a new attack; a rest closes the gate; a slide into a rest
+  makes a longer note. Slides in a row make one long movement, also from the last step into the
+  first. The oscillator runs on and is never reset.
+- **The 303's slide.** The pitch glides through an RC (45 ms), at the same speed whatever the
+  interval, so a big slide may not get there before the next note, which then slides on from where
+  the pitch is.
+- **The 303's filter.** A model of its diode ladder (one stage an octave lower than the other
+  three, about 18 dB/oct in the octave above the cutoff) with the 303's high-pass in the resonance
+  feedback, so the bass stays when the resonance goes up. It saturates where it resonates and stays
+  stable at full resonance. Its level is matched across the resonance.
+- **Accent** raises the VCA and the cutoff through a sweep capacitor: accents in a row build up,
+  the more the higher the resonance. An accent on a slid note works without a new attack.
+- Projects and presets from before keep everything; the acid line's Chaos starts at 25 %.
+
 ## 1.3.1
 
 Firmware identity FM-1_818.
