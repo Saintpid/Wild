@@ -8,9 +8,15 @@
  * effects' global amounts scale all of it: the filter's and drive's share and
  * strength, the delay's and reverb's return.
  *
- * The effect settings themselves (cutoff, delay time and feedback, reverb
- * length and tone) wander around fixed base values. CHAOS sets how far they
+ * The insert and delay-colour settings (cutoff, resonance, drive, the delay's
+ * feedback and tone) wander around fixed base values. CHAOS sets how far they
  * wander, MOTION how fast. Both 0 means fixed settings.
+ *
+ * SPACE moves the room: the reverb between a few rooms and halls (its length
+ * and tone), the delay between a sixteenth, an eighth, a dotted eighth and a
+ * quarter. It stays at each for bars on end and glides to the next over 1-4
+ * bars (the delay crossfades between two taps, so no pitch bends). 0: the
+ * home room and a dotted eighth, still; 1: a shift every eight bars or so.
  *
  * Portable C99 like nfm; no libc, no malloc. Memory: two 32768-sample int16
  * delay lines (128 kB) and a four-line reverb (about 48 kB at 44.1 kHz).
@@ -45,7 +51,7 @@ enum nfx_effect { NFX_FILTER, NFX_DRIVE, NFX_DELAY, NFX_REVERB, NFX_EFFECTS };
 /* Settings that drift. Values are 0..1; nfx.c maps them. */
 enum nfx_mod {
     NFX_M_CUTOFF, NFX_M_RESO, NFX_M_MORPH, NFX_M_DRIVE,
-    NFX_M_DTIME, NFX_M_DFEEDBACK, NFX_M_DTONE,
+    NFX_M_DTIME, NFX_M_DFEEDBACK, NFX_M_DTONE,   /* (DTIME, RDECAY, RDAMP: SPACE's, they stay put) */
     NFX_M_RDECAY, NFX_M_RDAMP,
     NFX_MODS
 };
@@ -63,6 +69,12 @@ typedef struct {
     float chaos, motion;           /* 0..1 */
     float bpm;
     nfx_mod_state mod[NFX_MODS];
+    /* SPACE: a station each for the reverb and the delay, the glide from one to the next */
+    float space;                   /* 0..1 */
+    uint8_t rv_from, rv_to, dl_from, dl_to;
+    float rv_x, rv_inc, dl_x, dl_inc;  /* 0..1 on the way, per sample */
+    uint16_t rv_stay, dl_stay;     /* bars at the station */
+    float bar_len;                 /* samples, the last bar's */
 
     /* each slot's own amounts, 0..1 (filter share, drive, delay send, reverb send) */
     float slot_amt[NFM_SLOTS][NFX_EFFECTS];
@@ -70,7 +82,7 @@ typedef struct {
     /* delay: ping-pong, int16 storage */
     int16_t dl[NFX_DELAY_LEN], dr[NFX_DELAY_LEN];
     uint32_t dpos;
-    float dtime;                   /* current delay in samples, glides */
+    float dtime, dtime2;           /* the two taps in samples (SPACE crossfades from the first to the second) */
     float dlp_l, dlp_r;
 
     /* reverb: allpass diffusion into a 4-line feedback delay network */
@@ -92,6 +104,11 @@ void nfx_set_amount(nfx *fx, int effect, float amount);
 void nfx_set_chaos(nfx *fx, float chaos);
 void nfx_set_motion(nfx *fx, float motion);
 void nfx_set_tempo(nfx *fx, float bpm);
+void nfx_set_space(nfx *fx, float space);
+/* A bar starts (bar_len samples long): SPACE may move on. */
+void nfx_bar(nfx *fx, float bar_len);
+/* A shift now, by SPACE's chance (1: always), over a bar. */
+void nfx_space_shift(nfx *fx);
 
 /* A slot's own amount of an effect, 0..1. */
 void nfx_set_slot(nfx *fx, int slot, int effect, float amount);

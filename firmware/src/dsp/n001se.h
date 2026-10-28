@@ -49,6 +49,7 @@ enum {
     G_USBAUDIO,                                      /* the master output over USB: on / off (CPU) */
     G_MUTADE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
     G_SELMODE,                                       /* what SEL does (the UI's): NE_SEL_* */
+    G_SPACE,                                         /* the reverb's room and the delay's time move */
     G_NPARAMS
 };
 enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };
@@ -106,6 +107,7 @@ enum { NE_CLK_TICK, NE_CLK_START, NE_CLK_CONTINUE, NE_CLK_STOP };
 void ne_clock(int msg);                              /* MIDI clock in: ticks set the tempo, start / stop */
 void ne_voices(int limit);                           /* the CPU guard: new hits use this many voices */
 void ne_panic(void);
+void ne_space_shift(void);                           /* SPACE moves the room now, by its chance (SEL) */
 void ne_aset(int param, int value);                  /* A_* */
 void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12..24 */
 /* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */

@@ -34,6 +34,9 @@ command.
 - **Chaos** brings glitches: beat repeat, reverse and tape stop. They gather at the end of bars 4 and
   8 of the phrase, as fills into the next bar; elsewhere they are short, an eighth off the beat.
   **Mutade** swaps which tracks play, a quarter at a time, in the same bars, and always goes back.
+  **Space** lets the reverb move between rooms (small room to large hall) and the delay between
+  lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1–4 bars and each
+  place is held for a while.
 - **Master:** hi cut, lo cut, resonance and **Glue**, a bus compressor that makes the mix tighter but
   not louder. After it there is always a limiter at −0.3 dBFS.
 
