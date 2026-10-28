@@ -94,6 +94,7 @@ enum nfm_kind {
     NFM_KIND_PERC,    /* toms, congas, wood */
     NFM_KIND_CLICK,   /* blips, ticks, zaps */
     NFM_KIND_METAL,   /* bells, cowbells, clangs: the tonal end */
+    NFM_KIND_CLAP,    /* hand claps: a few quick bursts of noise, then its tail */
     NFM_KINDS
 };
 
@@ -158,6 +159,9 @@ typedef struct {
     float f0, pitch_env, pitch_k, pitch_depth, sweep_mods;
     float att, att_inc;
     float noise, noise_k, ns1, ns2, ng, nk, nband, noise_fm;
+    uint8_t bursts;           /* a clap: bursts still to come, each clap_gap apart, then the tail */
+    uint16_t clap_t, clap_gap;
+    float clap_amp, clap_k;
     float fold, crush, crush_rate, crush_acc, crush_hold, crush_q;
     float fade, fade_k;
     /* resonator: TPT state variable bandpass per mode */

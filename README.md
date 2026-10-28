@@ -19,7 +19,7 @@ command.
 
 - **Four FM drums** (tracks 1–4): four operators in eight algorithms, noise and a resonator. Every
   hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
-  perc, click or metal, and perc, click and metal land in a random octave.
+  perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter, with the 303's gate, slide (an RC that may not get there) and
   accent (a sweep that builds up). Its own sequencer draws musical lines: the rhythm first, a motif

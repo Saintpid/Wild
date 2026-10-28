@@ -141,7 +141,7 @@ const ne_param_t *ne_param_info(int i)
 const ne_param_t *ne_tparam_info(int i) { return &TP[(unsigned)i < T_NPARAMS ? i : 0]; }
 int ne_tparam_def(int t, int i) { return T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
 
-static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal"};
+static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap"};
 const char *ne_kind_name(int k) { return (unsigned)k < NFM_KINDS ? KIND_NAME[k] : "?"; }
 
 static void itoa_s(int v, char *b)

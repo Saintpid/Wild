@@ -165,7 +165,7 @@ NFM_CODE static float param_unmap(int i, float v)
 }
 
 static const char *const macro_names[NFM_MACROS] = { "deviance", "stress", "spike", "bleed", "fluid" };
-static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal" };
+static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap" };
 
 /* Carriers per algorithm, bit k = op k+1 (see nfm.h). */
 NFM_DATA static const uint8_t algo_carriers[NFM_ALGOS] = { 1, 1, 1 | 4, 1 | 2 | 4, 1, 1, 1 | 2, 15 };
@@ -263,6 +263,19 @@ NFM_DATA static const recipe recipes[NFM_KINDS] = {
         .noise = { 0, 0.12f }, .ndecay = { 0.003f, 0.03f }, .ncolor = { 3000, 14000 }, .nband = { 0, 1 }, .nfm = { 0, 0.1f },
         .res_freq = { 700, 6000 }, .res_spread = { 1.5f, 3.5f }, .res_decay = { 0.2f, 1.5f }, .res_mix = { 0.1f, 0.5f },
         .level = { 0.58f, 0.76f }, .pan = { 0.25f, 0.75f }, .fold_chance = 0.1f, .crush_chance = 0.05f },
+    /* the noise is the clap (its bursts: nfm_trigger); the FM a short knock under it, the resonator
+     * the room or the hands' body */
+    [NFM_KIND_CLAP] = {
+        .algos = 1 << 0 | 1 << 1 | 1 << 4,
+        .pitch = { 180, 420 }, .penv = { 2, 10 }, .pdecay = { 0.004f, 0.02f }, .sweep = { 0.5f, 1 },
+        .feedback = { 0, 0.3f }, .attack = { 0.0001f, 0.001f },
+        .car_decay = { 0.006f, 0.03f }, .car2_level = { 0.2f, 0.5f }, .n_car = 3, .car_ratio = { 1.5f, 2.1f, 2.76f },
+        .mod_level = { 0.2f, 0.6f }, .mod_decay = { 0.003f, 0.02f },
+        .n_mod = 4, .mod_ratio = { 1.414f, 2.76f, 3.5f, 5.4f }, .free_chance = 0.4f, .mod_free = { 1.3f, 7 },
+        .click_chance = 0.2f,
+        .noise = { 0.75f, 1 }, .ndecay = { 0.07f, 0.35f }, .ncolor = { 800, 2600 }, .nband = { 0.45f, 0.9f }, .nfm = { 0, 0.1f },
+        .res_freq = { 600, 2200 }, .res_spread = { 1.2f, 2.2f }, .res_decay = { 0.03f, 0.15f }, .res_mix = { 0, 0.3f },
+        .level = { 0.76f, 0.9f }, .pan = { 0.4f, 0.6f }, .fold_chance = 0.15f, .crush_chance = 0.05f },
 };
 
 /* ---- slots -------------------------------------------------------------- */
@@ -314,7 +327,7 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     uint32_t *r = &e->rng;
     if (kind < 0 || kind >= NFM_KINDS) {
         /* Rhythm first: drums are drawn more often than the tonal kinds. */
-        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2 };
+        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2 };
         unsigned total = 0, pick;
         for (int k = 0; k < NFM_KINDS; ++k) total += weights[k];
         pick = rng_next(r) % total;
@@ -576,6 +589,18 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->nband = val[NFM_NOISE_BAND];
     v->nk = 2.0f - 1.8f * v->nband;  /* damping: gentle lowpass to a ringing band */
     v->noise_fm = val[NFM_NOISE_FM] * 0.6f;
+    v->bursts = 0;
+    if (e->slot[s].kind == NFM_KIND_CLAP) {
+        /* a clap: three or four bursts 6..13 ms apart, each gone in about its gap, drawn per hit (the
+         * hands never meet the same way twice); the noise's own decay is the tail after the last */
+        float gap = (0.006f + 0.007f * rng_uni(&e->rng)) * sr;
+        v->bursts = (uint8_t)(rng_uni(&e->rng) < 0.6f ? 2 : 3);
+        v->clap_gap = (uint16_t)gap;
+        v->clap_t = v->clap_gap;
+        v->noise *= 2.3f;                         /* (a narrow band of noise: as loud as a snare) */
+        v->clap_amp = v->noise;
+        v->clap_k = t60_coef(gap * 2.5f / sr, sr);
+    }
     v->fold = val[NFM_FOLD];
     v->crush = val[NFM_CRUSH];
     v->crush_rate = exp2_approx(-val[NFM_CRUSH] * 5.0f);
@@ -841,7 +866,7 @@ NFM_CODE static void voice_control(nfm_engine *e, nfm_voice *v)
 
     /* A voice ends when every source is silent and the rings have died. */
     if ((v->fading && v->fade < 1e-4f) ||
-        (loud < 1e-4f && v->noise < 1e-4f && v->peak < 3e-5f)) {
+        (loud < 1e-4f && v->noise < 1e-4f && !v->bursts && v->peak < 3e-5f)) {
         v->slot = -1;
         return;
     }
@@ -857,6 +882,14 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
 {
     /* Noise first: it is heard, and it can shake op 1's phase. */
     float nz = 0.0f;
+    if (v->bursts) {                              /* a clap: a burst falls fast, the next comes */
+        v->noise *= v->clap_k;
+        if (--v->clap_t == 0) {
+            v->noise = v->clap_amp * (0.75f + 0.25f * rng_uni(rng));
+            v->clap_t = (uint16_t)(v->clap_gap * (0.8f + 0.4f * rng_uni(rng)));
+            if (--v->bursts == 0) v->noise = v->clap_amp;   /* the last: the tail */
+        }
+    }
     if (v->noise > 1e-5f) {
         float w = (float)(int32_t)rng_next(rng) * (1.0f / 2147483648.0f);
         float g = v->ng, k = v->nk;
@@ -866,7 +899,7 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
         float lp = g * bp + v->ns2;
         v->ns2 = g * bp + lp;
         nz = (lp + (bp * 2.0f - lp) * v->nband) * v->noise;
-        v->noise *= v->noise_k;
+        if (!v->bursts) v->noise *= v->noise_k;
     }
     float nfm = nz * v->noise_fm;
 

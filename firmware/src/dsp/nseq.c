@@ -22,6 +22,7 @@ NFM_DATA static const uint8_t profile[NFM_KINDS][NSEQ_BAR] = {
     [NFM_KIND_PERC]  = {  2, 1, 3, 4,  1, 2, 3, 2,  2, 4, 1, 3,  2, 1, 4, 2 },
     [NFM_KIND_CLICK] = {  1, 2, 1, 3,  1, 3, 2, 1,  1, 2, 3, 1,  2, 1, 3, 2 },
     [NFM_KIND_METAL] = {  4, 1, 2, 1,  2, 1, 3, 1,  3, 1, 2, 1,  2, 1, 3, 1 },
+    [NFM_KIND_CLAP]  = {  1, 1, 1, 1,  9, 1, 1, 2,  1, 1, 2, 1,  9, 1, 3, 2 },
 };
 
 /* Minor pentatonic: percussion pitched to it rarely clashes. */
