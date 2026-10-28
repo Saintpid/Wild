@@ -36,6 +36,9 @@ run n001se-ubsan sh -c "$CC -O1 -g -std=c99 -fsanitize=alignment,undefined -fno-
 # the acid line against a 303's rules: gate, slide, accent, the filter, the generator by Chaos
 run nacid sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/nacid_test tests/host/nacid_test.c firmware/src/dsp/nacid.c firmware/src/dsp/nfm.c -lm && $OUT/nacid_test"
+# SPACE: the reverb's rooms and the delay's lengths, slow glides, long stays, no jumps
+run space sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/space_test tests/host/space_test.c firmware/src/dsp/nfx.c firmware/src/dsp/nfm.c -lm && $OUT/space_test"
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"
 # the update path, against the firmware package (Felucca's tests; needs ./build.sh)
 if [ -f build/n001se.fwsc ]; then

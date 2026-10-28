@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.6.0
+
+Firmware identity FM-1_822.
+
+- **Space (Drift page, knob 4).** The reverb and the delay wander between places of their own: the
+  reverb from a small room through the usual one to a big hall (length and tone), the delay between
+  a dotted eighth (as before), an eighth, a sixteenth and a quarter. At 0 they stay put as before;
+  the higher, the more often they move, but always slowly: each glide takes 1–4 bars and each place
+  is held at least 4 bars (about 8 on average at 100). The delay fades from one length to the next,
+  so nothing bends in pitch. With Space up, SEL also moves them by the same chance (always at 100).
+  Chaos and Motion no longer move the delay time or the reverb's length and tone; Space does.
+  Project format 10 (a saved project gets Space 0).
+
 ## 1.5.0
 
 Firmware identity FM-1_821.

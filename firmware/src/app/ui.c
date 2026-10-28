@@ -57,7 +57,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
-    {G_CHAOS, G_MOTION, G_MUTADE, K_NONE},
+    {G_CHAOS, G_MOTION, G_MUTADE, G_SPACE},
     {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
@@ -621,6 +621,7 @@ static void sel_press(void)
 {
     static project_t now;
     int m = proj.g[G_SELMODE];
+    ne_space_shift();                                /* (by Space's chance: at 100 always) */
     if (m == NE_SEL_CHANCE) {
         scene();
         return;

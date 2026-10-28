@@ -50,6 +50,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_USBAUDIO] = {"USB audio", 0, 1, 1},
     [G_MUTADE] = {"Mutade", 0, 100, 0},
     [G_SELMODE] = {"SEL mode", 0, NE_SEL_MODES - 1, NE_SEL_CHANCE},
+    [G_SPACE] = {"Space", 0, 100, 0},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -221,7 +222,7 @@ void ne_aparam_text(int i, int v, char *b)
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -255,6 +256,7 @@ void ne_midi_note(int note, int vel) { post(C_NOTE, 0, note, vel, 0, 0); }
 void ne_clock(int m) { post(C_CLOCK, 0, m, 0, 0, 0); }
 void ne_voices(int n) { post(C_VOICES, 0, n, 0, 0, 0); }
 void ne_panic(void) { post(C_PANIC, 0, 0, 0, 0, 0); }
+void ne_space_shift(void) { post(C_SPACE, 0, 0, 0, 0, 0); }
 void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
 void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
 
@@ -576,6 +578,7 @@ static void gset(int p, int v)
     case G_POLY: seq.max_poly = (uint8_t)v; break;
     case G_CHAOS: nfx_set_chaos(&fx, pct(v)); break;
     case G_MOTION: nfx_set_motion(&fx, pct(v)); break;
+    case G_SPACE: nfx_set_space(&fx, pct(v)); break;
     case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: apply_fx(p, v); acid_route(0); break;
     case G_LEVEL: fm.master = pct(v); break;
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
@@ -734,6 +737,8 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     nacid_step(&acid, delay, step_len);
     glitch_step(step, delay, step_len);
     mutade_step(step);
+    if (step % NE_BAR == 0u)
+        nfx_bar(&fx, step_len * (float)NE_BAR);
 }
 static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
@@ -948,6 +953,7 @@ static void drain(void)
         case C_CLOCK: clock_msg(c.a, seq.now); break;
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
         case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); break;
+        case C_SPACE: nfx_space_shift(&fx); break;
         }
     }
 }
