@@ -1,6 +1,6 @@
 /* SPACE: still at 0; at 1 a station is left now and then (never before 4 bars at it), each glide 1-4
  * bars; at 0.5 less often; SEL's shift by its chance; back home when it goes to 0; and the delay's
- * crossfade from one tap to the other without a jump. */
+ * time gliding like an analog delay's: through every length between, without a jump. */
 #include <math.h>
 #include <stdio.h>
 #include "nfx.h"
@@ -28,13 +28,13 @@ static void src(void *ctx, float *l, float *r, float *rev, float *dly, int n)
     }
 }
 
-typedef struct { int shifts, short_stay, glide_bad; float jump; } run_t;
+typedef struct { int shifts, short_stay, glide_bad, between; float jump, dt_step; } run_t;
 
 /* bars bars at 120 BPM; shifts counted at their start, the bars at a station before it */
 static run_t run(int bars, float space)
 {
     const float bar = SR * 2.0f;
-    run_t r = { 0, 0, 0, 0.0f };
+    run_t r = { 0, 0, 0, 0, 0.0f, 0.0f };
     nfx_set_space(&fx, space);
     for (int b = 0; b < bars; ++b) {
         uint16_t rs = fx.rv_stay, ds = fx.dl_stay;
@@ -54,7 +54,14 @@ static run_t run(int bars, float space)
         }
         for (int i = 0; i < (int)bar; i += 64) {
             for (int k = 0; k < 64; ++k) L[k] = R[k] = 0.0f;
+            float dt0 = fx.dtime;
             nfx_render(&fx, &e, L, R, 64);
+            /* the time on its way: between the two lengths, a little at a time (a pitch, not a jump) */
+            if (fabsf(fx.dtime - dt0) > r.dt_step) r.dt_step = fabsf(fx.dtime - dt0);
+            if (fx.dl_x > 0.4f && fx.dl_x < 0.6f) {
+                float a = SR * 0.125f * (float)"\3\2\1\4"[fx.dl_from], b = SR * 0.125f * (float)"\3\2\1\4"[fx.dl_to];
+                r.between += fx.dtime > fminf(a, b) + 100.0f && fx.dtime < fmaxf(a, b) - 100.0f;
+            }
             for (int k = 0; k < 64; ++k) {
                 float j = fabsf(L[k] - prev);
                 if (j > r.jump) r.jump = j;
@@ -83,10 +90,14 @@ int main(void)
     CHECK(rh.shifts < r1.shifts && rh.shifts >= 6, "space 0.5: %d shifts", rh.shifts);
     CHECK(!r1.short_stay && !rh.short_stay, "a station left before 4 bars (%d %d)", r1.short_stay, rh.short_stay);
     CHECK(!r1.glide_bad && !rh.glide_bad, "a glide not 1-4 bars (%d %d)", r1.glide_bad, rh.glide_bad);
-    /* the delay's crossfade: no step in the sound bigger than the sine's own (0.3 x 2 pi 220 / 44100 = 0.0094 a
+    /* the delay's glide: no step in the sound bigger than the sine's own (0.3 x 2 pi 220 / 44100 = 0.0094 a
      * sample, through the delay's feedback a few times that) */
     printf("the largest step from one sample to the next, with the delay gliding: %.4f\n", (double)r1.jump);
     CHECK(r1.jump < 0.06f, "the delay jumped %f", (double)r1.jump);
+    /* 64 samples of a 1-bar glide from a quarter to a sixteenth at its fastest: 0.28 x 1.5 x 64 = 27 */
+    printf("the delay time's largest move in 64 samples: %.1f; mid-glide blocks between the lengths: %d\n", (double)r1.dt_step, r1.between);
+    CHECK(r1.dt_step < 40.0f, "the delay time stepped %f samples", (double)r1.dt_step);
+    CHECK(r1.between > 100, "the delay time not gliding through the lengths between (%d)", r1.between);
     /* SEL: at 1 always (from a station), at 0 never */
     run(8, 1.0f);
     while (fx.rv_x < 1.0f || fx.dl_x < 1.0f) run(1, 1.0f);

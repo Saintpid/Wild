@@ -36,7 +36,7 @@ command.
   **Mutade** swaps which tracks play, a quarter at a time, in the same bars, and always goes back.
   **Space** lets the reverb move between rooms (small room to large hall) and the delay between
   lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1–4 bars and each
-  place is held for a while.
+  place is held for a while. The delay glides like an analog delay, so its repeats bend in pitch.
 - **Master:** hi cut, lo cut, resonance and **Glue**, a bus compressor that makes the mix tighter but
   not louder. After it there is always a limiter at −0.3 dBFS.
 
