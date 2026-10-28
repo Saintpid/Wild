@@ -1,6 +1,6 @@
 n001se – MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
-Firmware 1.4.1 (820)
+Firmware 1.5.0 (821)
 
 ====================================================================
 
@@ -8,7 +8,7 @@ WHAT IS n001se?
 
 n001se is a custom firmware that turns the M-VAVE FM-1 into a sequencer for random FM percussion, made for live sets. It has five tracks:
 
-  Tracks 1–4: FM drums (Kick, Snare, Hat, Perc, Click or Metal)
+  Tracks 1–4: FM drums (Kick, Snare, Hat, Perc, Click, Metal or Clap)
   Track 5:    Acid, a 303-style bass line with its own filter, accent and glide
 
 Each track has its own pattern of 1–8 bars (acid 1–4), and the tracks can have different lengths, so polyrhythms appear by themselves. Patterns are drawn at random within limits you choose, and they can change slowly while they play. Every hit also varies a little in tone, so nothing sounds exactly the same twice.
@@ -146,7 +146,7 @@ SOUND (ENV, page 1)
   Ring       Resonance and ring
 
 TONE (ENV, page 2)
-  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal. Takes effect with the next new sound (black 11).
+  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap. A clap is three or four quick bursts of noise and then its tail, a little different on every hit. Takes effect with the next new sound (black 11).
   Ring tone  The resonance's pitch
   Tune       Tuning, −24 to +24 semitones
 

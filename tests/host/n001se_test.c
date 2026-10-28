@@ -49,6 +49,30 @@ int main(int argc, char **argv)
             pk = render(40, 0);
             CHECK(pk > 0.01f && pk <= 1.0f, "kind %d draw %d: peak %f", k, i, (double)pk);
         }
+    /* a clap: three or four bursts in its first 50 ms (the noise jumps up again), every draw */
+    {
+        static nfm_engine ce;
+        static float cl[64], cr[64];
+        int d, bursts_ok = 0;
+        nfm_init(&ce, NE_SR, 5u);
+        for (d = 0; d < 20; d++) {
+            int j, ups = 0, v = 0, w;
+            float prev = 0.0f;
+            nfm_randomize(&ce, 0, NFM_KIND_CLAP);
+            nfm_trigger(&ce, 0, 1.0f, 0.0f);
+            for (w = 0; w < NFM_VOICES; w++)        /* the voice it took: the newest */
+                if (ce.voice[w].slot == 0 && ce.voice[w].age >= ce.voice[v].age)
+                    v = w;
+            for (j = 0; j < (int)(0.05f * NE_SR) / 64; j++) {
+                nfm_render(&ce, cl, cr, 64);
+                if (ce.voice[v].noise > prev * 1.5f + 0.01f)
+                    ups++;
+                prev = ce.voice[v].noise;
+            }
+            bursts_ok += ups >= 3 && ups <= 4;
+        }
+        CHECK(bursts_ok == 20, "clap: %d of 20 draws with 3-4 bursts", bursts_ok);
+    }
     ne_init();
     if (argc > 1) {
         snprintf(path, sizeof path, "%s/n001se_16bars.wav", argv[1]);

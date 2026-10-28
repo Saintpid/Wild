@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.5.0
+
+Firmware identity FM-1_821.
+
+- **A new kind of sound: Clap.** Three or four quick bursts of band-passed noise, 6–13 ms apart,
+  then the tail, with a short FM knock under it and now and then the resonator as a room. The
+  bursts are drawn anew on every hit, so no two claps are the same. Choose it with Kind on the Tone
+  page and draw a new sound (black 11). Its patterns lean on beats 2 and 4, like a snare's, with a
+  few pushes around them.
+
 ## 1.4.1
 
 Firmware identity FM-1_820.
