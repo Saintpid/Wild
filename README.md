@@ -7,9 +7,10 @@ must never get cluttered.
 
 ![Playing](docs/img/playing.png) ![Bar 4 counts big](docs/img/phrase.png) ![A knob turned](docs/img/fx.png)
 
-> **Status: 1.3.1, tested on the FM-1.** Install at your own risk. The platform is FiMba-1's,
-> unchanged: the chip's own update mode cannot be overwritten, the firmware falls back to a safe mode
-> if it does not start, and the original firmware can always be put back (see [Install](#install)).
+> **Status: 1.4.0.** 1.3.1 is tested on the FM-1; 1.4.0's new acid line is tested in the simulator.
+> Install at your own risk. The platform is FiMba-1's, unchanged: the chip's own update mode cannot be
+> overwritten, the firmware falls back to a safe mode if it does not start, and the original firmware
+> can always be put back (see [Install](#install)).
 
 **The full manual:** [docs/MANUAL.txt](docs/MANUAL.txt). It has every button, page, parameter and MIDI
 command.
@@ -19,9 +20,11 @@ command.
 - **Four FM drums** (tracks 1–4): four operators in eight algorithms, noise and a resonator. Every
   hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
   perc, click or metal, and perc, click and metal land in a random octave.
-- **An acid line** (track 5) in 303 style: saw, square, pulse, tri, sine or duo through a resonant
-  ladder filter with envelope, accent and slide. It has its own random sequencer with scales, octave
-  jumps and Evolve.
+- **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
+  of the 303's diode ladder filter, with the 303's gate, slide (an RC that may not get there) and
+  accent (a sweep that builds up). Its own sequencer draws musical lines: the rhythm first, a motif
+  that repeats, notes from the scale, octaves, accents and slides where they move the line. Its
+  Chaos takes it from those rules to pure chance.
 - **Patterns drawn at random:** each track loops over its own length (drums 1–8 bars, acid 1–4), so
   the tracks drift against each other. Hits min–max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round.

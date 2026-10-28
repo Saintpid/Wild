@@ -101,6 +101,7 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_MODAMT] = {"Amount", 0, 100, 50},
     [A_MODRATE] = {"Rate", 0, 100, 30},
     [A_MODCHANCE] = {"Chance", 0, 100, 60},
+    [A_CHAOS] = {"Chaos", 0, 100, 25},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
@@ -614,6 +615,7 @@ static void aset(int p, int v)
     case A_MODAMT: acid.mod.amount = pct(v); break;
     case A_MODRATE: acid.mod.rate = pct(v); break;
     case A_MODCHANCE: acid.mod.chance = pct(v); break;
+    case A_CHAOS: acid.p[NACID_P_CHAOS] = pct(v); break;
     }
 }
 

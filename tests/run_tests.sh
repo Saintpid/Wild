@@ -33,6 +33,9 @@ run n001se sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-prom
 run n001se-ubsan sh -c "$CC -O1 -g -std=c99 -fsanitize=alignment,undefined -fno-sanitize-recover=all -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/n001se_ubsan tests/host/n001se_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
     firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/n001se_ubsan"
+# the acid line against a 303's rules: gate, slide, accent, the filter, the generator by Chaos
+run nacid sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/nacid_test tests/host/nacid_test.c firmware/src/dsp/nacid.c firmware/src/dsp/nfm.c -lm && $OUT/nacid_test"
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"
 # the update path, against the firmware package (Felucca's tests; needs ./build.sh)
 if [ -f build/n001se.fwsc ]; then

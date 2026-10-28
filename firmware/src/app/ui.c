@@ -27,7 +27,8 @@
  *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
  * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, FX); a step key sets a note,
- * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide. CC 74 / 71: its cutoff / resonance.
+ * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide (into the next step). CC 74 / 71: its
+ * cutoff / resonance. Its Chaos (the Tone page, KNOB 4): how far its new patterns leave the rules.
  *
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
@@ -44,7 +45,7 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
     {KA | A_BARS, KA | A_NOTES, KA | A_SLIDES, KA | A_EVOLVE},
     {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_LEVEL},
     {KA | A_CUTOFF, KA | A_RESO, KA | A_ENVMOD, KA | A_DECAY},
-    {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, K_NONE},
+    {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, KA | A_CHAOS},
     {KA | A_REVERB, KA | A_DELAY, KA | A_FILTER, KA | A_DRIVE},
     {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
