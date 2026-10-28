@@ -137,6 +137,7 @@ const nfm_engine *ne_fm(void);
 const nacid *ne_acid(void);
 extern volatile float ne_acid_level;
 extern volatile uint32_t ne_glitches;                /* glitches played since boot */
+extern volatile uint32_t ne_repeat_max;              /* frames: the longest beat repeat since boot */
 extern volatile uint32_t ne_mutades;                 /* Mutade's quarters since boot */
 extern volatile uint32_t ne_limited;                 /* frames the limiter took more than 1 dB off */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */

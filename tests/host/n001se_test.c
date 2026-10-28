@@ -93,6 +93,17 @@ int main(int argc, char **argv)
             n += ne_seq()->track[t].step[i].on;
         CHECK(n == 9 && ne_seq()->track[t].length == 64, "track %d: %d hits in %d steps", t, n, ne_seq()->track[t].length);
     }
+    /* Chaos and swing at full: glitches come, a beat repeat never longer than an eighth */
+    ne_init();
+    ne_set(G_CHAOS, 100);
+    ne_set(G_SWING, 100);
+    ne_play(1);
+    pk = render((int)(32.0f * 4.0f * 60.0f / 112.0f * NE_SR / 256.0f), 0);
+    CHECK(ne_glitches > 3u && pk <= 1.0f, "glitches %u, peak %f", (unsigned)ne_glitches, (double)pk);
+    CHECK(ne_repeat_max > 0u && ne_repeat_max <= (uint32_t)(2.0f * NE_SR * 15.0f / 112.0f) + 2u, "the longest repeat %u frames",
+          (unsigned)ne_repeat_max);
+    printf("32 bars at Chaos and Swing 100: %u glitches, the longest repeat %u frames\n", (unsigned)ne_glitches,
+           (unsigned)ne_repeat_max);
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();

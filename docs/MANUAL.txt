@@ -1,6 +1,6 @@
 n001se – MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
-Firmware 1.4.0 (819)
+Firmware 1.4.1 (820)
 
 ====================================================================
 
@@ -182,7 +182,7 @@ How the acid line plays, as a TB-303:
 How a new acid pattern is drawn (Black 10, E1, REC):
   1. The rhythm: likeliest on the one, then the offbeat eighths and the beats, with rests between. It is a motif of a bar (or half a bar twice) that repeats over the bars with small changes, most at the end of bars 2 and 4.
   2. The notes: the root and the fifth most, then the third and the seventh; mostly small steps or the same note, now and then a leap, now and then a note outside the scale.
-  3. The octaves (Octaves): up likelier off the beat, down now and then.
+  3. The octaves (Octaves), the 303 way: notes side by side are pushed apart. Next to a low note the next goes up an octave, after one up the next comes back down (now and then below the root). Up likelier off the beat. At 15 % about four in ten neighbours are an octave apart, at 35 % and up most of them.
   4. The accents (Accents): where they push the rhythm, off the beat and after a rest.
   5. The slides (Slides): where they move the line, most into another note and most of all into an octave jump.
   Chaos moves every one of these chances towards pure chance: at 0 % the rules, at 50 % half way, at 100 % any note, octaves up to two, accents and slides anywhere, and no motif. Evolve follows the same rules.
@@ -197,7 +197,7 @@ FX BUS (FX, page 3)
 
 DRIFT (LFO)
   Chaos      More randomness everywhere, and glitches that come more often the higher Chaos is:
-             Beat repeat: the last 1/32, 1/16 or 1/8 repeats.
+             Beat repeat: the last 1/32, 1/16 or 1/8 repeats, for an eighth at most, then an eighth goes by before the next glitch (a repeat, a pause, a repeat). With swing it repeats on the swung grid.
              Reverse: the last stretch plays backwards.
              Tape stop: the mix slows down to a stop like a tape machine, and then you are back.
              Where the glitches come:

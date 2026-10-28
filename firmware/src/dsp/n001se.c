@@ -81,7 +81,7 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_NOTES] = {"Notes", 10, 100, 60},
     [A_SLIDES] = {"Slides", 0, 100, 20},
     [A_ACCENTS] = {"Accents", 0, 100, 25},
-    [A_OCTAVES] = {"Octaves", 0, 100, 15},
+    [A_OCTAVES] = {"Octaves", 0, 100, 30},
     [A_SCALE] = {"Scale", 0, NACID_SCALES - 1, 0},
     [A_EVOLVE] = {"Evolve", 0, 100, 15},
     [A_MUTE] = {"Mute", 0, 1, 0},
@@ -398,9 +398,12 @@ static inline float lim_gain(float a, float b)   /* the limiter's gain for one f
  * The mix goes into a ring of 16384 frames (int16, 0.37 s: an eighth down to 41 BPM, a beat down to 82;
  * longer ones are shortened), which stops taking while a repeat or a reverse plays from it (a tape stop
  * goes on recording: it plays what is coming, slower and slower).
- * Chances, Chaos squared x: 0.9 each eighth of bar 4's and 8's last quarter, 0.15 each of their other
- * beats, 0.08 each offbeat eighth elsewhere (40: one fill in three, elsewhere one in about three
- * phrases). */
+ * Chances, Chaos squared x: 0.9 each eighth of bar 4's and 8's last quarter, 0.3 each eighth of their
+ * third quarter, 0.15 each of their first two beats, 0.08 each offbeat eighth elsewhere (40: one fill
+ * in three, elsewhere one in about three phrases).
+ * A beat repeat is an eighth long at most, and an eighth goes by before the next glitch: a repeat, a
+ * pause, a repeat. With swing its sixteenths and thirty-seconds come on the swung grid (long, short):
+ * it repeats the sixteenth before the last, from its start, for each of them. */
 #define GX_LEN 16384u
 #define GX_FADE 96u                              /* frames: the edges of a slice, the way in and out */
 enum { GX_REPEAT, GX_REVERSE, GX_TAPE };
@@ -408,6 +411,9 @@ static int16_t gx_buf[GX_LEN][2] NE_POOL;
 static uint32_t gx_w;                            /* the next frame written (counts on) */
 static uint32_t gx_at, gx_start, gx_t, gx_len, gx_slice;   /* when, from where, how far, how long */
 static uint8_t gx_pending, gx_on, gx_mode;
+static uint32_t gx_seg[4], gx_nseg, gx_si, gx_p, gx_back;  /* a repeat: its pieces' lengths, where it is, how far back it reads */
+static uint32_t gx_quiet;                        /* the step from which a glitch may come again */
+volatile uint32_t ne_repeat_max;                 /* frames: the longest repeat (tests) */
 static float gx_rp, gx_dr;                       /* the tape: how far it has played, its slowing per frame */
 static uint32_t gx_rng = 0x676c6974u;
 static float gx_rnd(void)
@@ -423,10 +429,10 @@ static void glitch_step(uint32_t step, float delay, float step_len)
     float c = pct(gpar[G_CHAOS]), chance, r;
     uint32_t ps = step % (8u * NE_BAR), pos = ps % NE_BAR, left = NE_BAR - pos, n, sl, len;
     int fill = ps / NE_BAR == 3u || ps / NE_BAR == 7u;
-    if (gx_on || gx_pending)
+    if (gx_on || gx_pending || (int32_t)(step - gx_quiet) < 0)
         return;
-    if (fill)                                    /* bars 4 and 8: on the beat, the last quarter by eighths */
-        chance = pos >= 12u ? (pos & 1u ? 0.0f : 0.9f) : (pos & 3u ? 0.0f : 0.15f);
+    if (fill)                                    /* bars 4 and 8: on the beat, the second half by eighths */
+        chance = pos & 1u ? 0.0f : pos >= 12u ? 0.9f : pos >= 8u ? 0.3f : pos & 3u ? 0.0f : 0.15f;
     else                                         /* elsewhere: the eighth off the beat */
         chance = pos % 4u == 2u ? 0.08f : 0.0f;
     if (chance <= 0.0f || gx_rnd() >= c * c * chance)
@@ -436,6 +442,8 @@ static void glitch_step(uint32_t step, float delay, float step_len)
         n = left < 8u ? left : 8u;
     r = gx_rnd();
     gx_mode = r < 0.3f ? GX_REVERSE : r < 0.55f ? GX_TAPE : GX_REPEAT;
+    if (gx_mode == GX_REPEAT && n > 2u)          /* a repeat: an eighth at most */
+        n = 2u;
     len = (uint32_t)(step_len * (float)n);
     if (gx_mode == GX_REVERSE) {                 /* the last stretch as long as it, backwards */
         while (len > GX_LEN - 2u * GX_FADE && n > 1u)
@@ -449,10 +457,35 @@ static void glitch_step(uint32_t step, float delay, float step_len)
         gx_dr = 1.0f / (float)len;
     } else {                                     /* a sixteenth or an eighth; at the end of a fill a 32nd */
         float k = fill && pos >= 12u && gx_rnd() < 0.5f ? 0.5f : gx_rnd() < 0.5f || !fill ? 1.0f : 2.0f;
-        sl = (uint32_t)(step_len * k);
+        float sw = seq.swing * 0.5f * step_len;  /* (as nseq: the off-beat sixteenths this much later) */
+        uint32_t i;
+        if (k < 2.0f && sw >= 1.0f && 2.0f * step_len <= (float)(GX_LEN - 2u * GX_FADE)) {
+            float l1 = step_len + sw, l2 = step_len - sw;   /* the swung pair: long, short */
+            gx_back = (uint32_t)(2.0f * step_len);
+            if (k < 1.0f) {
+                gx_seg[0] = gx_seg[1] = (uint32_t)(l1 * 0.5f);
+                gx_seg[2] = gx_seg[3] = (uint32_t)(l2 * 0.5f);
+                gx_nseg = 4u;
+            } else {
+                gx_seg[0] = (uint32_t)l1;
+                gx_seg[1] = (uint32_t)l2;
+                gx_nseg = 2u;
+            }
+        } else {
+            gx_back = gx_seg[0] = (uint32_t)(step_len * k);
+            gx_nseg = 1u;
+        }
+        sl = gx_back;
+        for (i = 0; i < gx_nseg; i++)
+            if (gx_seg[i] < 4u * GX_FADE)
+                return;
+        gx_si = gx_p = 0;
+        gx_quiet = step + n + 2u;                /* an eighth without */
     }
     if (sl < 4u * GX_FADE || sl > GX_LEN - 2u * GX_FADE || len < 4u * GX_FADE)
         return;
+    if (gx_mode == GX_REPEAT && len > ne_repeat_max)
+        ne_repeat_max = len;
     gx_slice = sl;
     gx_len = len;
     gx_at = seq.now + (uint32_t)delay;
@@ -495,8 +528,13 @@ static inline void glitch(float *a, float *b)
         y = ((float)gx_buf[i][1] + ((float)gx_buf[j][1] - (float)gx_buf[i][1]) * f) * w;
         gx_rp += sp > 0.0f ? sp : 0.0f;
     } else {
-        uint32_t p = gx_t % gx_slice, e = gx_slice - p;
-        i = gx_mode == GX_REVERSE ? gx_start - 1u - gx_t : gx_start - gx_slice + p;
+        uint32_t p = gx_mode == GX_REVERSE ? gx_t % gx_slice : gx_p;
+        uint32_t e = (gx_mode == GX_REVERSE ? gx_slice : gx_seg[gx_si]) - p;
+        i = gx_mode == GX_REVERSE ? gx_start - 1u - gx_t : gx_start - gx_back + p;
+        if (gx_mode == GX_REPEAT && ++gx_p >= gx_seg[gx_si]) {   /* the next piece, from the start */
+            gx_p = 0;
+            gx_si = (gx_si + 1u) % gx_nseg;
+        }
         i &= GX_LEN - 1u;
         w = p < GX_FADE ? (float)p / GX_FADE : e < GX_FADE ? (float)e / GX_FADE : 1.0f;
         if (gx_mode == GX_REVERSE)               /* backwards: whole, faded only at its ends */

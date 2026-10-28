@@ -425,6 +425,8 @@ static int expect(const char *what, const char *val)
         got = (int)ne_limited;
     else if (!strcmp(what, "glitches"))
         got = (int)ne_glitches;
+    else if (!strcmp(what, "repeat_max"))        /* the longest beat repeat, in sixteenths x 100 */
+        got = (int)(ne_repeat_max * 100u / (uint32_t)(NE_SR * 15.0f / (float)proj.g[G_TEMPO]));
     else if (!strcmp(what, "mutades"))           /* Mutade's quarters */
         got = (int)ne_mutades;
     else if (!strcmp(what, "mutediff")) {        /* the tracks whose mute plays other than set (bits) */
