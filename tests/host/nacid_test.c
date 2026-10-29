@@ -334,7 +334,9 @@ static void test_filter(void)
     float s1 = 20.0f * log10f(g1 / g2), s2 = 20.0f * log10f(g2 / g4), s3 = 20.0f * log10f(g4 / g8);
     printf("filter at 500 Hz, no resonance: %.1f dB at the cutoff, then %.1f, %.1f, %.1f dB per octave\n",
            (double)(20.0f * log10f(g1 / g0)), (double)s1, (double)s2, (double)s3);
-    CHECK(s1 > 13.0f && s1 < 21.0f && s2 > 16.0f && s2 < 24.5f, "filter slope %f %f", (double)s1, (double)s2);
+    /* a diode ladder's: gentle at first (its stages load each other), steeper an octave on, towards 24 */
+    CHECK(s1 > 8.0f && s1 < s2 && s2 < s3 + 1.0f && s3 > 17.0f && s3 < 24.5f, "filter slope %f %f %f", (double)s1,
+          (double)s2, (double)s3);
     /* resonance: a peak at the cutoff, the bass kept (the high-pass in the feedback) */
     float r0 = sine_gain(125.0f, cut, 1.0f), rp = 0.0f, fp = 0.0f;
     for (float f = 300.0f; f < 800.0f; f *= 1.03f) {
