@@ -73,10 +73,13 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     for (int i = 0; i < NACID_PARAMS; ++i) a->p[i] = def[i];
     a->length = NACID_BAR;
     a->last = -1;
-    a->glide = 1.0f - exp2f_(-1.4427f / (0.045f * sr));   /* the slide: an RC of 45 ms on the pitch */
+    a->glide = 1.0f - exp2f_(-1.4427f / (0.06f * sr));    /* the slide: an RC of 60 ms on the pitch, a 303's */
     a->freq = 65.406f;
     a->ga = a->gb = 0.1f;
     a->dk_env = a->dk_acc = 0.999f;
+    a->att_soft = 1.0f - exp2f_(-1.4427f / (0.003f * sr));  /* the VCA's attack: soft on a plain note */
+    a->att_hard = 1.0f - exp2f_(-1.4427f / (0.0003f * sr)); /* and sharp on an accent */
+    a->att = a->att_soft;
     nacid_generate(a);
 }
 
@@ -320,9 +323,11 @@ NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dl
 
 /* ----------------------------------------------------------------------------------- the voice ---
  * A step: a rest closes the gate. A note after a step that slid on (its gate still held) glides there:
- * the pitch's RC goes on from where it is, the envelopes and the VCA go on as they are; only an accent
- * is new. Any other note is a new attack: the pitch there at once, the cutoff envelope and the VCA
- * from where they are (no click). The oscillator's phase is never touched. */
+ * the pitch's RC goes on from where it is, the envelopes and the VCA go on as they are. Its accent
+ * starts no envelope either: as a 303's, it takes the cutoff envelope where it has decayed to, so an
+ * accent on a slid note is a weak one. Any other note is a new attack: the pitch there at once, the
+ * cutoff envelope and the VCA from where they are, the VCA's attack soft (3 ms) on a plain note and
+ * sharp on an accent (the 303's click). The oscillator's phase is never touched. */
 NFM_CODE static void play(nacid *a, nacid_note st, int slide)
 {
     int legato = a->gate_on && a->sounding && a->gate < 0.0f;
@@ -333,13 +338,14 @@ NFM_CODE static void play(nacid *a, nacid_note st, int slide)
     }
     a->cv_to = (float)(a->root + st.note) + a->tune;
     a->acc_gate = (st.flags & NACID_ACCENT) != 0;
-    if (a->acc_gate) a->acc_env = 1.0f;
+    if (a->acc_gate) a->acc_env = legato ? a->env : 1.0f;
     if (!legato) {
         a->cv = a->cv_to;
         a->freq = 65.406f * exp2f_(a->cv * (1.0f / 12.0f));
         a->env = 1.0f;
         a->accent = a->acc_gate;                  /* (the cutoff envelope's decay: short on an accent) */
         a->attack = 1;
+        a->att = a->acc_gate ? a->att_hard : a->att_soft;
         /* the modulation effect: this note's chance (a slid note keeps the one before's) */
         if (a->mod.type == NFM_MOD_OFF || a->mod.chance <= 0.0f ||
             ((a->mod.type == NFM_MOD_FLANGER || a->mod.type == NFM_MOD_CHORUS) && !a->ms.line))
@@ -385,7 +391,10 @@ NFM_CODE static void control(nacid *a)
 {
     float reso = a->p[NACID_P_RESO];
     float base = 30.0f * exp2f_(a->p[NACID_P_CUTOFF] * 7.6f);          /* 30 Hz .. 5.8 kHz */
-    float oct = a->p[NACID_P_ENVMOD] * 5.0f * a->env + a->p[NACID_P_ACCENT] * 3.0f * a->acc_cap;
+    /* Env Mod as a 303's: the more of it, the lower the sweep starts (1.5 octaves at full), its top
+     * where it was (5 octaves over the knob) */
+    float em = a->p[NACID_P_ENVMOD];
+    float oct = em * (6.5f * a->env - 1.5f) + a->p[NACID_P_ACCENT] * 3.0f * a->acc_cap;
     float fc = base * exp2f_(oct), ga = tan_pi(fc / a->sr), gb = tan_pi(0.5f * fc / a->sr);
     a->ga = ga / (1.0f + ga);
     a->gb = gb / (1.0f + gb);
@@ -409,7 +418,7 @@ NFM_CODE static void control(nacid *a)
 
 NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
-    const float att = 1.0f - exp2f_(-1.4427f / (0.002f * a->sr)), rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
+    const float rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
     const float vdk = exp2f_(-1.4427f / (3.0f * a->sr));          /* the VCA's decay while the gate is held */
     const float fade = 1.0f - exp2f_(-1.4427f / (0.01f * a->sr));
     const float sm = 1.0f - exp2f_(-1.4427f / (0.002f * a->sr));  /* the accent on the VCA, without a click */
@@ -447,7 +456,7 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
         if (!a->gate_on) {
             a->amp -= a->amp * rel;
         } else if (a->attack) {
-            a->amp += (1.02f - a->amp) * att;
+            a->amp += (1.02f - a->amp) * a->att;
             if (a->amp >= 1.0f) a->attack = 0;
         } else {
             a->amp *= vdk;
@@ -462,12 +471,15 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
         switch (a->wave) {
         default:
         case NACID_SAW: x = 2.0f * t - 1.0f - blep(t, dt); break;
-        case NACID_SQUARE:
-        case NACID_PULSE: {                      /* 50 % and 20 % */
-            float w = a->wave == NACID_PULSE ? 0.2f : 0.5f, t2 = t + 1.0f - w;
+        case NACID_SQUARE: {                     /* a 303's: the saw through a transistor that clips it */
+            float w = 2.0f * t - 1.0f - blep(t, dt);
+            x = soft(3.0f * (w + 0.08f)) * 0.95f + 0.1f * w;   /* rounded on the way up, a slant on top */
+            break;
+        }
+        case NACID_PULSE: {                      /* 20 % */
+            float t2 = t + 0.8f;
             if (t2 >= 1.0f) t2 -= 1.0f;
-            x = (t < w ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt);
-            if (a->wave == NACID_PULSE) x += 0.6f;   /* (its DC off) */
+            x = (t < 0.2f ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt) + 0.6f;   /* (its DC off) */
             break;
         }
         case NACID_TRI: x = t < 0.5f ? 4.0f * t - 1.0f : 3.0f - 4.0f * t; break;

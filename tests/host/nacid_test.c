@@ -3,8 +3,9 @@
  * the oscillator's phase never jumps, slides in a row, a slide's RC (the same speed whatever the
  * interval, so an octave may not get there), the pitch going on from where it is when a new slide
  * starts, rests closing the gate, the last step into the first, accent on the VCA and the cutoff and
- * its sweep building up, the filter's slope and its stability, and the generator by Chaos: by the
- * rules at 0, by chance at 1, and in between step by step. */
+ * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
+ * lowering the sweep's start, the square made from the saw, the filter's slope and its stability, and
+ * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -125,7 +126,7 @@ static void test_gate(void)
     CHECK(r.amp_lo[1] > 0.8f && r.amp_lo[3] > 0.8f, "slides: the VCA dipped (%f %f)", (double)r.amp_lo[1], (double)r.amp_lo[3]);
     CHECK(r.cv_jump[1] < 0.2f && r.cv_jump[2] < 0.2f && r.cv_jump[3] < 0.3f, "slides: the pitch jumped (%f %f %f)",
           (double)r.cv_jump[1], (double)r.cv_jump[2], (double)r.cv_jump[3]);
-    CHECK(fabsf(r.cv_end[1] - 7.0f) < 0.5f && fabsf(r.cv_end[3] - 12.0f) < 0.6f, "slides: pitches %f %f",
+    CHECK(fabsf(r.cv_end[1] - 7.0f) < 1.2f && fabsf(r.cv_end[3] - 12.0f) < 1.2f, "slides: pitches %f %f",
           (double)r.cv_end[1], (double)r.cv_end[3]);
     CHECK(!r.phase_bad, "slides: the phase jumped %d times", r.phase_bad);
     /* 3 (the last step 3 had no slide): the gate shuts in step 3, step 4 a rest */
@@ -160,7 +161,7 @@ static void test_gate(void)
 static void test_slide(void)
 {
     run_t r;
-    /* 5: the RC: after 45 ms 63 % of the way, whether one or two octaves; a short step leaves an octave short */
+    /* 5: the RC: after 60 ms 63 % of the way, whether one or two octaves; a short step leaves an octave short */
     float frac[2];
     for (int o = 0; o < 2; ++o) {
         fresh(0.5f);
@@ -169,12 +170,12 @@ static void test_slide(void)
         nacid_step(&ac, 0.0f, SR);
         for (int i = 0; i < (int)SR / 10; ++i) tick();
         nacid_step(&ac, 0.0f, SR);
-        for (int i = 0; i < (int)(0.045f * SR) + 1; ++i) tick();
+        for (int i = 0; i < (int)(0.06f * SR) + 1; ++i) tick();
         frac[o] = (ac.cv + 12.0f) / (12.0f * (float)(o + 1));
     }
     CHECK(fabsf(frac[0] - 0.632f) < 0.03f && fabsf(frac[0] - frac[1]) < 0.01f, "the slide's RC: %f %f of the way",
           (double)frac[0], (double)frac[1]);
-    printf("slide: after 45 ms %.1f %% of an octave and %.1f %% of two: the same speed\n", (double)(frac[0] * 100.0f),
+    printf("slide: after 60 ms %.1f %% of an octave and %.1f %% of two: the same speed\n", (double)(frac[0] * 100.0f),
            (double)(frac[1] * 100.0f));
     const float fast = SR * 60.0f / 150.0f / 4.0f;   /* a sixteenth at 150 */
     fresh(0.5f);
@@ -182,7 +183,7 @@ static void test_slide(void)
     nacid_set_step(&ac, 1, NACID_ON | NACID_SLIDE, 12);
     nacid_set_step(&ac, 2, NACID_ON, -12);
     run(3, fast, &r);
-    CHECK(r.cv_end[1] < 11.0f && r.cv_end[1] > 6.0f, "two octaves up at 150: %f at the next note", (double)r.cv_end[1]);
+    CHECK(r.cv_end[1] < 10.0f && r.cv_end[1] > 4.0f, "two octaves up at 150: %f at the next note", (double)r.cv_end[1]);
     /* 6: the next slide starts from where the pitch got to: no jump, it turns */
     CHECK(r.cv_jump[2] < 0.2f, "a slide from the middle of a slide: the pitch jumped %f", (double)r.cv_jump[2]);
     CHECK(r.cv_end[2] < r.cv_end[1] - 10.0f, "a slide from the middle of a slide: it did not turn");
@@ -223,15 +224,88 @@ static void test_accent(void)
     CHECK(grow[1] > 1.4f && grow[1] > grow[0] + 0.3f, "accents in a row at full resonance: the sweep %f, at none %f",
           (double)grow[1], (double)grow[0]);
     printf("six accents in a row: the sweep x%.2f at full resonance, x%.2f at none\n", (double)grow[1], (double)grow[0]);
-    /* an accent on a slid note: no new attack, the accent comes on without a click */
+    /* an accent on a slid note: no new attack, the accent comes on without a click, and (a 303's) weaker
+     * than on a note of its own: it takes the cutoff envelope as it has decayed */
+    float own;
+    fresh(0.7f);
+    nacid_set_step(&ac, 1, NACID_ON | NACID_ACCENT, 5);
+    run(2, sl, &r);
+    own = r.acc_peak[1];
     fresh(0.7f);
     nacid_set_step(&ac, 0, NACID_ON | NACID_SLIDE, 0);
     nacid_set_step(&ac, 1, NACID_ON | NACID_ACCENT, 5);
     run(2, sl, &r);
-    CHECK(!r.retrig[1] && r.acc_peak[1] > 0.2f && r.vca_step < 0.02f, "accent on a slid note: attack %d sweep %f VCA step %f",
+    CHECK(!r.retrig[1] && r.acc_peak[1] > 0.05f && r.vca_step < 0.02f, "accent on a slid note: attack %d sweep %f VCA step %f",
           r.retrig[1], (double)r.acc_peak[1], (double)r.vca_step);
-    printf("an accent on a slid note: no attack, its sweep %.2f, the VCA's accent at most %.4f a sample\n",
-           (double)r.acc_peak[1], (double)r.vca_step);
+    CHECK(r.acc_peak[1] < own * 0.8f, "accent on a slid note: as strong as its own (%f %f)", (double)r.acc_peak[1], (double)own);
+    printf("an accent on a slid note: no attack, its sweep %.2f (%.2f on a note of its own), the VCA's accent at most %.4f a sample\n",
+           (double)r.acc_peak[1], (double)own, (double)r.vca_step);
+    /* the VCA's attack: soft on a plain note, sharp on an accent (samples to 90 %) */
+    int rise[2];
+    for (int a = 0; a < 2; ++a) {
+        fresh(0.5f);
+        nacid_set_step(&ac, 0, NACID_ON | (a ? NACID_ACCENT : 0), 0);
+        nacid_step(&ac, 0.0f, sl);
+        rise[a] = 0;
+        while (tick().amp < 0.9f && rise[a] < 2000) rise[a]++;
+    }
+    CHECK(rise[0] > 0.005f * SR && rise[0] < 0.012f * SR && rise[1] < 0.0015f * SR, "the attack: %d and %d samples",
+          rise[0], rise[1]);
+    printf("the VCA's attack: %.1f ms on a plain note, %.1f ms on an accent\n", (double)(rise[0] * 1000.0f / SR),
+           (double)(rise[1] * 1000.0f / SR));
+}
+
+/* Env Mod as a 303's: the more, the lower the sweep starts; its top where it was */
+static void test_envmod(void)
+{
+    float lo[2], hi[2];
+    for (int e = 0; e < 2; ++e) {
+        fresh(0.5f);
+        ac.p[NACID_P_ENVMOD] = e ? 1.0f : 0.0f;
+        ac.p[NACID_P_DECAY] = 0.0f;
+        nacid_set_step(&ac, 0, NACID_ON | NACID_SLIDE, 0);
+        nacid_set_step(&ac, 1, NACID_ON, 0);
+        nacid_step(&ac, 0.0f, SR);
+        lo[e] = 1.0f;
+        hi[e] = 0.0f;
+        for (int i = 0; i < (int)SR; ++i) {
+            smp m = tick();
+            if (i > 16 && m.fc > hi[e]) hi[e] = m.fc;
+            if (m.fc < lo[e]) lo[e] = m.fc;
+        }
+    }
+    /* ga = g / (1 + g), g ~ the cutoff for a low one */
+    float drop = log2f((lo[0] / (1.0f - lo[0])) / (lo[1] / (1.0f - lo[1])));
+    CHECK(drop > 1.2f && drop < 1.8f, "Env Mod: the floor down %f octaves", (double)drop);
+    CHECK(hi[1] > hi[0] * 4.0f, "Env Mod: the sweep's top %f against %f", (double)hi[1], (double)hi[0]);
+    printf("Env Mod at full: the sweep starts %.2f octaves under the knob\n", (double)drop);
+}
+
+/* the square as a 303's: the saw clipped, so its rise is slower than its fall (fall at the wrap) */
+static void test_square(void)
+{
+    float f = 110.0f, w[1024];
+    fresh(0.0f);
+    ac.wave = NACID_SQUARE;
+    ac.tune = 12.0f * log2f(f / 65.406f);
+    ac.p[NACID_P_CUTOFF] = 1.0f;
+    ac.p[NACID_P_ENVMOD] = 0.0f;
+    ac.step_len = SR;
+    nacid_hit(&ac, 0, 0);
+    for (int i = 0; i < 4000; ++i) tick();
+    int n = (int)(SR / f);
+    float pk = 0.0f, up = 0.0f, dn = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        w[i] = tick().out;
+        if (fabsf(w[i]) > pk) pk = fabsf(w[i]);
+    }
+    for (int i = 1; i < n; ++i) {
+        float d = (w[i] - w[i - 1]) / pk;
+        if (d > up) up = d;
+        if (-d > dn) dn = -d;
+    }
+    CHECK(dn > up * 1.5f, "square: the rise %f, the fall %f a sample", (double)up, (double)dn);
+    printf("square: the fall %.2fx as steep as the rise\n", (double)(dn / up));
 }
 
 /* 10: the filter: a sine through it at a fixed cutoff (no envelope), its level against the VCA */
@@ -458,6 +532,8 @@ int main(void)
     test_gate();
     test_slide();
     test_accent();
+    test_envmod();
+    test_square();
     test_filter();
     test_generator();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);

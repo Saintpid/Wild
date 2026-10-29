@@ -3,7 +3,9 @@
  * high-pass in its resonance feedback: about 18 dB/oct in the octave above the cutoff, bass that stays
  * when the resonance goes up), a decaying envelope on the cutoff, accent on the VCA and the cutoff
  * through a sweep capacitor that builds up over accents in a row, and the 303's slide: an RC on the
- * pitch, the same speed whatever the interval, so a big slide may not get there before the next note.
+ * pitch (60 ms), the same speed whatever the interval, so a big slide may not get there before the next
+ * note. Env Mod lowers where the sweep starts, as on a 303; a plain note's attack is soft, an accent's
+ * sharp; an accent on a slid note takes the envelope as it is, so it is a weak one.
  *
  * The gate as a 303's: a note's gate is half a step; a step with SLIDE holds it to the next step, which
  * then glides to its note without a new attack (no VCA or filter envelope again), and a rest after it
@@ -20,7 +22,7 @@
  * The drums' sequencer clocks it (nacid_step, from nseq's step hook), so swing and tempo are shared.
  * Its sound goes through the drums' effects: nacid_render adds to the dry bus and to the reverb and
  * delay sends, with its own drive and the moving filter (by chance, a bar at a time: nacid_route).
- * Besides a 303's saw and square: a narrow pulse, a triangle, a sine and two detuned saws.
+ * Besides a 303's saw and square (the saw clipped, as the 303 makes it): a narrow pulse, a triangle, a sine and two detuned saws.
  *
  * Portable C99 like nfm; no libc, no malloc. All calls belong to the audio thread or happen between
  * renders. */
@@ -74,6 +76,7 @@ typedef struct {
     float phase, phase2, freq;     /* the oscillator: it runs on, notes or not */
     float cv, cv_to, glide;        /* the pitch in semitones over C2 and where it goes, the slide's RC */
     float env, amp;                /* the cutoff envelope, the VCA */
+    float att, att_soft, att_hard; /* the VCA's attack: this note's, a plain note's, an accent's */
     float acc_env, acc_vca, acc_cap;   /* the accent: its envelope, on the VCA, the sweep capacitor */
     float gate;                    /* samples until the gate closes, < 0 held */
     uint8_t gate_on, accent, acc_gate, attack, sounding;

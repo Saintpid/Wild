@@ -21,8 +21,10 @@ command.
   hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
-  of the 303's diode ladder filter, with the 303's gate, slide (an RC that may not get there) and
-  accent (a sweep that builds up). Its own sequencer draws musical lines: the rhythm first, a motif
+  of the 303's diode ladder filter, with the 303's gate, slide (an RC of 60 ms that may not get
+  there), accent (a sweep that builds up, a sharp attack against a plain note's soft one, weak on a
+  slid note), Env Mod that lowers where the sweep starts, and a square made from the saw as the 303
+  does. Its own sequencer draws musical lines: the rhythm first, a motif
   that repeats, notes from the scale, octaves, accents and slides where they move the line. Its
   Chaos takes it from those rules to pure chance.
 - **Patterns drawn at random:** each track loops over its own length (drums 1–8 bars, acid 1–4), so

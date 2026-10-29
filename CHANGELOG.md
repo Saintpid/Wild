@@ -5,6 +5,24 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.7.1
+
+Firmware identity FM-1_825.
+
+- **The acid line is closer to a real TB-303.**
+  - **Slides** take 60 ms, as on a 303 (45 before), so they are a little slower and a big slide at a
+    fast tempo stops further short of its note.
+  - **An accent on a slid note** no longer starts a new accent: as on a 303 it takes the filter
+    envelope where it has decayed to, so it is a weak one. Accents on notes of their own are as before.
+  - **Env Mod lowers where the sweep starts**, as on a 303: up to 1.5 octaves under the Cutoff at
+    100. The top of the sweep stays where it was.
+  - **The attack:** a plain note fades in softly (3 ms), an accent hits at once, which gives the
+    accent its click.
+  - **The square** is now made from the saw the way the 303 does it: rounded on the way up, with a
+    slant on top, instead of a clean square.
+
+  Saved projects load as before; they just sound more like a 303.
+
 ## 1.7.0
 
 Firmware identity FM-1_824.
