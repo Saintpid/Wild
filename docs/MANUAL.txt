@@ -58,7 +58,7 @@ SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
-SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 4), SEL mode:
+SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 5), SEL mode:
            Chance: a scene by chance. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. Press SEL again and everything is back as it was before, even if you turned things meanwhile. While the scene plays, the mute keys (black 5–9) set the original's mutes, not the scene's: you choose what will play when you come back. Their lights show the original's mutes meanwhile.
            A/B: two scenes to switch between. The first press makes a copy of everything (patterns, sounds, effects, settings) and you go on in the copy, B: change anything, make new rhythms, new sounds. Press SEL and you are back in A, just as you left it. Press again and you are in B where you last were. So you can work up two scenes and switch between them.
            Copy: a copy to play with that is never kept. SEL makes a copy of everything and you change what you like. SEL again takes you back to the original, and the changes are gone. The next SEL makes a new copy.
@@ -70,7 +70,7 @@ EDIT       Track
 ENV        Sound → Tone
 FX         Track FX → Mod → FX bus
 LFO        Drift
-GLOBAL     Master → Groove → Setup → Scene
+GLOBAL     Master → Glue → Groove → Setup → Scene
 
 ====================================================================
 
@@ -212,22 +212,28 @@ MASTER (GLOBAL, page 1)
   Hi cut     Low-pass filter on the whole mix (100 = Open)
   Lo cut     High-pass filter on the whole mix (0 = Open)
   Reso       The filters' resonance
-  Glue       Bus compressor. 0 = off, 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter but not louder. After it there is always a limiter at −0.3 dBFS.
+  Glue       A light mastering chain on the whole mix, its amount (how hard it works). 0 = off (the whole chain), 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter and more finished but not louder: the volume is Level's. After it there is always a limiter, at −1 dBFS with the Glue on (−0.3 dBFS off).
 
-GROOVE (GLOBAL, page 2)
+GLUE (GLOBAL, page 2): how the Glue sounds. Its chain: compressor → EQ → width → inflator → limiter.
+  Glue mix   Parallel compression: how much of the compressed mix against what goes in. 100 = all compressed, 50 = half (the default: tight, but the hits keep their punch). The compressor has a gentle transient expander in it, so hits come through.
+  Glue EQ    A mastering EQ that listens: it follows the balance between lows and highs and leans the mix towards a pink-noise slope of −4.5 dB per octave, adds a little foundation under 90 Hz and air over 9 kHz, takes a little box (90–700 Hz) away, and turns 2–9 kHz down while it is harsh (de-harsh). 50 = the set it was tuned to (the default), 100 = twice as much, 0 = flat.
+  Color      An inflator (after Oxford's curve): denser and fuller near the top without clipping. 0 = off, 100 = all of it. Default 50.
+  Width      The stereo width: 0 = mono, 50 = as it is, 100 = twice as wide. The sides under 120 Hz are always taken out (the lows in mono), so the kick and the bass stay centred. Default 60.
+
+GROOVE (GLOBAL, page 3)
   Tempo      60–200 BPM (stays put while MIDI clock is in control)
   Swing      0–100
   Loose      Human unevenness in timing and strength
   Max hits   How many drum tracks may hit on the same step, 1–4 (track 1 always plays). Default: 4
 
-SETUP (GLOBAL, page 3)
+SETUP (GLOBAL, page 4)
   Level      Overall level
   MIDI ch    All or 1–16
   Presets    What the PRESETS encoder controls
   USB audio  On/Off. Off sends silence over USB and saves CPU.
   (The CPU load shows at the top right of this page.)
 
-SCENE (GLOBAL, page 4)
+SCENE (GLOBAL, page 5)
   SEL mode   Chance, A/B or Copy: what SEL does (see SEL under BUTTONS). Default: Chance
 
 ====================================================================

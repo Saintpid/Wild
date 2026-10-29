@@ -12,14 +12,28 @@ expect gpar12 60
 spin K4 70
 expect gpar15 100
 shot master.png
+# the Glue page, GLOBAL's second: its mix, EQ, color, width
+tap GLO
+expect view 9
+spin K1 50
+expect gpar21 100
+spin K3 50
+expect gpar23 100
+spin K4 -60
+expect gpar24 0
+wait 1000
+shot glue_page.png
+spin K4 65
+expect gpar24 65
 tap FX
 expect view 4
-# play with the glue at 100: no louder for it (matched), never over 0 dBFS
+# play with the glue at 100, all of it in, the inflator at 100: no louder for it (matched), never over its
+# ceiling (-1 dBFS)
 tap PLAY
 wav glue.wav
 wait 3000
 wavstop
-expect peak_db_max -0.2
+expect peak_db_max -0.95
 expect peak_db_min -16
 tap PLAY
 # a state to keep: Hi cut 60, Tune +5 on the kick
@@ -88,7 +102,8 @@ expect dropped 0
 # undo / redo on black 3 / 4: one knob turn is one edit
 tap GLO
 tap GLO
-expect view 9
+tap GLO
+expect view 10
 spin K2 10
 expect gpar1 10
 wait 2000

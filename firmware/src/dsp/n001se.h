@@ -16,8 +16,10 @@
  *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat. MUTADE, in
  *             the same bars, mutes and unmutes tracks by chance a quarter at a time, and always goes
  *             back to the mutes as set.
- *   MASTER    a filter (hi cut, lo cut, resonance), a glue compressor (loudness matched) and a limiter
- *             at -0.3 dBFS. Track 1 and the acid line never lose a hit to the others.
+ *   MASTER    a filter (hi cut, lo cut, resonance), the GLUE (a light mastering chain: a compressor with
+ *             a transient expander, mixed in parallel, an EQ that leans the mix towards a pink slope,
+ *             an inflator, the width with the lows in mono; loudness matched) and a limiter at -0.3 dBFS
+ *             (-1 dBFS with the Glue on). Track 1 and the acid line never lose a hit to the others.
  *
  * Threads: ne_render() runs in the audio interrupt. Everything else posts commands, which the render
  * drains at the start of a block. The pattern and the sounds are read by the UI through ne_seq() and
@@ -50,6 +52,7 @@ enum {
     G_MUTADE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
     G_SELMODE,                                       /* what SEL does (the UI's): NE_SEL_* */
     G_SPACE,                                         /* the reverb's room and the delay's time move */
+    G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH,               /* the Glue's mastering: parallel mix, EQ, inflator, width */
     G_NPARAMS
 };
 enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };

@@ -1,4 +1,4 @@
-# SEL's modes, on the Scene page (GLOBAL's fourth). A/B: two scenes to work on and swap; Copy: a copy to
+# SEL's modes, on the Scene page (GLOBAL's fifth). A/B: two scenes to work on and swap; Copy: a copy to
 # play with, SEL again back to the original (what was done in the copy is gone). GLOBAL opens on Master.
 wait 200
 tap GLO
@@ -6,7 +6,8 @@ expect view 8
 tap GLO
 tap GLO
 tap GLO
-expect view 11
+tap GLO
+expect view 12
 expect gpar19 0
 spin K1 1
 expect gpar19 1
@@ -37,7 +38,8 @@ tap GLO
 tap GLO
 tap GLO
 tap GLO
-expect view 11
+tap GLO
+expect view 12
 spin K1 1
 expect gpar19 2
 expect scene 0

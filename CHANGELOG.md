@@ -5,6 +5,28 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 1.7.0
+
+Firmware identity FM-1_824.
+
+- **Glue is now a light mastering chain**, in the spirit of a one-knob mastering plugin. Its
+  amount stays on the Master page (knob 4); how it sounds is on a new **Glue page** (GLOBAL's second,
+  so Groove, Setup and Scene move one page on):
+  - **Glue mix:** parallel compression, how much of the compressed mix against what goes in. 50 by
+    default: tight, but the hits keep their punch. A gentle transient expander in the compressor lets
+    the hits through.
+  - **Glue EQ:** an EQ that listens. It follows the balance between lows and highs and leans the mix
+    towards a pink slope of −4.5 dB an octave, adds a little foundation and air, takes a little box
+    away, and turns the harsh 2–9 kHz down while it stands out. 50 by default, 0 flat.
+  - **Color:** an inflator, denser and fuller near the top. 50 by default.
+  - **Width:** 0 mono, 50 as it is, 100 twice as wide; the lows under 120 Hz always in mono. 60 by
+    default.
+- As before, the Glue is loudness matched (the volume is Level's), and 0 turns all of it off. With
+  the Glue on, the limiter's ceiling is −1 dBFS (−0.3 dBFS off).
+- Project format 11: a saved project or preset gets the Glue page's defaults, so one with Glue up
+  sounds a little different (more finished) than before. Glue mix 100, Glue EQ 0, Color 0 and Width
+  50 come close to the old Glue.
+
 ## 1.6.1
 
 Firmware identity FM-1_823.

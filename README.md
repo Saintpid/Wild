@@ -37,8 +37,11 @@ command.
   **Space** lets the reverb move between rooms (small room to large hall) and the delay between
   lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1–4 bars and each
   place is held for a while. The delay glides like an analog delay, so its repeats bend in pitch.
-- **Master:** hi cut, lo cut, resonance and **Glue**, a bus compressor that makes the mix tighter but
-  not louder. After it there is always a limiter at −0.3 dBFS.
+- **Master:** hi cut, lo cut, resonance and **Glue**, a light mastering chain that makes the mix
+  tighter and more finished but not louder: a compressor in parallel (Glue mix) with a gentle
+  transient expander, an EQ that leans the mix towards a pink slope with a little air, foundation and
+  de-harsh (Glue EQ), an inflator (Color) and the width with the lows kept in mono (Width), on its own
+  Glue page. After it there is always a limiter (−1 dBFS with the Glue on, −0.3 dBFS off).
 
 ## Live play in short
 

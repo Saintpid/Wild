@@ -33,10 +33,10 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "Mod", "FX bus", "Drift",
-                                              "Master", "Groove", "Setup", "Scene"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO};
+                                              "Master", "Glue", "Groove", "Setup", "Scene"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -59,6 +59,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
     {G_CHAOS, G_MOTION, G_MUTADE, G_SPACE},
     {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
+    {G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
     {G_SELMODE, K_NONE, K_NONE, K_NONE},

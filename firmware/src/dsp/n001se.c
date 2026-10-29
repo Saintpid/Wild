@@ -51,6 +51,10 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_MUTADE] = {"Mutade", 0, 100, 0},
     [G_SELMODE] = {"SEL mode", 0, NE_SEL_MODES - 1, NE_SEL_CHANCE},
     [G_SPACE] = {"Space", 0, 100, 0},
+    [G_GMIX] = {"Glue mix", 0, 100, 50},             /* the Glue page: its mastering chain */
+    [G_GEQ] = {"Glue EQ", 0, 100, 50},
+    [G_GCOLOR] = {"Color", 0, 100, 50},
+    [G_GWIDTH] = {"Width", 0, 100, 60},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -186,7 +190,8 @@ void ne_param_text(int i, int v, char *b)
     }
     case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
     case G_LOCUT: if (!v) { cpy(b, "Open"); return; } break;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTADE: if (!v) { cpy(b, "Off"); return; } break;
+    case G_GWIDTH: if (!v) { cpy(b, "Mono"); return; } break;
+    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTADE: case G_GEQ: case G_GCOLOR: if (!v) { cpy(b, "Off"); return; } break;
     }
     itoa_s(v, b);
 }
@@ -330,32 +335,78 @@ static float log2_(float x)                      /* x > 0; to about 1e-4 */
     return e - 1.7417939f + (2.8212026f + (-1.4699568f + (0.44717955f - 0.056570851f * m) * m) * m) * m;
 }
 
-/* GLUE: a bus compressor on both channels together (the louder one leads). Attack 25 ms, release 120 ms;
- * the amount lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1). Over 60 it also
- * warms (nfm_sat, more towards 100: over the top). Its loudness is matched to what goes in (both
- * followed over ~300 ms): it glues and warms, the volume stays (that is the MASTER's). 0: off.
- * Then the LIMITER, always on: it takes any peak over -0.3 dBFS at once and lets go over 60 ms, so the
- * output never passes 0 dBFS. (Levels in log2.) */
+/* GLUE: a light mastering chain, all of it off at 0 (Glue's amount, the Master page; the rest on the Glue
+ * page):
+ *   COMPRESSOR  both channels together (the louder one leads). Attack 25 ms, release 120 ms; the amount
+ *               lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1). A transient
+ *               EXPANDER in it (a fast level over a slow one, up to +1.2 dB on a hit at 100) gives back
+ *               the punch. Glue mix: how much of it, in parallel with what goes in (100: all of it).
+ *               Over 60 it also warms (nfm_sat, more towards 100: over the top).
+ *   EQ          five bands that sum back to the signal (one-pole splits at 90, 700, 2000, 9000 Hz). The
+ *               mix's balance over and under 700 Hz is followed (~1.5 s) and leaned towards a slope of
+ *               -4.5 dB an octave ("pinky": a share of the way, up to 3 dB each side); a little more
+ *               foundation (under 90 Hz), less box (90 .. 700), more air (over 9 kHz); de-harsh: 2 .. 9 kHz
+ *               turned down while it stands out (followed ~15 ms in, 100 ms out). Glue EQ: 50 is the set
+ *               it was tuned to (pinky 54 %, air +2 dB, foundation +1.1, box -0.8, de-harsh 12 %), 100
+ *               twice that, 0 flat.
+ *   WIDTH       the sides (the difference) under 120 Hz taken out, the lows in mono; Width scales the rest
+ *               (0 mono, 50 as it was, 100 twice as wide).
+ *   COLOR       an inflator (its curve 0: a little louder at low levels, denser near the top), blended in.
+ * The loudness of it all is matched to what goes in (both followed over ~300 ms): it glues and colours,
+ * the volume stays (that is the MASTER's).
+ * Then the LIMITER, always on: it takes any peak over the ceiling (-0.3 dBFS; -1 dBFS with the Glue on,
+ * room for what a DAC makes between samples) at once and lets go over 60 ms, so the output never passes
+ * 0 dBFS. (Levels in log2.) */
 #define GL_ATT 0.000907f                         /* 1 - exp(-1 / (0.025 s * 44100)) */
 #define GL_REL 0.000189f                         /* 120 ms */
+#define GL_FATT 0.0443f                          /* the expander's fast level: 0.5 ms in, 20 ms out */
+#define GL_FREL 0.00113f
+#define GL_SATT 0.00113f                         /* ...its slow level: 20 ms in, 200 ms out */
+#define GL_SREL 0.000113f
 #define GL_MATCH 0.0048f                         /* per 64-frame block: ~300 ms */
+#define GQ_TILT 0.00097f                         /* per block: 1.5 s */
+#define GQ_HATT 0.092f                           /* per block: 15 ms, 100 ms */
+#define GQ_HREL 0.0144f
+#define GQ_PINK 0.29f                            /* energy over / under 700 Hz at -4.5 dB an octave */
+#define GQ_HARSH 0.11f                           /* 2 .. 9 kHz's share of it: twice the slope's */
+#define GW_LOW 0.01695f                          /* the sides' lows: 120 Hz */
 #define LIM_REL 0.99962f                         /* 60 ms */
-#define LIM_CEIL 0.966f                          /* -0.3 dBFS */
-static float gl_env, gl_thr, gl_slope, lim_env;
+static float gl_env, gl_thr, gl_slope, gl_mix, gl_xamt, lim_env, lim_ceil = 0.966f;   /* -0.3 dBFS */
 static float gl_ein, gl_eout, gl_mk = 1.0f, gl_mk_to = 1.0f;   /* the loudness match */
+static float gl_fast, gl_slow;
 static nfm_sat gl_sat[2];
 static uint8_t gl_on;
-static void glue_set(int v)
+static const float GQ_C[4] = {0.01274f, 0.09492f, 0.24795f, 0.72260f};   /* 90, 700, 2000, 9000 Hz */
+static float gq_lp[2][4], gq_g[5] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f}, gq_dg[5];
+static float gq_set[5], gq_pink, gq_harsh;       /* the static bands (log2), the pinky's and de-harsh's amounts */
+static float gq_elo = 1e-6f, gq_ehi = 0.29e-6f, gq_eh = 1e-9f, gq_e = 1e-8f;   /* followed */
+static float gw_side, gw_lp[2], gc_wet;
+static uint8_t gq_on;
+static void glue_set(void)
 {
-    float a = pct(v), ratio = 2.0f + 4.0f * a * a;
-    gl_on = v > 0;
+    float a = pct(gpar[G_GLUE]), ratio = 2.0f + 4.0f * a * a, q = pct(gpar[G_GEQ]) * 2.0f;
+    gl_on = gpar[G_GLUE] > 0;
     gl_thr = (-8.0f - 20.0f * a) * (1.0f / 6.0206f);
     gl_slope = 1.0f - 1.0f / ratio;
+    gl_mix = pct(gpar[G_GMIX]);
+    gl_xamt = 0.1f * a;                          /* log2 per octave of transient: 0.2 at most (+1.2 dB) */
     nfm_sat_set(&gl_sat[0], a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f);   /* 0 .. 0.8 */
     nfm_sat_set(&gl_sat[1], gl_sat[0].amount);
+    gq_on = gpar[G_GEQ] > 0;
+    gq_set[0] = 0.18f * q;                       /* foundation +1.1 dB (log2 x 6.02) */
+    gq_set[1] = -0.13f * q;                      /* box -0.8 dB */
+    gq_set[2] = gq_set[3] = 0.0f;
+    gq_set[4] = 0.33f * q;                       /* air +2 dB */
+    gq_pink = 0.54f * q;
+    gq_harsh = 0.24f * q;
+    if (gq_pink > 1.0f)
+        gq_pink = 1.0f;
+    gw_side = pct(gpar[G_GWIDTH]) * 2.0f;
+    gc_wet = pct(gpar[G_GCOLOR]);
+    lim_ceil = gl_on ? 0.891f : 0.966f;          /* -1 / -0.3 dBFS */
 }
 static inline float absf(float x) { return x < 0.0f ? -x : x; }
-/* the compressor's gain for one frame: the level followed every frame, the gain worked out every 8th
+/* the compressor's gain for one frame: the levels followed every frame, the gain worked out every 8th
  * (log and exp are dear in the audio interrupt) and slid to between them */
 static float gl_g = 1.0f, gl_dg;
 static uint8_t gl_ctl;
@@ -363,9 +414,16 @@ static inline float glue_gain(float a, float b)
 {
     float x = absf(a) > absf(b) ? absf(a) : absf(b);
     gl_env += (x > gl_env ? GL_ATT : GL_REL) * (x - gl_env);
+    gl_fast += (x > gl_fast ? GL_FATT : GL_FREL) * (x - gl_fast);
+    gl_slow += (x > gl_slow ? GL_SATT : GL_SREL) * (x - gl_slow);
     if (gl_ctl == 0u) {
-        float over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f;
-        float to = over > 0.0f ? exp2_(-over * gl_slope) : 1.0f;
+        float over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f, l = over > 0.0f ? -over * gl_slope : 0.0f, to;
+        if (gl_slow > 1e-5f && gl_fast > gl_slow) {   /* a hit: up by how far it stands over the slow level */
+            float t = log2_(gl_fast) - log2_(gl_slow);
+            l += gl_xamt * (t > 2.0f ? 2.0f : t);
+        }
+        to = l != 0.0f ? exp2_(l) : 1.0f;
+        to = 1.0f - gl_mix + gl_mix * to;
         gl_dg = (to - gl_g) * 0.125f;
         gl_ctl = 8u;
     }
@@ -373,7 +431,64 @@ static inline float glue_gain(float a, float b)
     gl_g += gl_dg;
     return gl_g;
 }
-/* a block's energy in and out: the makeup that brings it back (within 0 .. +12 dB) */
+/* the EQ's band gains for the next block, from the levels followed (before it: no loop), slid to */
+static void glue_eq_block(float elo, float ehi, float eh, float e, uint32_t k)
+{
+    float l[5], r;
+    int i;
+    gq_elo += GQ_TILT * (elo - gq_elo);
+    gq_ehi += GQ_TILT * (ehi - gq_ehi);
+    gq_e += (e > gq_e ? GQ_HATT : GQ_HREL) * (e - gq_e);
+    gq_eh += (eh > gq_eh ? GQ_HATT : GQ_HREL) * (eh - gq_eh);
+    for (i = 0; i < 5; i++)
+        l[i] = gq_set[i];
+    if (gq_elo > 1e-7f && gq_ehi > 1e-9f) {      /* pinky: a quarter of the energy's log2 each side */
+        float t = 0.25f * gq_pink * (log2_(GQ_PINK * gq_elo) - log2_(gq_ehi));
+        t = t < -0.5f ? -0.5f : t > 0.5f ? 0.5f : t;
+        l[0] -= t;
+        l[1] -= t;
+        l[2] += t;
+        l[3] += t;
+        l[4] += t;
+    }
+    r = gq_e > 1e-8f ? gq_eh / gq_e : 0.0f;
+    if (r > GQ_HARSH) {                          /* de-harsh: towards the share, down 6 dB at most */
+        float t = 0.5f * gq_harsh * (log2_(r) - log2_(GQ_HARSH));
+        l[3] -= t > 1.0f ? 1.0f : t;
+    }
+    for (i = 0; i < 5; i++)
+        gq_dg[i] = ((l[i] != 0.0f ? exp2_(l[i]) : 1.0f) - gq_g[i]) / (float)k;
+}
+/* the EQ, one channel: the bands (what lies between the splits) each at its gain */
+static inline float glue_eq(float x, float *s, float *elo, float *ehi, float *eh)
+{
+    float b0, b1, b2, b3;
+    s[0] += GQ_C[0] * (x - s[0]);
+    s[1] += GQ_C[1] * (x - s[1]);
+    s[2] += GQ_C[2] * (x - s[2]);
+    s[3] += GQ_C[3] * (x - s[3]);
+    b0 = s[0];
+    b1 = s[1] - s[0];
+    b2 = s[2] - s[1];
+    b3 = s[3] - s[2];
+    *elo += s[1] * s[1];
+    *ehi += (x - s[1]) * (x - s[1]);
+    *eh += b3 * b3;
+    return gq_g[0] * b0 + gq_g[1] * b1 + gq_g[2] * b2 + gq_g[3] * b3 + gq_g[4] * (x - s[3]);
+}
+/* the inflator (its curve 0: 1.5 s - 0.5 s^3 - (s^2 - 2 s^3 + s^4) / 16 on s = |x| up to 1, flat at 1), its 1
+ * at the limiter's ceiling, blended in by Color; as a gain on x, so no sign to carry */
+#define GC_IN 1.122f                             /* 1 / the ceiling with the Glue on (-1 dBFS) */
+static inline float inflate(float x)
+{
+    float s = absf(x) * GC_IN;
+    if (s > 1.0f) {
+        x = x < 0.0f ? -0.891f : 0.891f;
+        s = 1.0f;
+    }
+    return x * (1.0f + gc_wet * (0.5f - s * (0.0625f + s * (0.375f + s * 0.0625f))));
+}
+/* a block's energy in and out (out as if before the makeup): the makeup that brings it back (-12 .. +12 dB) */
 static void glue_match(float ein, float eout)
 {
     float want, r = gl_mk_to;
@@ -382,7 +497,7 @@ static void glue_match(float ein, float eout)
     if (gl_ein < 1e-8f || gl_eout < 1e-9f)
         return;
     want = gl_ein / gl_eout;
-    want = want < 1.0f ? 1.0f : want > 16.0f ? 16.0f : want;
+    want = want < 0.0625f ? 0.0625f : want > 16.0f ? 16.0f : want;
     r = 0.5f * (r + want / r);                   /* sqrt, from the last value */
     gl_mk_to = 0.5f * (r + want / r);
 }
@@ -390,7 +505,7 @@ static inline float lim_gain(float a, float b)   /* the limiter's gain for one f
 {
     float y = absf(a) > absf(b) ? absf(a) : absf(b);
     lim_env = y > lim_env ? y : lim_env * LIM_REL;
-    return lim_env > LIM_CEIL ? LIM_CEIL / lim_env : 1.0f;
+    return lim_env > lim_ceil ? lim_ceil / lim_env : 1.0f;
 }
 
 /* GLITCHES, by Chaos: a beat repeat (the last sixteenth, eighth or thirty-second again and again), a
@@ -582,7 +697,7 @@ static void gset(int p, int v)
     case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: apply_fx(p, v); acid_route(0); break;
     case G_LEVEL: fm.master = pct(v); break;
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
-    case G_GLUE: glue_set(v); break;
+    case G_GLUE: case G_GMIX: case G_GEQ: case G_GCOLOR: case G_GWIDTH: glue_set(); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     case G_MUTADE: break;                        /* (read at the quarters) */
     case G_SELMODE: break;                       /* (the UI's) */
@@ -987,7 +1102,7 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     }
     while (n) {
         uint32_t k = n > BLK ? BLK : n;
-        float ein = 0.0f, eout = 0.0f;
+        float ein = 0.0f, eout = 0.0f, elo = 0.0f, ehi = 0.0f, eh = 0.0f, imk2 = 1.0f / (gl_mk * gl_mk);
         gx_clock = seq.now;
         nseq_render(&seq, l, r, (int)k);
         if (mf_on[0] | mf_on[1])
@@ -1020,10 +1135,28 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
                         nfm_sat_control(&gl_sat[1]);
                     }
                 }
-                eout += a * a + b * b;
+                if (gq_on) {
+                    for (v = 0; v < 5; v++)
+                        gq_g[v] += gq_dg[v];
+                    a = glue_eq(a, gq_lp[0], &elo, &ehi, &eh);
+                    b = glue_eq(b, gq_lp[1], &elo, &ehi, &eh);
+                }
+                m = 0.5f * (a - b);              /* the sides: their lows out, the rest by Width */
+                gw_lp[0] += GW_LOW * (m - gw_lp[0]);   /* (12 dB an octave: two one-pole high-passes) */
+                m -= gw_lp[0];
+                gw_lp[1] += GW_LOW * (m - gw_lp[1]);
+                m = (m - gw_lp[1]) * gw_side;
+                a = 0.5f * (a + b);
+                b = a - m;
+                a += m;
                 gl_mk += (gl_mk_to - gl_mk) * 0.002f;
                 a *= gl_mk;
                 b *= gl_mk;
+                if (gc_wet > 0.0f) {
+                    a = inflate(a);
+                    b = inflate(b);
+                }
+                eout += (a * a + b * b) * imk2;
             }
             g = lim_gain(a, b);
             if (g < 0.891f)
@@ -1036,8 +1169,11 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
             out[2u * j] = (int32_t)(a * gain);
             out[2u * j + 1u] = (int32_t)(b * gain);
         }
-        if (gl_on)
+        if (gl_on) {
             glue_match(ein, eout);
+            if (gq_on)
+                glue_eq_block(elo, ehi, eh, elo + ehi, k);
+        }
         out += 2u * k;
         n -= k;
     }
