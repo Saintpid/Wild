@@ -1,4 +1,13 @@
-## 0.1.4 - Five-channel mixer
+# Changelog
+
+A version is a `VERSION` change with its section below (CI checks the section is there). Firmware
+files are not published here: the author hands them out. To build one yourself, see BUILDING.md; a
+version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
+a short identity, higher than the one installed).
+
+## 0.1.4
+
+Firmware identity FM-1_831. Five-channel mixer.
 
 - GLO + OCT- toggles five faders with signal meters and peak hold.
 - SELECT controls channel 1; KNOB1..4 control channels 2..5 (303).
@@ -7,7 +16,16 @@
 - Levels use existing saved track volumes, clamped to 0..100.
 - Audio Load moves to GLO + OCT+; mixer redraw capped at 15 Hz.
 
-## 0.1.2 - Audio priority and diagnostics
+## 0.1.3
+
+Firmware identity FM-1_830.
+
+- The tempo stays the same when you switch patterns with SEL A/B or Copy.
+- Quarter-note ticks mark steps 1, 5, 9 and 13, rests included.
+
+## 0.1.2
+
+Firmware identity FM-1_829. Audio priority and diagnostics.
 
 - Keep all instruments, effects, mastering and controls.
 - Render PCM in a dedicated software interrupt below DMA playback and input
@@ -19,25 +37,22 @@
 - Protect snapshots against concurrent rendering; retain startup vector guard fix.
 - Physical timing and software interrupt operation require an FM-1 retest.
 
-## 0.1.1 - Wild startup fix
+## 0.1.1
+
+Firmware identity FM-1_828. Startup fix.
 
 - Register the audio interrupt before locking the vector memory region.
 - Fix the startup crash observed on hardware at PC 02007B18 in 0.1.0.
 - Hardware confirmation of this correction is still required.
 
-## 0.1.0 â€” Wild (experimental)
+## 0.1.0
+
+Firmware identity FM-1_827. Wild (experimental).
 
 - Fork n001se 1.7.1 (b3a4ac2). Continuous PCM lookahead, foreground synthesis, bounded interrupt playback.
 - Preserve controls, MIDI, Chaos, acid slides, accents and effects.
 - Two 256-frame blocks at 44.1 kHz; underrun fade and recovery, render timing counters.
 - Hardware timing and resource margin remain unverified until an FM-1 run.
-
-# Changelog
-
-A version is a `VERSION` change with its section below (CI checks the section is there). Firmware
-files are not published here: the author hands them out. To build one yourself, see BUILDING.md; a
-version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
-a short identity, higher than the one installed).
 
 ## 1.7.1
 
