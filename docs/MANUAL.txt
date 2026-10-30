@@ -205,7 +205,7 @@ MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn
 How the acid line plays, as a TB-303:
   Gate       A note sounds for half a step. A slide holds it into the next step, and the next note glides there without a new attack: the volume and the filter envelope go on. A note that is not slid into starts again. A rest closes the gate, so a slide into a rest makes a longer note. Slides in a row make one long movement, also from the last step into the first.
   Slide      The pitch glides at the same speed whatever the interval (an RC of 45 ms), so a slide of one or two octaves may not get there before the next step; the next note goes on from where the pitch is.
-  Filter     A model of the 303's: a diode ladder (about 18 dB/oct in the octave above the cutoff) with a high-pass in the resonance feedback, so the bass stays when the resonance goes up. At high resonance it sings and saturates, but never runs away.
+  Filter     A model of the 303's diode ladder: four stages that load each other, the bottom one twice as fast (the 303's half-size capacitor). Gentle under the cutoff, about 18 dB/oct above a resonant peak, with a high-pass in the resonance feedback, so the bass stays when the resonance goes up. The level stays even as the resonance goes up. At high resonance it sings and saturates, but never runs away.
   Accent     Louder and brighter. The brightness goes through a sweep: accents in a row build up, the more the higher the resonance.
 
 How a new acid pattern is drawn (Black 10, E1, REC):
@@ -264,6 +264,7 @@ SETUP (GLOBAL, page 4)
 
 SCENE (GLOBAL, page 5)
   SEL mode   Chance, A/B or Copy: what SEL does (see SEL under BUTTONS). Default: Chance
+  303 waves  Original or All: the waves a new acid sound (black 11 on track 5) is drawn from. Original: only the 303's own, Saw and Square. All: any of the six. Default: Original. Wave on the TONE page can still be set to any of them.
 
 ====================================================================
 

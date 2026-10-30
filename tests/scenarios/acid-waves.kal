@@ -1,0 +1,44 @@
+# 303 waves (GLOBAL's Scene page, KNOB 2): Original by default, a new 303 sound only a saw or a square;
+# All: any of the six waves
+wait 200
+expect gpar25 0
+tap OCT-
+expect track 4
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+tapkey b10
+expect apar13 <2
+# GLOBAL five times: the Scene page; KNOB 2 to All
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+expect view 12
+spin K2 1
+expect gpar25 1
+shot scene_page.png
+spin K2 -1
+expect gpar25 0
+spin K2 1
+expect gpar25 1

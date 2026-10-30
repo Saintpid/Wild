@@ -1,8 +1,8 @@
-# Wild 0.1.4 - experimental FM-1 firmware
+# Wild 0.2.0 - experimental FM-1 firmware
 
-**0.1.0 fails hardware startup; use 0.1.4 for the next hardware test.**
-The interrupt registration order is corrected; rendering now preempts the screen.
-GLO + OCT- toggles the mixer; GLO + OCT+ toggles Audio Load. Physical retesting is pending.
+**0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.**
+The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
+the FM-1. GLO + OCT- toggles the mixer. 0.1.0 failed hardware startup; 0.1.1 and later fix it.
 
 Wild is a separate n001se 1.7.1 fork for the M-VAVE FM-1. It keeps the five
 tracks, musical Chaos, controls, MIDI and 303 behavior, and renders continuous
@@ -11,9 +11,9 @@ The first renderer retains the existing 303, drums and effects. Independent
 phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
-- Local branch: wild. Nothing has been pushed upstream or flashed to hardware.
-- Installable package: build/Wild-0.1.4.fwsc, identity FM-1_831.
-- USB name: Wild FM-1. Screen: Wild 0.1.4.
+- Repository: https://github.com/Saintpid/Wild
+- Installable package: build/Wild-0.2.0.fwsc, identity FM-1_832.
+- USB name: Wild FM-1. Screen: Wild 0.2.0.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -21,7 +21,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.1.4 --id 831
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.2.0 --id 832
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -55,7 +55,7 @@ command.
   hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
-  of the 303's diode ladder filter, with the 303's gate, slide (an RC of 60 ms that may not get
+  of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), with the 303's gate, slide (an RC of 60 ms that may not get
   there), accent (a sweep that builds up, a sharp attack against a plain note's soft one, weak on a
   slid note), Env Mod that lowers where the sweep starts, and a square made from the saw as the 303
   does. Its own sequencer draws musical lines: the rhythm first, a motif

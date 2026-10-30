@@ -53,6 +53,7 @@ enum {
     G_SELMODE,                                       /* what SEL does (the UI's): NE_SEL_* */
     G_SPACE,                                         /* the reverb's room and the delay's time move */
     G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH,               /* the Glue's mastering: parallel mix, EQ, inflator, width */
+    G_ACIDWAVES,                                     /* a new 303 sound's waves (the UI's): 0 the 303's own, 1 all */
     G_NPARAMS
 };
 enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };

@@ -62,7 +62,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
-    {G_SELMODE, K_NONE, K_NONE, K_NONE},
+    {G_SELMODE, G_ACIDWAVES, K_NONE, K_NONE},
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -504,7 +504,7 @@ static void list_open(int which);
 static void list_go(void);
 
 /* a new sound. The acid line's sound is its settings: new ones by chance, within what makes acid
- * (resonant, a strong envelope), any wave. The acid line, perc, click and metal also land in an octave
+ * (resonant, a strong envelope), a 303's saw or square (303 waves Original) or any wave (All). The acid line, perc, click and metal also land in an octave
  * by chance (Tune -24, -12, 0, +12 or +24); the others at their own pitch (Tune 0). */
 static uint32_t ui_rng = 0x9e3779b9u;
 static int rnd_in(int lo, int hi)
@@ -523,7 +523,7 @@ static void new_sound(int t)
         knob_set(KA | A_ENVMOD, rnd_in(30, 90));
         knob_set(KA | A_DECAY, rnd_in(15, 70));
         knob_set(KA | A_ACCENT, rnd_in(30, 90));
-        knob_set(KA | A_WAVE, rnd_in(0, NACID_WAVES - 1));
+        knob_set(KA | A_WAVE, rnd_in(NACID_SAW, proj.g[G_ACIDWAVES] ? NACID_WAVES - 1 : NACID_SQUARE));
         knob_set(KA | A_TUNE, 12 * rnd_in(-2, 2));
         return;
     }
@@ -611,7 +611,7 @@ static void sel_forget(void)
 static void sel_go(const project_t *to)
 {
     static project_t t;
-    static const uint8_t KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE};
+    static const uint8_t KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
     uint32_t i;
     t = *to;
     for (i = 0; i < sizeof KEEP; i++)
