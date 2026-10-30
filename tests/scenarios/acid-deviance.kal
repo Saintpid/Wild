@@ -23,3 +23,16 @@ spin K4 -100
 expect apar25 0
 wait 1000
 expect adev 0
+# a hand on the cutoff (the Sound page) while it moves: the knobs as set at once, again 2 s after
+spin K4 70
+wait 6000
+expect adev >20
+tap ENV
+expect view 2
+spin K1 1
+wait 400
+expect adev 0
+wait 1200
+expect adev 0
+wait 6000
+expect adev >0
