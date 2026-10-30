@@ -328,16 +328,16 @@ NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dl
  * accent on a slid note is a weak one. Any other note is a new attack: the pitch there at once, the
  * cutoff envelope and the VCA from where they are, the VCA's attack soft (3 ms) on a plain note and
  * sharp on an accent (the 303's click). The oscillator's phase is never touched. */
-NFM_CODE static void play(nacid *a, nacid_note st, int slide)
+NFM_CODE void nacid_apply_event(nacid *a, const nacid_event *event)
 {
     int legato = a->gate_on && a->sounding && a->gate < 0.0f;
-    if (!(st.flags & NACID_ON)) {
+    if (!event->on) {
         a->gate_on = 0;
         a->acc_gate = 0;
         return;
     }
-    a->cv_to = (float)(a->root + st.note) + a->tune;
-    a->acc_gate = (st.flags & NACID_ACCENT) != 0;
+    a->cv_to = event->pitch;
+    a->acc_gate = event->accent;
     if (a->acc_gate) a->acc_env = legato ? a->env : 1.0f;
     if (!legato) {
         a->cv = a->cv_to;
@@ -355,7 +355,19 @@ NFM_CODE static void play(nacid *a, nacid_note st, int slide)
     }
     a->gate_on = 1;
     a->sounding = 1;
-    a->gate = slide ? -1.0f : a->step_len * 0.5f;
+    a->gate = event->gate_samples;
+}
+
+/* The musical scheduler supplies instructions; the first sound model is 303. */
+NFM_CODE static void play(nacid *a, nacid_note st, int slide)
+{
+    nacid_event event = {
+        (float)(a->root + st.note) + a->tune,
+        slide ? -1.0f : a->step_len * 0.5f,
+        (uint8_t)((st.flags & NACID_ON) != 0),
+        (uint8_t)((st.flags & NACID_ACCENT) != 0)
+    };
+    nacid_apply_event(a, &event);
 }
 
 NFM_CODE void nacid_step(nacid *a, float delay, float step_len)

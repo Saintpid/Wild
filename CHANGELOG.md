@@ -1,3 +1,37 @@
+## 0.1.4 - Five-channel mixer
+
+- GLO + OCT- toggles five faders with signal meters and peak hold.
+- SELECT controls channel 1; KNOB1..4 control channels 2..5 (303).
+- Encoder decoding keeps full-cycle resolution at slow and fast speeds;
+  contact pauses no longer teach false detents that doubled subsequent clicks.
+- Levels use existing saved track volumes, clamped to 0..100.
+- Audio Load moves to GLO + OCT+; mixer redraw capped at 15 Hz.
+
+## 0.1.2 - Audio priority and diagnostics
+
+- Keep all instruments, effects, mastering and controls.
+- Render PCM in a dedicated software interrupt below DMA playback and input
+  scanning, above foreground display work. Render at most one half per wake.
+- Screen refresh is capped at 30 Hz; input stays responsive between frames.
+- GLO + OCT- toggles Audio Load: render current/average/peak, output and screen
+  timing peaks, queued PCM, underruns, late output and static free RAM/pool.
+- Diagnostics refresh at 4 Hz. CPU values describe render budget, not total CPU.
+- Protect snapshots against concurrent rendering; retain startup vector guard fix.
+- Physical timing and software interrupt operation require an FM-1 retest.
+
+## 0.1.1 - Wild startup fix
+
+- Register the audio interrupt before locking the vector memory region.
+- Fix the startup crash observed on hardware at PC 02007B18 in 0.1.0.
+- Hardware confirmation of this correction is still required.
+
+## 0.1.0 â€” Wild (experimental)
+
+- Fork n001se 1.7.1 (b3a4ac2). Continuous PCM lookahead, foreground synthesis, bounded interrupt playback.
+- Preserve controls, MIDI, Chaos, acid slides, accents and effects.
+- Two 256-frame blocks at 44.1 kHz; underrun fade and recovery, render timing counters.
+- Hardware timing and resource margin remain unverified until an FM-1 run.
+
 # Changelog
 
 A version is a `VERSION` change with its section below (CI checks the section is there). Firmware
@@ -34,13 +68,13 @@ Firmware identity FM-1_824.
     default: tight, but the hits keep their punch. A gentle transient expander in the compressor lets
     the hits through.
   - **Glue EQ:** an EQ that listens. It follows the balance between lows and highs and leans the mix
-    towards a pink slope of −4.5 dB an octave, adds a little foundation and air, takes a little box
-    away, and turns the harsh 2–9 kHz down while it stands out. 50 by default, 0 flat.
+    towards a pink slope of Ã¢Ë†â€™4.5 dB an octave, adds a little foundation and air, takes a little box
+    away, and turns the harsh 2Ã¢â‚¬â€œ9 kHz down while it stands out. 50 by default, 0 flat.
   - **Color:** an inflator, denser and fuller near the top. 50 by default.
   - **Width:** 0 mono, 50 as it is, 100 twice as wide; the lows under 120 Hz always in mono. 60 by
     default.
 - As before, the Glue is loudness matched (the volume is Level's), and 0 turns all of it off. With
-  the Glue on, the limiter's ceiling is −1 dBFS (−0.3 dBFS off).
+  the Glue on, the limiter's ceiling is Ã¢Ë†â€™1 dBFS (Ã¢Ë†â€™0.3 dBFS off).
 - Project format 11: a saved project or preset gets the Glue page's defaults, so one with Glue up
   sounds a little different (more finished) than before. Glue mix 100, Glue EQ 0, Color 0 and Width
   50 come close to the old Glue.
@@ -61,7 +95,7 @@ Firmware identity FM-1_822.
 - **Space (Drift page, knob 4).** The reverb and the delay wander between places of their own: the
   reverb from a small room through the usual one to a big hall (length and tone), the delay between
   a dotted eighth (as before), an eighth, a sixteenth and a quarter. At 0 they stay put as before;
-  the higher, the more often they move, but always slowly: each glide takes 1–4 bars and each place
+  the higher, the more often they move, but always slowly: each glide takes 1Ã¢â‚¬â€œ4 bars and each place
   is held at least 4 bars (about 8 on average at 100). The delay fades from one length to the next,
   so nothing bends in pitch. With Space up, SEL also moves them by the same chance (always at 100).
   Chaos and Motion no longer move the delay time or the reverb's length and tone; Space does.
@@ -71,7 +105,7 @@ Firmware identity FM-1_822.
 
 Firmware identity FM-1_821.
 
-- **A new kind of sound: Clap.** Three or four quick bursts of band-passed noise, 6–13 ms apart,
+- **A new kind of sound: Clap.** Three or four quick bursts of band-passed noise, 6Ã¢â‚¬â€œ13 ms apart,
   then the tail, with a short FM knock under it and now and then the resonator as a room. The
   bursts are drawn anew on every hit, so no two claps are the same. Choose it with Kind on the Tone
   page and draw a new sound (black 11). Its patterns lean on beats 2 and 4, like a snare's, with a
@@ -104,7 +138,7 @@ The acid line is rebuilt after the TB-303, its sequencer and its sound.
   now and then, and now and then a note outside the scale. Then the octaves (up likelier off the
   beat), accents where they push the rhythm (off the beat, after a rest), and slides where they move
   the line: most into a different note, and most of all into an octave jump.
-- **Chaos for the acid line** (Tone page, KNOB 4, 0–100 %, 25 % to start with). At 0 % the line
+- **Chaos for the acid line** (Tone page, KNOB 4, 0Ã¢â‚¬â€œ100 %, 25 % to start with). At 0 % the line
   follows the rules above; at 100 % the scale, the beat and the motif are gone: any note, wild
   octaves (up to two), accents and slides anywhere. In between, every chance moves step by step.
 - **The 303's gate and slide.** A note's gate is half a step. A slide holds the gate into the next
@@ -192,10 +226,10 @@ The first public version, tested on the FM-1 (firmware identity FM-1_814: instal
 ## 0.1.0
 
 - **n001se, the first build.** Four FM percussion sounds (kick, snare, hat, perc to start; click and
-  metal too) where every hit varies a little, a random pattern sequencer over them with 1–8 bars a
+  metal too) where every hit varies a little, a random pattern sequencer over them with 1Ã¢â‚¬â€œ8 bars a
   track, and drifting effects (filter, drive, delay, reverb) that pick which hits they touch.
 - **The keys are the sequencer:** the white keys are the 16 steps of a bar, lit where there is a hit,
-  with the playhead walking over them; black keys 1–8 choose the bar; 9–11 mute, new pattern, new sound.
+  with the playhead walking over them; black keys 1Ã¢â‚¬â€œ8 choose the bar; 9Ã¢â‚¬â€œ11 mute, new pattern, new sound.
 - **The phrase:** eight bars across the screen, the eighth red, counting 1 2 3 4 to the next round.
 - MIDI in (USB and TRS): notes for new patterns, controllers for the macros and effects, MIDI clock.
 
@@ -206,7 +240,7 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 ## 0.6.1
 
 - **Less work with Reverb at 0:** once the reverb's tail has died away, the reverb stops running until
-  you turn it up again (on the FM-1, about 24% → 15% CPU when nothing is playing). Nothing changes in
+  you turn it up again (on the FM-1, about 24% Ã¢â€ â€™ 15% CPU when nothing is playing). Nothing changes in
   the sound.
 
 ## 0.6.0
@@ -230,7 +264,7 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 
 ## 0.5.1
 
-- **The wah is now heard.** Covering the sound hole (ENV → Body: Wah, the mod wheel, pressure, the Hole
+- **The wah is now heard.** Covering the sound hole (ENV Ã¢â€ â€™ Body: Wah, the mod wheel, pressure, the Hole
   key, or Wah rate) muffles the sound like a vowel closing: bright with the hole open, dark and a little
   quieter covered, with a vowel-like peak sweeping through the tines on the way. Before, it only moved a
   resonance below the lowest tine, and barely changed the sound. Box and Gourd have a hole; Board and
@@ -260,11 +294,11 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 
 - **16 voices** (up from 12): fewer tines cut short when long-ringing steel tines and patterns overlap.
   Upper overtones that have died away are skipped, so ordinary playing costs less.
-- **Worn**: an old, played-in kalimba. Each tine gets its own quirks: a little out of tune (up to ±12
+- **Worn**: an old, played-in kalimba. Each tine gets its own quirks: a little out of tune (up to Ã‚Â±12
   cents), a longer or shorter sustain, a faster or slower beat, uneven brightness and level.
 - **Pages by button**: each page button owns its pages; press it again for the next (dots in the
-  header show which). HOME: Tine → **Character** (Worn, Glide, Tuning, Release). ENV: Body.
-  FX: Space → Color. LFO: Grain → Spread. SEL: Keys → Play. SEQ: Pattern. GLO: Setup.
+  header show which). HOME: Tine Ã¢â€ â€™ **Character** (Worn, Glide, Tuning, Release). ENV: Body.
+  FX: Space Ã¢â€ â€™ Color. LFO: Grain Ã¢â€ â€™ Spread. SEL: Keys Ã¢â€ â€™ Play. SEQ: Pattern. GLO: Setup.
 - **ARP**: tap to start or stop the pattern; **hold** to open its settings.
 - Settings saved by earlier versions carry over; new settings start at their defaults.
 

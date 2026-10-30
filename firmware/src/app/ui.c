@@ -611,7 +611,7 @@ static void sel_forget(void)
 static void sel_go(const project_t *to)
 {
     static project_t t;
-    static const uint8_t KEEP[] = {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE};
+    static const uint8_t KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE};
     uint32_t i;
     t = *to;
     for (i = 0; i < sizeof KEEP; i++)
@@ -938,6 +938,25 @@ static void midi_in(void)
 }
 
 /* ------------------------------------------------------------- input --- */
+static uint8_t diagnostics_open, diagnostics_chord, mixer_open;
+static uint32_t mixer_at;
+static float mixer_peak[UI_TRACKS], mixer_level[UI_TRACKS];
+static uint32_t mixer_hold[UI_TRACKS];
+static uint32_t diagnostics_at;
+
+static void mixer_turn(int channel, int32_t delta)
+{
+    int k = channel == NE_ACID ? KA | A_LEVEL : KT | T_LEVEL;
+    int old = channel == NE_ACID ? proj.a[A_LEVEL] : proj.t[channel][T_LEVEL];
+    int value = old + (int)delta;
+    if (value < 0) value = 0;
+    if (value > 100) value = 100;
+    if (value == old) return;
+    undo_mark(1u << 24 | (uint32_t)k << 8 | (uint32_t)channel);
+    if (channel == NE_ACID) knob_set(k, value);
+    else tpar_set(channel, T_LEVEL, value);
+}
+
 static void input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys(), ch, i;
@@ -957,6 +976,23 @@ static void input(void)
         } else if (!(ui.btn_used & m) && i != B_PLAY) {
             button((int)i);
         }
+    }
+    {
+        const uint32_t glo = 1u << B_GLO;
+        uint32_t which = (btn & glo) && (btn & (1u << B_OCTDN)) ? 1u :
+                         (btn & glo) && (btn & (1u << B_OCTUP)) ? 2u : 0u;
+        if (which) {
+            ui.btn_used |= glo | (1u << (which == 1u ? B_OCTDN : B_OCTUP));
+            if (!diagnostics_chord) {
+                if (which == 1u) { mixer_open ^= 1u; diagnostics_open = 0; }
+                else { diagnostics_open ^= 1u; mixer_open = 0; }
+                diagnostics_at = plat_ms() - 250u;
+                mixer_at = plat_ms() - 66u;
+                lcd_fill(0, 0, 240, 240, K_BG);
+                memset(ui.sig, 0, sizeof ui.sig);
+            }
+            diagnostics_chord = 1;
+        } else diagnostics_chord = 0;
     }
     if ((btn >> B_SAVE & 1u) && !(ui.btn_used >> B_SAVE & 1u) && !ui.reset_ask &&
         plat_ms() - ui.save_t >= SAVE_HOLD_MS) {
@@ -983,7 +1019,8 @@ static void input(void)
         ui.act_t = plat_ms();
     midi_in();
     if ((e = plat_enc(EN_SELECT)) != 0) {
-        if (ui.list)
+        if (mixer_open) mixer_turn(0, e);
+        else if (ui.list)
             list_move(e > 0 ? 1 : -1);
         else
             select_track(ui.track + (e > 0 ? 1 : -1));
@@ -999,7 +1036,9 @@ static void input(void)
     }
     for (i = 0; i < 4; i++)
         if ((e = plat_enc(EN_K1 + (int)i)) != 0) {
-            if (ui.held_step >= 0 && !ui.live && ui.track == NE_ACID)
+            if (mixer_open) {
+                mixer_turn((int)i + 1, e);
+            } else if (ui.held_step >= 0 && !ui.live && ui.track == NE_ACID)
                 acid_step_edit((int)i, e);
             else if (ui.held_step >= 0 && !ui.live)
                 step_edit((int)i, e);
@@ -1175,6 +1214,9 @@ static void draw_track(int t, int32_t y)
         int32_t x = GRID_X + s * CELL_W + (s / 4) * 1;
         int past = st >= len, on = step_on(t, st), here = st == ps, note;
         uint16_t c;
+        /* Quarter-note tick stays visible on rests and sounding steps alike. */
+        if (s % 4 == 0)
+            cv_rect(x + 3, y, 3, 1, K_TEXT);
         if (past) {
             cv_rect(x + 3, y + 9, 3, 2, K_LINE);
             continue;
@@ -1509,8 +1551,84 @@ static void cpu_guard(void)
     }
 }
 
+static void diagnostic_row(int row, const char *label, uint32_t value, const char *unit)
+{
+    char text[32];
+    int w;
+    itoa_u(value, text);
+    w = s_len(text);
+    while (*unit && w < 30) text[w++] = *unit++;
+    text[w] = 0;
+    cv_begin(240, 20, K_BG);
+    cv_text(5, 1, &FONT_S, label, K_TEXT);
+    cv_text(235 - text_w(&FONT_S, text), 1, &FONT_S, text, K_TEXT);
+    cv_blit(0, 26 + row * 20);
+}
+static void draw_diagnostics(void)
+{
+    plat_audio_diag d;
+    if (plat_ms() - diagnostics_at < 250u) return;
+    diagnostics_at = plat_ms();
+    plat_audio_diag_read(&d);
+    cv_begin(240, 26, K_BG);
+    cv_text(5, 3, &FONT_S, d.hardware ? "AUDIO LOAD" : "AUDIO LOAD (HOST)", K_TEXT);
+    cv_blit(0, 0);
+    diagnostic_row(0, "Render now", d.render_now, "%");
+    diagnostic_row(1, "Render avg", d.render_avg, "%");
+    diagnostic_row(2, "Render peak", d.render_peak, "%");
+    diagnostic_row(3, "Output IRQ peak", d.irq_peak_us, " us");
+    diagnostic_row(4, "Screen peak", d.ui_peak_us / 1000u, " ms");
+    diagnostic_row(5, "PCM ready", d.ready, "/2 blocks");
+    diagnostic_row(6, "Empty buffer", d.underruns, "");
+    diagnostic_row(7, "Late output", d.late, "");
+    diagnostic_row(8, "RAM free", d.ram_total - d.ram_used, d.hardware ? " B" : " (n/a)");
+    diagnostic_row(9, "Pool free", d.pool_total - d.pool_used, d.hardware ? " B" : " (n/a)");
+}
+
+/* Five independent faders; reuse the existing strip canvas, never a framebuffer. */
+static void draw_mixer(void)
+{
+    static const char *const control[UI_TRACKS] = {"SELECT", "KNOB1", "KNOB2", "KNOB3", "KNOB4"};
+    int t;
+    if (plat_ms() - mixer_at < 66u) return; /* 15 Hz, audio stays above display */
+    mixer_at = plat_ms();
+    cv_begin(240, 28, K_BG);
+    cv_text(8, 5, &FONT_B, "MIXER", K_TEXT);
+    cv_text(132, 7, &FONT_XS, "GLO + OCT-", K_DIM);
+    cv_blit(0, 0);
+    /* Draw in short horizontal strips to stay within the existing canvas. */
+    for (int strip = 0; strip < 5; ++strip) {
+        int sy = strip * 36;
+        cv_begin(240, 36, K_BG);
+        for (t = 0; t < UI_TRACKS; ++t) {
+            int x = t * 48, level = t == NE_ACID ? proj.a[A_LEVEL] : proj.t[t][T_LEVEL];
+            int fy = 24 + (100 - level) * 104 / 100;
+            int bar = (int)(mixer_level[t] * 104.0f), peak = (int)(mixer_peak[t] * 104.0f);
+            char text[12];
+            uint16_t col = TRACK_COL[t];
+            text[0] = (char)('1' + t); text[1] = 0;
+            cv_text(x + 11, 1 - sy, &FONT_S, t == NE_ACID ? "303" : text, col);
+            cv_rect(x + 17, 24 - sy, 2, 109, K_LINE);
+            for (int tick = 0; tick <= 4; ++tick)
+                cv_rect(x + 10, 26 + tick * 26 - sy, 5, 1, K_DIM);
+            cv_rect(x + 29, 26 - sy, 6, 104, K_LINE);
+            cv_rect(x + 29, 130 - bar - sy, 6, bar, col);
+            cv_rect(x + 28, 130 - peak - sy, 8, 1, K_TEXT);
+            cv_round(x + 8, fy - sy, 19, 6, 2, col);
+            itoa_u((uint32_t)level, text);
+            cv_text(x + 24 - text_w(&FONT_S, text) / 2, 139 - sy, &FONT_S, text, K_TEXT);
+            cv_text(x + 24 - text_w(&FONT_XS, control[t]) / 2, 162 - sy, &FONT_XS, control[t], K_DIM);
+        }
+        cv_blit(0, 29 + sy);
+    }
+}
+
 void ui_init(void)
 {
+    diagnostics_open = diagnostics_chord = mixer_open = 0;
+    memset(mixer_peak, 0, sizeof mixer_peak);
+    memset(mixer_level, 0, sizeof mixer_level);
+    memset(mixer_hold, 0, sizeof mixer_hold);
     memset(&ui, 0, sizeof ui);
     ui.touched = -1;
     ui.held_step = -1;
@@ -1529,11 +1647,24 @@ void ui_frame(void)
         if (ui.meter[t] < 0.02f)
             ui.meter[t] = 0.0f;
     }
+    {
+        float peaks[UI_TRACKS];
+        ne_take_peaks(peaks);
+        for (t = 0; t < UI_TRACKS; ++t) {
+            float value = peaks[t] * 2.0f;
+            if (value > 1.0f) value = 1.0f;
+            mixer_level[t] = value > mixer_level[t] ? value : mixer_level[t] * 0.82f;
+            if (mixer_level[t] >= mixer_peak[t]) {
+                mixer_peak[t] = mixer_level[t]; mixer_hold[t] = plat_ms() + 600u;
+            } else if ((int32_t)(plat_ms() - mixer_hold[t]) >= 0)
+                mixer_peak[t] *= 0.92f;
+        }
+    }
     cpu_guard();
     autosave();
-    draw_header();
-    draw_main();
-    draw_knobs();
+    if (mixer_open) draw_mixer();
+    else if (diagnostics_open) draw_diagnostics();
+    else { draw_header(); draw_main(); draw_knobs(); }
     leds();
     ui.frame++;
 }

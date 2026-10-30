@@ -1,0 +1,66 @@
+wait 100
+expect mixer 0
+press GLO
+press OCT-
+wait 100
+release OCT-
+release GLO
+expect mixer 1
+expect diagnostics 0
+expect view 0
+expect track 0
+expect mixlevel2 75
+expect mixlevel3 70
+spin SELECT -90
+spin K1 -20
+spin K2 10
+spin K3 50
+spin K4 -30
+wait 100
+expect mixlevel1 0
+expect mixlevel2 55
+expect mixlevel3 80
+expect mixlevel4 100
+expect mixlevel5 40
+tapkey b2
+expect mixlevel5 70
+tapkey b3
+expect mixlevel5 40
+expect track 0
+expect gpar10 80
+spin SELECT 1
+expect mixlevel1 1
+spin SELECT 1
+expect mixlevel1 2
+spin SELECT -1
+expect mixlevel1 1
+tap PLAY
+wait 700
+expect playing 1
+shot mixer.png
+press OCT-
+press GLO
+wait 100
+release GLO
+release OCT-
+expect mixer 0
+expect view 0
+spin SELECT 1
+expect track 1
+press GLO
+press OCT-
+wait 100
+release OCT-
+release GLO
+expect mixer 1
+expect mixlevel2 55
+expect mixlevel5 40
+press GLO
+press OCT+
+wait 100
+release OCT+
+release GLO
+expect diagnostics 1
+expect mixer 0
+expect playing 1
+expect dropped 0

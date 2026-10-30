@@ -1,0 +1,15 @@
+wait 100
+expect len 32
+spin K1 -1
+wait 20
+expect len 16
+spin K1 1
+wait 20
+expect len 32
+spin K1 1
+wait 20
+expect len 48
+spin K1 -1
+wait 20
+expect len 32
+expect dropped 0

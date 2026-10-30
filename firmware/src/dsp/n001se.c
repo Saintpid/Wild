@@ -17,6 +17,7 @@ static void acid_route(int bar);
 /* the modulation effects' delay lines (flanger, chorus): one per drum voice, one for the acid line */
 static int16_t mod_lines[NFM_VOICES + 1][NFM_MOD_LEN] NE_POOL;
 
+static volatile float mixer_peaks[NE_TRACKS + 1];
 volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
 volatile float ne_acid_level;
@@ -906,6 +907,7 @@ void ne_init(void)
         nseq_generate(&seq, t);
     }
     ne_ext = 0;
+    for (t = 0; t <= NE_TRACKS; ++t) mixer_peaks[t] = 0.0f;
     q_r = q_w = 0;
 }
 
@@ -915,6 +917,8 @@ static uint16_t u16(float x) { return (uint16_t)(x <= 0.0f ? 0 : x >= 1.0f ? 655
 void ne_snapshot(ne_state_t *s)
 {
     int t, i;
+    hold = 1;
+    __asm__ volatile("" ::: "memory");
     for (t = 0; t < NE_TRACKS; t++) {
         const nseq_track *tr = &seq.track[t];
         s->len[t] = tr->length;
@@ -926,6 +930,8 @@ void ne_snapshot(ne_state_t *s)
             s->patch[t][i] = u16(i == NFM_LEVEL ? lvl_base[t] : fm.slot[t].p[i]);
         s->kind[t] = fm.slot[t].kind;
     }
+    __asm__ volatile("" ::: "memory");
+    hold = 0;
 }
 
 void ne_restore(const ne_state_t *s)
@@ -969,12 +975,16 @@ const nacid *ne_acid(void) { return &acid; }
 void ne_acid_snapshot(ne_acid_t *s)
 {
     int i;
+    hold = 1;
+    __asm__ volatile("" ::: "memory");
     s->len = acid.length;
     s->rsv[0] = s->rsv[1] = s->rsv[2] = 0;
     for (i = 0; i < NE_ASTEPS; i++) {
         s->flags[i] = acid.step[i].flags;
         s->note[i] = acid.step[i].note;
     }
+    __asm__ volatile("" ::: "memory");
+    hold = 0;
 }
 
 void ne_acid_restore(const ne_acid_t *s)
@@ -1184,6 +1194,20 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
             if (fm.voice[v].slot == t && fm.voice[v].peak > lv)
                 lv = fm.voice[v].peak;
         ne_track_level[t] = lv;
+        if (lv > mixer_peaks[t]) mixer_peaks[t] = lv;
     }
     ne_acid_level = acid.peak * 1.5f;
+    if (ne_acid_level > mixer_peaks[NE_ACID]) mixer_peaks[NE_ACID] = ne_acid_level;
+}
+
+int ne_render_available(void) { return !hold; }
+
+void ne_take_peaks(float out[NE_TRACKS + 1])
+{
+    int t;
+    hold = 1;
+    __asm__ volatile("" ::: "memory");
+    for (t = 0; t <= NE_TRACKS; ++t) { out[t] = mixer_peaks[t]; mixer_peaks[t] = 0.0f; }
+    __asm__ volatile("" ::: "memory");
+    hold = 0;
 }

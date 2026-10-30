@@ -3,7 +3,7 @@
  *
  * The device implementation (plat_fm1.c) wraps Felucca's HAL and panel map; the
  * host implementation (host/n001se_host.c) is a simulator fed by a script, which is
- * what lets the whole app — UI, sequencer, engines — run and be tested on a Mac.
+ * what lets the whole app â€” UI, sequencer, engines â€” run and be tested on a Mac.
  * Drawing goes through Felucca's lcd_fill / lcd_blit (lcd.c on the device, a
  * framebuffer on the host) and gfx.c on top. */
 #pragma once
@@ -51,3 +51,14 @@ int plat_preset_used(int n);                            /* 1 = holds a preset */
 /* audio load in % of the render budget, and xruns since boot (device: from the ISR) */
 uint32_t plat_cpu_pct(void);
 uint32_t plat_xruns(void);
+
+/* Hardware diagnostics. Memory values are linked static regions, not heap use.
+ * CPU values are rendering budget percentages, not whole-chip utilization. */
+typedef struct {
+    uint32_t render_now, render_avg, render_peak;
+    uint32_t irq_us, irq_peak_us, ui_us, ui_peak_us;
+    uint32_t ready, underruns, late, recoveries, render_blocks;
+    uint32_t ram_used, ram_total, pool_used, pool_total;
+    uint32_t hardware;
+} plat_audio_diag;
+void plat_audio_diag_read(plat_audio_diag *d);

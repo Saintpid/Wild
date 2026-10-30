@@ -21,6 +21,7 @@ run() {
         FAIL=1
     fi
 }
+run boot-order python3 tests/boot_order_test.py
 run fastmath sh -c "$CC -O2 -ffp-contract=off -Wall -Wextra -Werror -o $OUT/fastmath_test tests/host/fastmath_test.c -lm && $OUT/fastmath_test"
 run encoder sh -c "$CC -O2 -w -Ifirmware/hal -o $OUT/encoder_test tests/host/encoder_test.c && $OUT/encoder_test"
 run uac sh -c "$CC -O2 -w -Ifirmware/src -Ifirmware/hal -o $OUT/uac_test tests/host/uac_test.c -lm && $OUT/uac_test"
@@ -43,25 +44,27 @@ run space sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_
 run glue sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/glue_test tests/host/glue_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
     firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/glue_test $OUT"
+run wild-stream sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/wild_stream_test tests/host/wild_stream_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/wild_stream_test $OUT/wild-reference.pcm reference && $OUT/wild_stream_test $OUT/wild-reference.pcm"
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"
 # the update path, against the firmware package (Felucca's tests; needs ./build.sh)
-if [ -f build/n001se.fwsc ]; then
-    run ota-entry sh -c "$CC -o $OUT/ota_test tests/ota_test.c && $OUT/ota_test build/n001se.fwsc"
+if [ -f build/Wild.fwsc ]; then
+    run ota-entry sh -c "$CC -o $OUT/ota_test tests/ota_test.c && $OUT/ota_test build/Wild.fwsc"
     if [ -z "${AC79_SDK:-}" ]; then
         echo "  skip update-loader (needs AC79_SDK, as the build)"
     else
-    run update-loader sh -c "head -c 100000 build/n001se.bin > $OUT/old_app.bin && \
+    run update-loader sh -c "head -c 100000 build/Wild.bin > $OUT/old_app.bin && \
         python3 tools/fm1pkg_make.py $OUT/old_app.bin build/loader/ota.bin $OUT/old.fwsc >/dev/null && \
-        $CC -o $OUT/ldr_test tests/ldr_test.c && $OUT/ldr_test $OUT/old.fwsc build/n001se.fwsc"
+        $CC -o $OUT/ldr_test tests/ldr_test.c && $OUT/ldr_test $OUT/old.fwsc build/Wild.fwsc"
     fi
     run installer python3 tests/install_test.py
     # the package taken apart and every CRC checked; against FoMni's own package when one is there
     # (build/fomni-ref: see BUILDING.md, "Before installing")
     REF=""
     [ -f build/fomni-ref/build/omni.fwsc ] && REF="--ref build/fomni-ref/build/omni.fwsc"
-    run package sh -c "python3 tools/check_fwsc.py build/n001se.fwsc --app build/n001se.bin $REF"
+    run package sh -c "python3 tools/check_fwsc.py build/Wild.fwsc --app build/Wild.bin $REF"
 else
-    echo "  skip update-path tests (no build/n001se.fwsc: run ./build.sh)"
+    echo "  skip update-path tests (no build/Wild.fwsc: run ./build.sh)"
 fi
 run host-build sh host/build_host.sh
 if false && command -v emcc >/dev/null 2>&1; then   # the web emulator is not ported to n001se yet
@@ -72,7 +75,7 @@ if false && command -v emcc >/dev/null 2>&1; then   # the web emulator is not po
     run updater node tests/web/updater_test.mjs
     if [ -n "$CHROME" ]; then
         run standalone node tests/host/standalone_test.mjs "$CHROME"
-        if [ -f build/n001se.fwsc ]; then       # the installer's buttons, end to end (needs a firmware build)
+        if [ -f build/Wild.fwsc ]; then       # the installer's buttons, end to end (needs a firmware build)
             run installer-page node tests/web/installer_page_test.mjs "$CHROME"
         fi
     fi

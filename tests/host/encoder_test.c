@@ -52,6 +52,15 @@ int main(void)
         got = turn(10, per, 0, 1);
         CHECK(got == 10, "10 detents clockwise, %d scans a state: %d", per, got);
     }
+    reset();
+    got = turn(10, 60, 0, 1);
+    CHECK(got == 10, "10 slow full-cycle detents, 60 scans a state: %d", got);
+    reset();
+    frame(1);
+    for (per = 0; per < 60; ++per) frame(3); /* pause halfway, not a new click */
+    frame(2); frame(0);
+    got = fm1_in.enc_steps[0] + turn(10, 1, 0, 1);
+    CHECK(got == 11, "half-cycle pause must not double later clicks: %d", got);
     /* a flick: it starts like any turn (one detent seen whole), then skips every other state;
      * from a standstill straight into skipping, the direction is unknowable and nothing counts */
     {
@@ -79,6 +88,11 @@ int main(void)
         got = fm1_in.enc_steps[0];
         CHECK(got == -10, "10 detents counter-clockwise, one scan a state: %d", got);
     }
+    reset();
+    for (int d = 0; d < 10; ++d)
+        for (int k = 0; k < 4; ++k)
+            for (int n = 0; n < 60; ++n) frame(CCW[k]);
+    CHECK(fm1_in.enc_steps[0] == -10, "slow reverse detents: %d", fm1_in.enc_steps[0]);
     /* a bounce at rest: one scan of state 1, back to 0 */
     reset();
     frame(1);

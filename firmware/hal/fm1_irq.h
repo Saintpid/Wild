@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only
- * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+ * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), HÃ¼gelton Instruments */
 /* FM-1 interrupt / exception HAL.
  *
  *   fm1_irq_init()        first thing in cstart: all ICFG off, pendings and
@@ -117,3 +117,7 @@ void fm1_fault_c(uint32_t *f)
     for (;;)
         ;
 }
+
+/* Software latch bit 0 routes to IRQ_SOFT0 (120). Only CPU0 is used. */
+static inline void fm1_render_request(void) { FM1_ILAT_SET = 1u; }
+static inline void fm1_render_ack(void) { FM1_ILAT_CLR = 1u; }

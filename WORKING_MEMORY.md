@@ -1,0 +1,77 @@
+# Wild v001 - 2026-10-30
+
+- User requested Wild as a separate experimental firmware based on n001se.
+- Source: Saintpid/n001se commit b3a4ac2, branch claude/project-thread-uvgf52,
+  n001se 1.7.1. Main was only 1.6.1. C:/Projects/fm1_open was an older FM base.
+- Local branch wild. No push, publication or physical device flashing.
+- Version 0.1.0, BUILD_ID 827. Product name Wild; USB name Wild FM-1.
+- See docs/WILD_ENGINE.md for architecture, results and hardware acceptance.
+- WSL dependencies installed: GCC, Pillow and Clang sanitizer runtime.
+  Downloaded Linux toolchain and three hash-checked SDK files under ignored
+  build/jieli and build/sdk. Normal build/test commands are in README.md.
+- Pool has 8248 bytes spare, just 56 above the required 8192-byte guard.
+- Render in foreground in 64-frame quanta; playback ISR only consumes PCM.
+  Keep foreground wild_rendering separate from ISR om_dbg.in_audio.
+- Retain upstream attribution and internal n001se identifiers. Do not push to
+  the inherited upstream remote without a user request.
+
+- Final checks: firmware, package CRC/OTA/installer and full host suite pass.
+  Optional Node comparison skipped (Node absent in WSL). Deliberate reference
+  corruption correctly fails the new PCM test; reference restored afterward.
+
+## 0.1.1 / 828 - hardware startup correction
+- User reports 0.1.0 fails boot; photo shows safe mode, PC 02007B18.
+- Matching 0.1.0 disassembly: PC follows store to ALNK vector 0x1c7fe2c.
+- audio_init had been moved after fm1_guard_lock_top: illegal vector write.
+- Move normal-start guard lock after audio_init; register with IRQs disabled.
+  Safe-mode guard ordering remains intact. Physical retest required.
+- 0.1.1 build and full host/package suite pass; boot-order regression passes.
+- User restored working firmware; previous crash RAM may no longer be available.
+
+## 0.1.2 / 829 - priority and diagnostics
+- User confirms 0.1.1 boots and sounds good but stutters heavily; CPU display
+  photo shows ~57% and many xruns. Keep ALL functions for now (latest decision).
+  Earlier drum/EQ/Width removal ideas are deferred, not authorized for this fix.
+- Render moved to SOFT0 priority 2; DMA priority 3, input/USB TIMER5 priority 4.
+  DMA requests a bounded four-quantum refill. Main no longer produces PCM.
+  All vectors attached before top-memory protection. Snapshot/restore hold
+  makes render defer instead of injecting silent PCM during foreground edits.
+- GLO + OCT- opens/closes diagnostics; no ordinary button release actions.
+  4 Hz diagnostic drawing, normal display 30 Hz, input polled between frames.
+- Render average = 32-quantum EMA, peak since post-priming. Values measure
+  render budget, not whole-chip CPU. Memory is linked static headroom.
+- Physical SOFT0 scheduling/interrupt nesting and sustained audio must be tested.
+- Final 0.1.2 build passes: image 170420 B; data/BSS 67632/98304 B;
+  pool 335816/344064 B. Full host/UBSan/package/loader/installer suite passes,
+  including diagnostic chord in both press orders while playing, preserving
+  the original view. Diagnostic screenshot visually inspected.
+- SHA256 Wild-0.1.2.fwsc: 04b0a536c9a388fee22466084cba445ae0e967026f7b7a54351ac98ae6fe00d8
+- Versioned ELF/disassembly/bin preserved alongside package for crash lookup.
+
+## 0.1.3 / 830
+- Tempo retained across SEL A/B and Copy via G_TEMPO in KEEP.
+- Quarter-note ticks mark steps 1/5/9/13, including rests.
+- Explicit tempo edits and preset loading keep their existing semantics.
+- Build, package, full host suite and new SEL tempo scenario pass.
+  Beat-marker screenshot visually checked; hardware retest pending.
+
+## 0.1.4 / 831 - five-channel mixer
+- GLO+OCT- now mixer, Audio Load moved to GLO+OCT+.
+- SELECT -> channel1, KNOB1..4 -> channels2..5. Existing track/acid levels,
+  clamped 0..100, saved through existing project machinery.
+- Five faders and relative voice signal meters; 600ms peak hold, 15Hz drawing.
+- Per-render peak latches capture maxima between UI frames; short state hold
+  protects read/reset. No pool buffers added, no musical/effect functions removed.
+- User also reports 1/3/5 jumps, cannot select 2 bars. Bars already bypass
+  acceleration. Reproduced decoder bug: after a pause at complementary contact,
+  11 full cycles count 21; slow continuous turn of 10 cycles counts 0.
+- Fix full-cycle detent anchor; no rest-state relearning while turning.
+  Preserves fast skipped-state handling; tests include slow forward/reverse,
+  intermediate pause, flick, bounce and 1/2/3/2-bar UI edits.
+- Final 0.1.4 build/package and full host/UBSan suite pass, including mixer
+  mapping, clamp, undo/redo, chord isolation, diagnostics relocation and exact
+  1/2/3/2-bar edits. Encoder negative tests failed before the fix, now pass.
+- Mixer screenshot visually verified. Physical mixer/encoder QA still needed.
+- Image 171684 B; data/BSS 67712 B; pool unchanged 335816 B (8248 B free).
+- Versioned ELF/dis/bin saved for crash lookup; firmware SHA256:
+  06283cc145933d6963bff9850e0ad2da36e254557c2809a7c0dd4f0a62012c3e

@@ -311,8 +311,12 @@ static double now_ns(void)
     return (double)t.tv_sec * 1e9 + (double)t.tv_nsec;
 }
 
+#include "wild_stream.h"
+static wild_stream host_audio;
+
 static void boot(void)
 {
+    memset(&host_audio, 0, sizeof host_audio);
     ne_init();
     project_load();
     project_apply();
@@ -328,7 +332,8 @@ static void run_ms(uint32_t ms)
         now_ms++;
         while (audio_due_ms <= (double)now_ms) {      /* 256-frame blocks, as the device renders them */
             double t0 = now_ns(), dt;
-            ne_render(blk, 256, master);
+            while (wild_produce(&host_audio, ne_render)) {}
+            wild_consume(&host_audio, blk, master);
 #ifdef OM_WEB
             web_audio(blk, 256);
 #endif
@@ -389,7 +394,15 @@ static int expect(const char *what, const char *val)
     int got;
     const nseq_track *tr = &ne_seq()->track[ui.track < NE_TRACKS ? ui.track : 0];
     const nacid *ac = ne_acid();
-    if (!strcmp(what, "view"))
+    if (!strncmp(what, "mixlevel", 8)) {
+        int channel = atoi(what + 8);
+        if (channel < 1 || channel > 5) return 1;
+        got = channel == 5 ? proj.a[A_LEVEL] : proj.t[channel - 1][T_LEVEL];
+    } else if (!strcmp(what, "mixer"))
+        got = mixer_open;
+    else if (!strcmp(what, "diagnostics"))
+        got = diagnostics_open;
+    else if (!strcmp(what, "view"))
         got = ui.view;
     else if (!strcmp(what, "dirty"))
         got = ui.dirty;
@@ -634,3 +647,13 @@ int main(int argc, char **argv)
     return fails ? 1 : 0;
 }
 #endif /* OM_WEB */
+
+void plat_audio_diag_read(plat_audio_diag *d)
+{
+    memset(d, 0, sizeof *d);
+    d->render_now = d->render_avg = cpu_pct;
+    d->ready = host_audio.written - host_audio.read;
+    d->underruns = host_audio.underruns;
+    d->recoveries = host_audio.recoveries;
+    /* Hardware-only memory and interrupt timing remain unavailable on host. */
+}

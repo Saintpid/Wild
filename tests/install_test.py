@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+# Copyright (C) 2026 Leo Kuroshita (@kurogedelic), HÃ¼gelton Instruments
 """tools/fm1_install.py against a simulated FM-1 (no hardware, no mido).
 The fake device is the one in web/test_web.mjs: identity on the handshake,
 then "device asks, host answers" reads of the logical image. Run from the repo root:
   python3 tests/install_test.py
 Also checks logical_image/product_of against web/fm1pkg.js (needs node and
-build/n001se.fwsc, skipped otherwise)."""
+build/Wild.fwsc, skipped otherwise)."""
 import io
 import queue
 import shutil
@@ -269,9 +269,9 @@ def errors():
 
 
 def against_js():
-    clean = ROOT / "build/n001se.fwsc"
+    clean = ROOT / "build/Wild.fwsc"
     if not shutil.which("node") or not clean.exists():
-        print("logical image vs fm1pkg.js: skipped (needs node and build/n001se.fwsc)")
+        print("logical image vs fm1pkg.js: skipped (needs node and build/Wild.fwsc)")
         return
     js = ("import { logicalImage, productOf } from %r; import { readFileSync } from 'node:fs';"
           "const p = readFileSync(process.argv[1]); process.stderr.write(productOf(p));"

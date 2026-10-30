@@ -134,6 +134,10 @@ void ne_acid_snapshot(ne_acid_t *s);
 void ne_acid_restore(const ne_acid_t *s);
 
 /* the render (audio ISR): n stereo frames, 24-bit in int32; gain Q12 (the MASTER pot) */
+/* Restore/snapshot owns state briefly; renderer must defer while unavailable. */
+int ne_render_available(void);
+/* Per-track maxima since the last read; brief ownership hold during read/reset. */
+void ne_take_peaks(float out[NE_TRACKS + 1]);
 void ne_render(int32_t *out_lr, uint32_t n, uint32_t gain_q12);
 
 /* state for the screen (UI) */

@@ -1,0 +1,28 @@
+wait 100
+expect diagnostics 0
+expect view 0
+press GLO
+press OCT+
+wait 300
+expect diagnostics 1
+release OCT+
+release GLO
+wait 300
+expect diagnostics 1
+shot diagnostics.png
+tap PLAY
+wait 800
+expect playing 1
+expect diagnostics 1
+press OCT+
+press GLO
+wait 100
+expect diagnostics 0
+expect view 0
+release GLO
+release OCT+
+wait 100
+expect diagnostics 0
+expect view 0
+expect playing 1
+shot after.png

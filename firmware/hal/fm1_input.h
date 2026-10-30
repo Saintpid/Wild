@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only
- * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+ * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), HÃ¼gelton Instruments */
 /* FM-1 input HAL: key/button/encoder matrix and LEDs.
  *
  * One 11-column x 6-row diode matrix behind a 2x74HC595 chain (PA4 SER, PA3
@@ -18,11 +18,9 @@
  * fm1_input_scan() runs one full frame (11 columns, ~0.6 ms) and calls
  * FM1_INPUT_IDLE() while it waits.
  * Keys/buttons: integrating debounce of FM1_DEBOUNCE frames.
- * Encoders: quadrature decoder (2-sample filter, + = clockwise) with detent
- * counting: states an encoder rests in for >= FM1_REST_FRAMES are learned, and
- * a step is emitted only on reaching a rest state after >= 2 net transitions.
- * One click = one step at any speed, whether a detent is a half or a full
- * quadrature cycle. fm1_enc_take() returns the steps.
+ * Encoders: full-cycle quadrature decoder, + = clockwise. The initial rest
+ * state anchors each encoder; four net transitions returning to that state
+ * emit one step. Never learn contact dwell as a new detent during a turn.
  * LEDs: set fm1_led[col] (packed row bits, bit1 PA5..bit4 PA8); they are lit
  * while that column is selected. fm1_led_key/btn helpers address them by id.
  * FiMba: fm1_led_dim[col], the same, lit only one frame in FM1_LED_DIM: dim
@@ -225,21 +223,11 @@ static void fm1__frame(void)
          * so a fast turn, whose states last less than that, did not move the knob at all. The
          * 1.1 ms between scans is longer than a contact bounce, and a step still needs >= 2 net
          * transitions between detents, so a glitch cannot make one. */
-        if (cur != fm1_in.enc_last[e]) {
-            fm1_in.enc_last[e] = (uint8_t)cur;
-            fm1_in.enc_still[e] = 0;
-        }
-        if (fm1_in.enc_prev[e] == 0xFF) {          /* first frame: the knob rests here */
+        /* Fixed full-cycle resolution: pauses between contacts are not detents.
+         * Relearning complementary states mid-turn caused 1,3,5... jumps. */
+        if (fm1_in.enc_prev[e] == 0xFF) {
             fm1_in.enc_prev[e] = (uint8_t)cur;
             fm1_in.enc_rest[e] = (uint8_t)(1u << cur);
-        }
-        if (fm1_in.enc_still[e] < 255u && ++fm1_in.enc_still[e] == FM1_REST_FRAMES) {
-            /* learn detent states: one state, or a complementary pair (00/11 or
-             * 01/10). Anything else restarts the set; with 3-4 rest states every
-             * arrival would look like a detent with |sub| < 2. */
-            uint32_t r = fm1_in.enc_rest[e], bit = 1u << cur, comp = 1u << (cur ^ 3u);
-            if (!(r & bit))
-                fm1_in.enc_rest[e] = (uint8_t)(r == comp ? (r | bit) : bit);
         }
         if (cur == fm1_in.enc_prev[e])
             continue;
@@ -255,9 +243,9 @@ static void fm1__frame(void)
         }
         fm1_in.enc_prev[e] = (uint8_t)cur;
         if ((fm1_in.enc_rest[e] >> cur) & 1u) {    /* back on a detent */
-            if (*sub >= 2)
+            if (*sub >= 4)
                 fm1_in.enc_steps[e]++;
-            else if (*sub <= -2)
+            else if (*sub <= -4)
                 fm1_in.enc_steps[e]--;
             *sub = 0;
         }

@@ -7,7 +7,7 @@
 #include "../dsp/n001se.h"
 
 #ifndef OM_VERSION                       /* a release build passes its own (tools/build.py --release) */
-#define OM_VERSION "DEV"
+#define OM_VERSION "Wild 0.1.4"
 #endif
 #define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
 /* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value

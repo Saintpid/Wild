@@ -1,0 +1,292 @@
+# Implementera en ny generativ ljudmotor för M-Wave FM-1
+
+Vi ska vidareutveckla vår befintliga firmware för M-Wave FM-1 genom att förändra hur ljud genereras och spelas upp.
+
+Vi vill gå från en traditionell syntesarkitektur, där en sequencer skickar noter som triggar oscillatorer i realtid, till en arkitektur där **ljudmotorn genererar sammanhängande ljudsekvenser i förväg och sedan spelar upp dem från ljudbuffertar**.
+
+Det här är en större arkitektonisk förändring, men vi vill så långt som möjligt behålla befintlig funktionalitet, användargränssnitt och MIDI-integration.
+
+Börja med att undersöka den befintliga kodbasen och hårdvarans möjligheter innan du bestämmer exakt implementation.
+
+## 1. Grundläggande idé
+
+I den nuvarande arkitekturen styr sequencern oscillatorer, envelopes och filter genom att skicka nothändelser under uppspelningen.
+
+Vi vill i stället separera den musikaliska kompositionen från själva ljudgenereringen.
+
+Den nya arkitekturen ska bestå av tre huvudsakliga delar.
+
+### A. Musikalisk generator
+
+Den befintliga sequencern fortsätter att skapa musikaliska mönster.
+
+Den ska beskriva:
+
+- Tonhöjder och oktaver.
+- Rytmik och pauser.
+- Slides och portamento.
+- Accents.
+- Gate-längder.
+- Tempo och stegtiming.
+- Eventuella andra musikaliska parametrar.
+
+Den musikaliska generatorn ska inte behöva känna till hur ljudet produceras.
+
+Resultatet ska vara en strukturerad representation av en musikalisk fras som ljudmotorn kan tolka.
+
+Behåll våra befintliga förbättringar av den musikaliska 303-generatorn, inklusive Chaos-parametern som styr graden av musikalisk regelbundenhet.
+
+### B. Ljudrenderer
+
+En separat ljudmotor ska läsa den musikaliska informationen och generera det faktiska ljudet.
+
+Den ska kunna beräkna oscillatorer, filter, VCA, envelopes, slides, accents och andra syntesprocesser för hela det musikaliska förloppet.
+
+Det viktiga är att den arbetar med **sammanhängande ljud över tid**, inte med isolerade samplingar för varje not.
+
+Exempelvis ska en slide mellan två noter vara en kontinuerlig tonhöjdsförändring, samtidigt som filter och envelopes utvecklas naturligt.
+
+Ljudrenderern ska kunna arbeta snabbare än uppspelningens realtid när det finns processorkapacitet tillgänglig.
+
+Den ska också kunna behålla sitt interna tillstånd mellan renderingsomgångar.
+
+### C. Ljuduppspelning
+
+Den färdiga ljudinformationen ska placeras i en eller flera ljudbuffertar.
+
+Uppspelningsdelen ska läsa från dessa buffertar och leverera ljud till hårdvarans befintliga ljudutgång.
+
+Den ska inte behöva göra komplicerade syntesberäkningar under själva uppspelningen.
+
+Målet är att hålla den tidskritiska ljuduppspelningen så enkel och stabil som möjligt.
+
+## 2. Använd strömmande rendering med framförhållning
+
+Vi vet inte ännu hur mycket ledigt RAM och processorkraft som finns på FM-1.
+
+Undersök därför tillgängliga resurser innan du bestämmer buffertstorlek och renderingsstrategi.
+
+Vi vill inte förutsätta att en hel musikalisk fras får plats i RAM.
+
+Implementera i stället en lösning där ljudmotorn arbetar med framförhållning.
+
+Exempel:
+
+- Buffert A innehåller ljud som spelas upp.
+- Buffert B fylls samtidigt med nästa del av ljudsekvensen.
+- När A är färdig börjar B spelas upp.
+- A blir då tillgänglig för ny rendering.
+
+Detta är bara ett konceptuellt exempel. Om den befintliga ljudarkitekturen lämpar sig bättre för en ringbuffert eller en annan lösning ska du välja den.
+
+Viktiga egenskaper:
+
+- Uppspelningen får inte blockeras av ljudrenderingen.
+- Rendering får inte konkurrera med uppspelningen på ett sätt som orsakar dropouts.
+- Buffertstorlek och framförhållning ska anpassas till hårdvaran.
+- Ingen onödig dynamisk minnesallokering i den tidskritiska ljudvägen.
+- Ljudrenderingen ska kunna fortsätta obrutet mellan buffertar.
+- Undvik klick och diskontinuiteter vid buffertgränser.
+- Om renderingen tillfälligt inte hinner med ska systemet hantera det kontrollerat.
+- Mät gärna hur lång tid rendering tar i förhållande till hur mycket ljud som produceras.
+
+**Vi vill inte skriva WAV-filer till lagring.** Vi vill generera PCM-ljud i minnet som därefter spelas upp.
+
+## 3. Behåll ett kontinuerligt syntestillstånd
+
+En viktig princip är att varje renderad ljudbuffert är en fortsättning på den föregående.
+
+Ljudrenderern måste därför bibehålla tillstånd för exempelvis:
+
+- Oscillatorfas.
+- Aktuell tonhöjd.
+- Pågående slides.
+- Filterhistorik och resonans.
+- VCA- och filterenvelopes.
+- Accentrelaterade tillstånd.
+- Modulationer och eventuella effekter.
+
+En ljudbuffert får inte behandlas som ett helt fristående ljud.
+
+En slide ska exempelvis kunna börja i en buffert och fortsätta genom flera efterföljande buffertar utan att något hörbart avbrott uppstår.
+
+## 4. Bevara TB-303-beteendet
+
+Vår befintliga 303-motor har eller ska ha förbättringar för att efterlikna originalets beteende.
+
+Dessa egenskaper måste bevaras i den nya arkitekturen.
+
+Särskilt viktigt:
+
+- Oscillatorns fas fortsätter mellan noter.
+- Gate och VCA styrs separat från oscillatorn.
+- Tonlängder påverkas av efterföljande steg och slides.
+- Slides håller ihop gaten och ska normalt inte trigga nya envelopes.
+- Slides har ett eget tidsförlopp och behöver inte alltid nå måltonen innan nästa händelse.
+- Stora oktavhopp i kombination med slides ska fungera.
+- Accent påverkar både ljudstyrka och filter.
+- Filtret ska behålla sin TB-303-inspirerade 18 dB/oktav-karaktär och resonans.
+
+Den nya ljudmotorn ska inte förenkla bort dessa egenskaper.
+
+Tvärtom är ett av målen att kunna modellera samspelet mellan dem mer exakt.
+
+## 5. Gör ljudrenderern flexibel för framtida syntesmetoder
+
+Det här är en mycket viktig del av projektet.
+
+Vi vill inte att den nya ljudmotorn ska vara hårdkodad till en enda TB-303-emulering.
+
+Målet är att bygga en generell renderingsarkitektur där olika ljudgenereringsmetoder kan användas.
+
+Till exempel:
+
+- Traditionell subtraktiv syntes.
+- TB-303-liknande syntes.
+- FM-syntes.
+- Flera oscillatorer med korsmodulation.
+- Vågtabellsyntes.
+- Icke-linjära filter.
+- Waveshaping och distortion.
+- Komplexa modulationer som utvecklas över en hel fras.
+
+Vi behöver inte implementera alla dessa syntesformer på en gång.
+
+**I första versionen ska den befintliga 303-motorn användas som ljudgenerator i den nya arkitekturen.**
+
+Men organisera koden så att vi senare kan lägga till andra ljudmodeller utan att behöva skriva om den musikaliska generatorn eller uppspelningssystemet.
+
+Undvik samtidigt att skapa ett stort och komplicerat abstraktionslager som inte behövs ännu.
+
+## 6. Generativa ljudförändringar mellan fraser
+
+Vi vill på sikt att ljudet ska kunna utvecklas mellan olika upprepningar av samma musikaliska mönster.
+
+Det betyder att den musikaliska generatorn och ljudmotorn ska kunna utvecklas oberoende av varandra.
+
+Exempel:
+
+En 16-stegssekvens spelas fyra gånger.
+
+Första gången låter den som en relativt traditionell TB-303.
+
+Andra gången förändras resonans, filter och oscillatorparametrar.
+
+Tredje gången kan ljudmotorn introducera en ny synteskaraktär.
+
+Fjärde gången återgår den delvis till ursprungsljudet.
+
+Den musikaliska sekvensen kan vara identisk under alla fyra upprepningarna.
+
+Det är själva ljudrenderingen som varierar.
+
+Vi vill därför att arkitekturen ska kunna stödja:
+
+- Separata musikaliska och ljudmässiga variationer.
+- Förutsägbara eller slumpmässiga förändringar av ljudparametrar.
+- Förändringar över flera steg eller hela fraser.
+- Kontinuerliga övergångar mellan ljudkaraktärer.
+- Möjligheten att låta samma sekvens renderas med olika ljudmodeller.
+
+Implementera bara den grundläggande struktur som behövs nu. Vi kommer att utveckla den generativa ljudlogiken senare.
+
+## 7. MIDI och förändringar under uppspelning
+
+Befintlig MIDI-funktionalitet måste fortsätta fungera.
+
+Vi vill också att den nya arkitekturen ska kunna hantera förändringar medan ljud spelas upp.
+
+Detta är en utmaning eftersom ljud redan kan vara färdigrenderat.
+
+Undersök därför en lämplig strategi.
+
+Exempelvis:
+
+- Nya sekvenser kan förberedas inför nästa fras.
+- Mindre parameterändringar kan påverka kommande renderade buffertar.
+- Större ändringar kan schemaläggas till lämpliga musikaliska övergångar.
+- Direkta MIDI-kommandon som kräver snabb respons ska inte behöva vänta på att en hel fras spelats färdigt.
+
+Förändringar ska helst kunna ske utan hörbara klick eller avbrott.
+
+Det är viktigt att kunna skilja mellan omedelbara spelkontroller och förändringar som får ske vid nästa musikaliskt lämpliga tillfälle.
+
+Undersök hur detta bäst passar vår nuvarande MIDI-implementation.
+
+## 8. CPU-budget och prestanda
+
+Den stora fördelen med förgenererat ljud är att vi kan fördela ljudberäkningarna över tid och potentiellt använda mer avancerade algoritmer.
+
+Men processorn måste fortfarande hinna generera ljudet innan det ska spelas upp.
+
+Undersök därför:
+
+- Hur mycket CPU som används av den nuvarande ljudmotorn.
+- Hur mycket RAM som är tillgängligt.
+- Vilken buffertstorlek som är rimlig.
+- Vilken samplingsfrekvens som används.
+- Hur rendering kan schemaläggas utan att störa ljuduppspelningen.
+- Om renderingen faktiskt kan ske snabbare än realtid.
+- Om vi kan få nytta av längre framförhållning vid mer avancerad syntes.
+
+Undvik att anta att förgenerering automatiskt gör syntesen billigare.
+
+Vi vill bygga en arkitektur som ger oss större flexibilitet och bättre kontroll över processorns arbete.
+
+## 9. Implementera stegvis och testa
+
+Eftersom detta är en betydande förändring ska implementationen ske på ett sätt som gör det möjligt att verifiera varje del.
+
+Föreslagen ordning:
+
+1. Kartlägg befintlig ljudarkitektur och hårdvaruresurser.
+2. Separera den musikaliska sequencern från ljudgenereringen.
+3. Anpassa befintlig 303-syntes så att den kan rendera valfritt antal sammanhängande PCM-samples med bibehållet internt tillstånd.
+4. Implementera buffertbaserad rendering med framförhållning.
+5. Anslut den nya ljudmotorn till befintlig ljudutgång.
+6. Säkerställ att MIDI, timing, slides, accents och filter fungerar korrekt.
+7. Lägg till grundläggande mätning av renderingsprestanda och buffertstatus.
+8. Förbered gränssnittet för framtida ljudgeneratorer.
+
+Använd gärna automatiserade tester där det är möjligt.
+
+Kontrollera särskilt:
+
+- Att inga samples försvinner eller dupliceras vid buffertbyten.
+- Att buffertgränser inte skapar klick.
+- Att slides fungerar över buffertgränser.
+- Att sekvenser loopar korrekt.
+- Att ljudmotorn håller rätt tempo.
+- Att MIDI-interaktion fungerar.
+- Att renderingsarbetet hinner före uppspelningen.
+- Att resursanvändningen är rimlig för FM-1.
+- Att systemet fungerar även vid höga filterresonanser och komplexa slides.
+
+Om du inte kan testa direkt på hårdvaran ska du tydligt redovisa detta.
+
+## 10. Viktiga utvecklingsprinciper
+
+- Undersök kodbasen innan du bestämmer lösning.
+- Implementera förändringarna, nöj dig inte med att föreslå en arkitektur.
+- Behåll fungerande befintliga delar där det är möjligt.
+- Undvik onödig komplexitet.
+- Prioritera stabil uppspelning framför avancerade funktioner.
+- Gör inga antaganden om tillgängligt RAM eller processorkraft utan att undersöka dem.
+- Behåll befintliga kontroller och arbetsflöden.
+- Skriv tydlig och underhållbar kod.
+- Dokumentera viktiga tekniska beslut.
+- Om någon del visar sig vara olämplig för hårdvaran, välj en enklare lösning som uppfyller samma grundläggande syfte.
+
+## Slutmål
+
+Vi vill förvandla M-Wave FM-1 till ett instrument där en musikalisk generator skapar instruktioner för en ljudmotor som själv producerar sammanhängande ljudsekvenser.
+
+I första versionen ska instrumentet fortfarande kunna låta och fungera som vår nuvarande generativa 303.
+
+Skillnaden är att ljudet nu genereras med framförhållning, lagras tillfälligt i minnet och spelas upp från buffertar.
+
+På sikt ska detta göra det möjligt att skapa betydligt mer komplexa ljud, använda flera olika syntesmodeller och låta ljudets karaktär förändras självständigt från den musikaliska sekvensen.
+
+**Börja med att analysera befintlig kod och genomför sedan implementationen. Anpassa de tekniska detaljerna till den verkliga kodbasen och hårdvaran.**
+
+Sammanfatta efteråt vilka delar som implementerats, hur buffertsystemet fungerar, vilka prestandamätningar som gjorts och vad som återstår att verifiera på FM-1.

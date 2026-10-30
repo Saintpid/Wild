@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+# Copyright (C) 2026 Leo Kuroshita (@kurogedelic), HÃƒÂ¼gelton Instruments
 """Build FiMba-1 (built on Felucca, by way of X0X and FoMni): the app, the update loader and an installable .fwsc package.
 
   tools/build.py [--release X.Y[-suffix]]
 
-Outputs in build/: n001se.bin (app), loader/ota.bin (update loader, Felucca's, unchanged),
-n001se.fwsc (package). See BUILDING.md for the toolchain and the SDK.
+Outputs in build/: Wild.bin (app), loader/ota.bin (update loader, Felucca's, unchanged),
+Wild.fwsc (package). See BUILDING.md for the toolchain and the SDK.
 
 The JieLi toolchain is Linux x86-64 only. JIELI_TOOLCHAIN points at it; on
 macOS (or with JIELI_DOCKER=1) each tool runs in a linux/amd64 container.
@@ -218,7 +218,7 @@ def build_app():
         units.append(("cc", *o2, "-c", FW / "src" / u, "-o", o))
         objs.append(o)
     tc_all(*units)
-    elf = OUT / "n001se.elf"
+    elf = OUT / "Wild.elf"
     # unreferenced functions (each in its own section: -ffunction-sections) are dropped: the DSP keeps
     # mono reference paths for the host tests that the firmware no longer calls
     tc("pi32v2/bin/ld", "--gc-sections", "-e", "_start", "-T", FW / "app.ld", *objs, "-o", elf)
@@ -230,7 +230,7 @@ def build_app():
                                ("common/bin/objdump", "-t", elf),
                                ("common/bin/objdump", "-d", elf),
                                ("common/bin/objdump", "-d", "-j", ".ram_text", elf))
-    (OUT / "n001se.dis").write_text(dis)
+    (OUT / "Wild.dis").write_text(dis)
 
     def symv(name):
         return int(re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M).group(1), 16)
@@ -247,7 +247,7 @@ def build_app():
             img += b"\xff" * (load - APP_XIP - len(img))
             img += blob
     img += b"\xff" * (-len(img) % 4)
-    (OUT / "n001se.bin").write_bytes(img)
+    (OUT / "Wild.bin").write_bytes(img)
     return bytes(img), syms, dis, rt
 
 
@@ -345,7 +345,7 @@ def main():
                     "numbers, and only one higher than the device's")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
-    name = "n001se.fwsc"
+    name = "Wild.fwsc"
     if a.release:
         # identity FM-1_8 + major, minor, patch as two digits each (0.1 -> FM-1_8000100): FM-1 is the
         # model the update tools match on; the number is ours (X0X is FM-1_9...). Digits only after the
@@ -354,8 +354,8 @@ def main():
         if not m:
             raise SystemExit(f"--release {a.release}: use X.Y[.Z][-suffix], up to two digits each")
         PRODUCT = "FM-1_8%02d%02d%02d" % (int(m[1]), int(m[2]), int(m[3] or 0))
-        VERSION = a.release.upper() if "BETA" in a.release.upper() else a.release.upper() + " BETA"
-        name = f"n001se-{a.release}.fwsc"
+        VERSION = "Wild " + a.release + " EXP"
+        name = f"Wild-{a.release}.fwsc"
     if a.id:
         if not 801 <= a.id <= 999:
             raise SystemExit("--id: 801..999")
@@ -385,7 +385,8 @@ def main():
         raise SystemExit("build: checks failed")
     pkg = fm1pkg_make.ufw(fm1pkg_make.flash_image(img, fm1pkg_make.KEY), ota, PRODUCT)
     (OUT / name).write_bytes(pkg)
-    print(f"app      {OUT / 'n001se.bin'}  {len(img)} B")
+    (OUT / "Wild.fwsc").write_bytes(pkg)  # stable path used by package regression tests
+    print(f"app      {OUT / 'Wild.bin'}  {len(img)} B")
     print(f"loader   {LDR / 'ota.bin'}  {len(ota)} B")
     print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}")
     return 0

@@ -15,6 +15,13 @@ extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
 #if FELUCCA_UAC
 _Static_assert(REND_FRAMES == UA_HALF, "usb.c sizes the USB audio ring band for this block");
 #endif
+#include "../dsp/wild_stream.h"
+static volatile uint8_t wild_rendering;
+static uint8_t wild_started;
+static uint32_t render_avg_q8, render_peak_pct, render_last_pct;
+static uint32_t render_calls, render_blocks, ui_last_us, ui_peak_us;
+static wild_stream wild_audio __attribute__((section(".pool")));
+
 static int32_t abuf[2u * HALF_WORDS] __attribute__((aligned(4)));
 
 #define DBG_MAGIC 0x44424731u                       /* "DBG1": read with `fm1t memr` */
@@ -35,7 +42,8 @@ static void render_block(int32_t *o)                /* ALNK0: one half, measured
     {
         uint32_t k;
         for (k = 0; k < HALF_FRAMES; k += REND_FRAMES) {
-            ne_render(o + 2u * k, REND_FRAMES, master_q12);
+            if (!wild_consume(&wild_audio, o + 2u * k, master_q12))
+                audio_xruns++;
 #if FELUCCA_UAC
             uac_tap(o + 2u * k, REND_FRAMES);       /* the USB audio input: the same master output */
 #endif
@@ -43,13 +51,47 @@ static void render_block(int32_t *o)                /* ALNK0: one half, measured
     }
     us = (fm1_ticks() - t0) / FM1_TICKS_PER_US;
     om_dbg.cpu_q8 = (om_dbg.cpu_q8 * 15u + (us * 256u) / budget) / 16u;
-    audio_cpu_pct = (om_dbg.cpu_q8 * 100u) >> 8;
+    /* CPU display reports render IRQ load; output IRQ timing stays in om_dbg. */
     om_dbg.halves++;
     om_dbg.last_us = us;
     if (us > om_dbg.max_us)
         om_dbg.max_us = us;
     om_dbg.in_audio = 0;
 }
+
+/* Only the render IRQ owns the producer after startup priming. */
+static int audio_service(void)
+{
+    uint32_t t0 = fm1_ticks(), ticks;
+    int did;
+    wild_rendering = 1;  /* USB MIDI polling defers; UAC still runs nested. */
+    did = wild_produce(&wild_audio, ne_render);
+    wild_rendering = 0;
+    if (did) {
+        ticks = fm1_ticks() - t0;
+        wild_audio.last_ticks = ticks;
+        if (ticks > wild_audio.peak_ticks) wild_audio.peak_ticks = ticks;
+        render_last_pct = (ticks / FM1_TICKS_PER_US) * 100u / (WILD_QUANTUM * 1000000u / FS);
+        if (render_last_pct > render_peak_pct) render_peak_pct = render_last_pct;
+        render_avg_q8 = render_calls ? (render_avg_q8 * 31u + render_last_pct * 256u) / 32u : render_last_pct * 256u;
+        ++render_calls;
+        audio_cpu_pct = render_avg_q8 / 256u;
+    }
+    return did;
+}
+
+void fm1_render_irq(void)
+{
+    unsigned i;
+    fm1_render_ack();
+    if (!wild_started || !ne_render_available()) return;
+    ++render_blocks;
+    /* At most one DMA half per activation: bounded work, no ISR spin-to-full. */
+    for (i = 0; i < WILD_FRAMES / WILD_QUANTUM; ++i)
+        if (!audio_service()) break;
+}
+extern void isr_render(void);
+
 
 void fm1_alnk0_irq(void)                            /* via isr_alnk0 (hal/fm1_isr.S) */
 {
@@ -58,6 +100,7 @@ void fm1_alnk0_irq(void)                            /* via isr_alnk0 (hal/fm1_is
     if (p & FM1_AUDIO_HALF) {
         uint32_t half = fm1_audio_free_half();
         render_block(&abuf[half * HALF_WORDS]);
+        fm1_render_request();
         fm1_audio_ack_half();
         if (fm1_audio_free_half() != half) {
             om_dbg.late++;                         /* the DMA moved on while we rendered */
@@ -89,7 +132,7 @@ void fm1_timer5_irq(void)
     static uint32_t sub;
     fm1_timer5_ack();
     om_dbg.timer_irqs++;
-    if (om_dbg.in_audio)
+    if (om_dbg.in_audio || wild_rendering)
         om_dbg.nested++;
     fm1_input_tick();
     /* 2 kHz: all USB SIE traffic lives here. This ISR now nests into the audio render (so the key
@@ -101,11 +144,11 @@ void fm1_timer5_irq(void)
         /* the USB audio stream cannot wait for the render (one packet per 1 ms frame, a render takes
          * up to ~11.6 ms): it runs nested too. It touches only EP4 (INDEX is set on every access) and
          * the consumer side of its ring, and usb_poll never runs nested, so the two never interleave */
-        if (om_dbg.in_audio)
+        if (om_dbg.in_audio || wild_rendering)
             uac_service();
 #endif
     }
-    if (usb_due && !om_dbg.in_audio) {
+    if (usb_due && !om_dbg.in_audio && !wild_rendering) {
         usb_due = 0;
         usb_poll();
 #if OM_TRS
@@ -145,7 +188,7 @@ static void fm1_fault(const fm1_crash_t *c)
     uint32_t t0;
     fm1_audio_stop();
     lcd_fill(0, 0, 240, 240, RGB(160, 0, 0));
-    draw_text_box(0, 8, 240, &FONT_S, "n001se CRASH", C_WHITE, 1);
+    draw_text_box(0, 8, 240, &FONT_S, "Wild CRASH", C_WHITE, 1);
     hexs(b, c->vec);
     draw_text_box(10, 40, 220, &FONT_S, b, C_WHITE, 0);
     hexs(b, c->pc);
@@ -182,7 +225,7 @@ static void safe_main(void)
     char b[24];
     uint32_t t0, play;
     lcd_fill(0, 0, 240, 240, C_BLACK);
-    draw_text_box(0, 18, 240, &FONT_B, "n001se SAFE MODE", C_HI, 1);
+    draw_text_box(0, 18, 240, &FONT_B, "Wild SAFE MODE", C_HI, 1);
     draw_text_box(0, 52, 240, &FONT_S, "IT CRASHED TWICE", C_WHITE, 1);
     draw_text_box(0, 72, 240, &FONT_S, "WHILE STARTING.", C_WHITE, 1);
     draw_text_box(0, 102, 240, &FONT_S, "NO SOUND. USB IS ON:", C_WHITE, 1);
@@ -233,10 +276,10 @@ static void splash(void)
     lcd_fill(0, 0, 240, 240, RGB(16, 16, 18));
     cv_begin(240, 84, RGB(16, 16, 18));
     {
-        int32_t w = text_w(&FONT_L, "n001se");
-        cv_text((240 - w) / 2, 0, &FONT_L, "n001se", RGB(232, 232, 236));
-        w = text_w(&FONT_S, "FM percussion, never the same");
-        cv_text((240 - w) / 2, 42, &FONT_S, "FM percussion, never the same", RGB(229, 72, 77));
+        int32_t w = text_w(&FONT_L, "Wild");
+        cv_text((240 - w) / 2, 0, &FONT_L, "Wild", RGB(232, 232, 236));
+        w = text_w(&FONT_S, "Generative buffered audio");
+        cv_text((240 - w) / 2, 42, &FONT_S, "Generative buffered audio", RGB(229, 72, 77));
         w = text_w(&FONT_XS, OM_VERSION);              /* "DEV", or a release's "0.1.0 BETA" */
         cv_text((240 - w) / 2, 66, &FONT_XS, OM_VERSION, RGB(118, 118, 126));
     }
@@ -286,7 +329,6 @@ static void fm1_main(void)
     ne_init();
     project_load();                                 /* defaults when nothing (or another format) is saved */
     project_apply();
-    audio_init();
     usb_start();
 #if OM_TRS
     uart_midi_init();                               /* before TIMER5: it read-modify-writes port H too */
@@ -294,13 +336,26 @@ static void fm1_main(void)
     /* above ALNK0 (3): the key / encoder / LED matrix is scanned one column per tick and must keep
      * its rhythm through a render (X0X's finding: below the audio, turns lost steps and LEDs flickered) */
     fm1_timer5_start(isr_timer5, 4);
-    fm1_guard_lock_top();
+    /* ALNK vector is registered below before locking the vector region. */
     fm1_irq_enable_all();
     fm1_delay_ms(30);
     if ((fm1_in.buttons & 3u) == 3u)
         panel_setup();                              /* OCT- + OCT+ held at power-on */
     fm1_delay_ms(400);
     ui_init();
+    while (audio_service()) fm1_wdt_feed();
+    render_calls = render_avg_q8 = render_peak_pct = render_last_pct = 0;
+    wild_audio.peak_ticks = 0;
+    om_dbg.late = om_dbg.max_us = 0;
+    {
+        uint32_t flags = irq_save();
+        fm1_render_ack();
+        fm1_irq_attach(FM1_IRQ_SOFT0, isr_render, 2);
+        audio_init();
+        wild_started = 1;
+        fm1_guard_lock_top();
+        irq_restore(flags);
+    }
 
     for (;;) {
         fm1_wdt_feed();
@@ -350,10 +405,13 @@ static void fm1_main(void)
 #if OM_CDC
         cdc_task();
 #endif
-        if (fm1_ms - last_frame >= 16u) {           /* ~60 frames/s at most; input in between */
+        if (fm1_ms - last_frame >= 33u) {           /* ~30 frames/s; input remains polled between frames */
             last_frame = fm1_ms;
             om_dbg.ui_frames++;
+            uint32_t ui_t0 = fm1_ticks();
             ui_frame();
+            ui_last_us = (fm1_ticks() - ui_t0) / FM1_TICKS_PER_US;
+            if (ui_last_us > ui_peak_us) ui_peak_us = ui_last_us;
         } else {
             ui_input_only();
         }
@@ -401,4 +459,21 @@ void fm1_cstart(void)
     fm1_main();
     for (;;)
         ;
+}
+
+void plat_audio_diag_read(plat_audio_diag *d)
+{
+    uint32_t flags = irq_save();
+    d->render_now = render_last_pct; d->render_avg = render_avg_q8 / 256u;
+    d->render_peak = render_peak_pct;
+    d->irq_us = om_dbg.last_us; d->irq_peak_us = om_dbg.max_us;
+    d->ui_us = ui_last_us; d->ui_peak_us = ui_peak_us;
+    d->ready = wild_audio.written - wild_audio.read;
+    d->underruns = wild_audio.underruns; d->late = om_dbg.late;
+    d->recoveries = wild_audio.recoveries; d->render_blocks = render_blocks;
+    d->ram_used = (uint32_t)((uintptr_t)_bss_end - (uintptr_t)_data_start);
+    d->ram_total = 98304u;
+    d->pool_used = (uint32_t)((uintptr_t)_pool_end - (uintptr_t)_pool_start);
+    d->pool_total = 344064u; d->hardware = 1;
+    irq_restore(flags);
 }

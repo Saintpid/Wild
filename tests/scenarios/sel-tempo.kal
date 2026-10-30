@@ -1,0 +1,45 @@
+wait 200
+tap GLO
+tap GLO
+tap GLO
+expect view 10
+spin K1 8
+expect gpar0 120
+tap GLO
+tap GLO
+spin K1 1
+expect gpar19 1
+tap SEL
+tap GLO
+tap GLO
+tap GLO
+expect view 10
+spin K1 17
+expect gpar0 137
+tap SEL
+expect scene 0
+expect gpar0 137
+tap SEL
+expect scene 1
+expect gpar0 137
+spin K1 -10
+expect gpar0 127
+tap SEL
+expect gpar0 127
+tap GLO
+tap GLO
+spin K1 1
+expect gpar19 2
+tap SEL
+tap GLO
+tap GLO
+tap GLO
+spin K1 13
+expect gpar0 140
+tap SEL
+expect scene 0
+expect gpar0 140
+tap HOME
+wait 1500
+shot quarters.png
+expect dropped 0

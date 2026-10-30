@@ -44,6 +44,13 @@ typedef struct {
     int8_t note;                   /* semitones from the root, -12..24 */
 } nacid_note;
 
+/* A musical instruction, independent of oscillator/filter implementation.
+ * gate_samples < 0 holds into the next event; pitch is semitones above C2. */
+typedef struct {
+    float pitch, gate_samples;
+    uint8_t on, accent;
+} nacid_event;
+
 /* the settings, 0..1 unless said */
 enum {
     NACID_P_DENSITY,               /* share of steps with a note */
@@ -96,6 +103,8 @@ typedef struct {
     float mod_mix, mod_to;
     float peak;                    /* the level now, for a meter */
 } nacid;
+
+void nacid_apply_event(nacid *a, const nacid_event *event);
 
 void nacid_init(nacid *a, float sr, uint32_t seed);
 void nacid_generate(nacid *a);
