@@ -449,7 +449,13 @@ static int expect(const char *what, const char *val)
         got |= (ne_acid()->mute != proj.a[A_MUTE]) << NE_TRACKS;
     } else if (!strcmp(what, "scene"))
         got = ui.scene;
-    else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */
+    else if (!strcmp(what, "adev")) {            /* the 303's Deviance: how far its knobs are moved now, x 1000 */
+        int k;
+        float d = 0.0f;
+        for (k = 0; k < 4; k++)
+            d += ac->dv[k] < 0.0f ? -ac->dv[k] : ac->dv[k];
+        got = (int)(d * 1000.0f);
+    } else if (!strcmp(what, "alevel"))            /* the acid line's level now, x 1000 */
         got = (int)(ne_acid_level * 1000.0f);
     else if (!strcmp(what, "list"))              /* the preset list open: 1 save, 2 load */
         got = ui.list;

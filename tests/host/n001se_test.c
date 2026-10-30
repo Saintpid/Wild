@@ -128,6 +128,36 @@ int main(int argc, char **argv)
           (unsigned)ne_repeat_max);
     printf("32 bars at Chaos and Swing 100: %u glitches, the longest repeat %u frames\n", (unsigned)ne_glitches,
            (unsigned)ne_repeat_max);
+    /* the acid line's Deviance follows the drums: harder sounds and more hits, a higher intensity;
+     * the drums muted, next to none */
+    {
+        float calm, hard, quiet;
+        int bars = (int)(8.0f * 4.0f * 60.0f / 112.0f * NE_SR / 256.0f);
+        ne_init();
+        ne_set(G_CHAOS, 0);
+        ne_aset(A_DEV, 100);
+        ne_play(1);
+        render(bars, 0);
+        calm = ne_acid()->d_mood;
+        for (t = 0; t < NE_TRACKS; t++) {
+            ne_tset(t, T_SPIKE, 100);
+            ne_tset(t, T_DRIVE, 100);
+            ne_tset(t, T_BARS, 1);
+            ne_tset(t, T_HITHI, 8);
+            ne_tset(t, T_HITLO, 8);
+            ne_generate(t);
+        }
+        pk = render(bars, 0);
+        hard = ne_acid()->d_mood;
+        for (t = 0; t < NE_TRACKS; t++)
+            ne_tset(t, T_MUTE, 1);
+        render(bars, 0);
+        quiet = ne_acid()->d_mood;
+        printf("303 Deviance: the drums' intensity %.2f as they start, %.2f hard, %.2f muted\n", (double)calm, (double)hard,
+               (double)quiet);
+        CHECK(calm > 0.15f && calm < 0.5f && hard > 0.85f && quiet < 0.05f && pk <= 1.0f,
+              "303 Deviance: intensity %f %f %f, peak %f", (double)calm, (double)hard, (double)quiet, (double)pk);
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();

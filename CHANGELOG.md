@@ -5,6 +5,22 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.0
+
+Firmware identity FM-1_834. The 303's own Deviance, and a major scale.
+
+- **Deviance for the acid line** (its Track page, KNOB 4, where Level was: Level is on the mixer,
+  GLO + OCT-, and PRESETS). It plays Cutoff, Reso, Env mod and Decay as a hand on a 303 would, so
+  the acid line keeps moving while you work on the drums, without changing its pattern as Evolve
+  does. It follows the drums: the harder they sound (Edge, Drive) and the busier they play, the more
+  the resonance goes up, Env Mod to the middle or high and the cutoff to the middle; calm or muted
+  drums bring it back. Each knob takes its own time, slow sweeps mostly, now and then a fast one,
+  and one move in six goes against the rules. Now and then, on a beat, a quick twist there and back,
+  likeliest in bars 4 and 8; in some phrases the cutoff builds over the last four bars and lets go
+  on the one. 0 is off (the default); the knobs keep their values and Deviance plays around them.
+  Saved with the project (format 13).
+- **Major** joins the acid line's scales (Track page, KNOB 3).
+
 ## 0.2.1
 
 Firmware identity FM-1_833. A warm Drive.

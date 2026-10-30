@@ -109,6 +109,7 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_MODRATE] = {"Rate", 0, 100, 30},
     [A_MODCHANCE] = {"Chance", 0, 100, 60},
     [A_CHAOS] = {"Chaos", 0, 100, 25},
+    [A_DEV] = {"Deviance", 0, 100, 0},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
@@ -131,6 +132,7 @@ static const uint8_t PKNOB[] = {
     NE_PK_ACID | A_CUTOFF, NE_PK_ACID | A_RESO, NE_PK_ACID | A_ENVMOD, NE_PK_ACID | A_DECAY,
     NE_PK_ACID | A_ACCENT, NE_PK_ACID | A_TUNE, NE_PK_ACID | A_LEVEL,
     NE_PK_ACID | A_MODAMT, NE_PK_ACID | A_MODRATE,
+    NE_PK_ACID | A_DEV,
 };
 #define NE_PKNOBS ((int)sizeof PKNOB)
 int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v : 0]; }
@@ -214,7 +216,7 @@ void ne_tparam_text(int i, int v, char *b)
 
 void ne_aparam_text(int i, int v, char *b)
 {
-    static const char *const SCALE[NACID_SCALES] = {"Minor", "Phrygian", "Dorian", "Penta", "Blues", "Harm min"};
+    static const char *const SCALE[NACID_SCALES] = {"Minor", "Phrygian", "Dorian", "Penta", "Blues", "Harm min", "Major"};
     switch (i) {
     case A_SCALE: cpy(b, SCALE[(unsigned)v < NACID_SCALES ? v : 0]); return;
     case A_MUTE: cpy(b, v ? "Muted" : "On"); return;
@@ -775,6 +777,7 @@ static void aset(int p, int v)
     case A_MODRATE: acid.mod.rate = pct(v); break;
     case A_MODCHANCE: acid.mod.chance = pct(v); break;
     case A_CHAOS: acid.p[NACID_P_CHAOS] = pct(v); break;
+    case A_DEV: acid.p[NACID_P_DEVIANCE] = pct(v); break;
     }
 }
 
@@ -843,6 +846,35 @@ static void mutade_step(uint32_t step)
     ne_mutades++;
 }
 
+/* the drums' intensity, for the acid line's Deviance (a quarter at a time): how busy the playing tracks
+ * are (their hits in a bar's worth, by velocity, the ones off the eighths more) and how hard they sound
+ * (Edge, Drive, by their levels); the effects' Chaos a little. 0 calm .. 1 hard; nothing playing, 0. */
+static float acid_mood;
+static float drum_mood(void)
+{
+    float hits = 0.0f, snd = 0.0f, w = 0.0f, m;
+    int t, s;
+    for (t = 0; t < NE_TRACKS; t++) {
+        const nseq_track *tr = &seq.track[t];
+        float h = 0.0f, lv = pct(tpar[t][T_LEVEL]);
+        if (tr->mute || !tr->length)
+            continue;
+        for (s = 0; s < tr->length; s++)
+            if (tr->step[s].on)
+                h += (float)tr->step[s].vel * (s % 2 ? 1.3f / 127.0f : 1.0f / 127.0f);
+        hits += h * (float)NE_BAR / (float)tr->length;
+        snd += lv * (0.6f * pct(tpar[t][T_SPIKE]) + 0.8f * pct(tpar[t][T_DRIVE]) * pct(gpar[G_DRIVE]));
+        w += lv;
+    }
+    if (w <= 0.0f)
+        return 0.0f;
+    hits = (hits - 3.0f) * (1.0f / 18.0f);
+    snd /= w;
+    m = 0.55f * (hits < 0.0f ? 0.0f : hits > 1.0f ? 1.0f : hits) + 0.45f * (snd > 1.0f ? 1.0f : snd) +
+        0.15f * pct(gpar[G_CHAOS]);
+    return m > 1.0f ? 1.0f : m;
+}
+
 /* the drums' clock steps the acid line (and the glitches: below) */
 static void glitch_step(uint32_t step, float delay, float step_len);
 static void on_step(void *ctx, uint32_t step, float delay, float step_len)
@@ -853,6 +885,9 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     acid.root = seq.root;
     acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
     nacid_step(&acid, delay, step_len);
+    if (apar[A_DEV] > 0 && step % 4u == 0u)
+        acid_mood = drum_mood();
+    nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
     glitch_step(step, delay, step_len);
     mutade_step(step);
     if (step % NE_BAR == 0u)

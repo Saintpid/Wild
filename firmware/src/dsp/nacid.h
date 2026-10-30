@@ -24,6 +24,10 @@
  * delay sends, with its own drive and the moving filter (by chance, a bar at a time: nacid_route).
  * Besides a 303's saw and square (the saw clipped, as the 303 makes it): a narrow pulse, a triangle, a sine and two detuned saws.
  *
+ * DEVIANCE plays the cutoff, the resonance, Env Mod and Decay as a hand on a 303 would, following the
+ * drums (nacid_feel): slow ways of their own towards where the drums' intensity suggests, now and then
+ * against it, quick turns there and back on the beat, a build over a phrase's last bars.
+ *
  * Portable C99 like nfm; no libc, no malloc. All calls belong to the audio thread or happen between
  * renders. */
 #ifndef NACID_H
@@ -34,7 +38,7 @@
 #define NACID_BAR 16
 #define NACID_MAX_BARS 4
 #define NACID_STEPS (NACID_BAR * NACID_MAX_BARS)
-#define NACID_SCALES 6
+#define NACID_SCALES 7
 enum { NACID_SAW, NACID_SQUARE, NACID_PULSE, NACID_TRI, NACID_SINE, NACID_DUO, NACID_WAVES };
 
 enum { NACID_ON = 1, NACID_ACCENT = 2, NACID_SLIDE = 4 };
@@ -59,6 +63,7 @@ enum {
     NACID_P_CUTOFF, NACID_P_RESO, NACID_P_ENVMOD, NACID_P_DECAY, NACID_P_ACCENT,
     NACID_P_LEVEL,
     NACID_P_CHAOS,                 /* the generator: 0 by the rules, 1 by chance */
+    NACID_P_DEVIANCE,              /* the four knobs played by a hand that follows the drums */
     NACID_PARAMS
 };
 
@@ -104,6 +109,14 @@ typedef struct {
     nfm_mod_state ms;              /* ms.line: set by the owner (NFM_MOD_LEN frames), else no flanger / chorus */
     float mod_mix, mod_to;
     float peak;                    /* the level now, for a meter */
+    /* Deviance (nacid_feel): offsets on the cutoff, the resonance, Env Mod and Decay (in that order) */
+    float dv[4];                   /* the offsets now, glided (dsm) */
+    float dw[4], dw_to[4], dw_v[4];    /* each knob's slow way: where, where to, its speed (per 32 samples) */
+    uint8_t dw_hold[4];            /* bars before a new way */
+    float db_ph, db_inc, db_amp[4];    /* a quick turn: its phase (1: none), speed, size on each knob */
+    uint8_t db_cyc, d_live, d_arc_on, dctl;
+    float d_arc, d_mood, dsm;      /* the phrase's build (0..1), the drums' intensity glided */
+    uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
 } nacid;
 
 void nacid_apply_event(nacid *a, const nacid_event *event);
@@ -120,6 +133,9 @@ void nacid_stop(nacid *a);         /* the gate closes */
 void nacid_step(nacid *a, float delay, float step_len);
 /* The effects from now: the moving filter in or out, the drive (0..1), the send levels. */
 void nacid_route(nacid *a, int filter, float drive, float send_rev, float send_dly);
+/* Deviance, at each of the drums' steps (after nacid_step): their intensity now (0 calm .. 1 hard) and
+ * the step in the phrase of eight bars (0..127). */
+void nacid_feel(nacid *a, float mood, int phrase_step);
 /* Play one note now, outside the pattern (accent: 0 / 1): a new attack, never a slide. */
 void nacid_hit(nacid *a, int note, int accent);
 

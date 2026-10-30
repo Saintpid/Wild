@@ -1,0 +1,25 @@
+# the 303's Deviance (the acid line's Track page, KNOB 4): 0 by default, up to 100, saved; and the
+# major scale (KNOB 3, the last one)
+wait 200
+tap OCT-
+expect track 4
+tap EDIT
+expect view 1
+expect apar25 0
+expect adev 0
+spin K4 70
+expect apar25 70
+spin K3 10
+expect apar5 6
+wait 100
+shot acid_deviance.png
+# it plays: the knobs move on their own, the pattern stays as it was
+tap PLAY
+wait 6000
+expect playing 1
+expect apar25 70
+expect adev >20
+spin K4 -100
+expect apar25 0
+wait 1000
+expect adev 0

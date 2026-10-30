@@ -6,7 +6,8 @@
  * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
  * lowering the sweep's start, the square made from the saw, the drive and the square without aliasing,
  * the filter's slope and its stability, and
- * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step. */
+ * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
+ * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -577,6 +578,109 @@ static void test_generator(void)
     printf("chaos 100 %%, 512 steps: attacks and slides by the rules (%d slid), %d wrong\n", slid, wrong);
 }
 
+/* the major scale: in it, its third and not the minor's */
+static void test_major(void)
+{
+    static const int major[12] = { 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1 };
+    int notes = 0, out = 0, maj3 = 0, min3 = 0;
+    fresh(0.5f);
+    ac.scale = 6;
+    ac.p[NACID_P_CHAOS] = 0.0f;
+    for (int g = 0; g < 200; ++g) {
+        nacid_generate(&ac);
+        for (int s = 0; s < NACID_STEPS; ++s) {
+            if (!(ac.step[s].flags & NACID_ON)) continue;
+            int n = ((ac.step[s].note % 12) + 12) % 12;
+            notes++;
+            out += !major[n];
+            maj3 += n == 4;
+            min3 += n == 3;
+        }
+    }
+    printf("major: outside the scale %4.1f %%, major thirds %d, minor thirds %d\n",
+           (double)(100.0f * (float)out / (float)notes), maj3, min3);
+    CHECK((float)out / (float)notes < 0.07f && maj3 > 4 * min3, "major: outside %d of %d, thirds %d %d", out, notes, maj3, min3);
+}
+
+/* Deviance: bars of a pattern, the drums' intensity fixed; the knobs as heard (every 8 samples) */
+typedef struct { float mean[4], lo[4], hi[4], jump; int turns; uint32_t rng; } dev_t;
+static dev_t dev_run(float dev, float mood, int bars)
+{
+    dev_t d;
+    float sum[4] = { 0 }, prev[4];
+    int n = 0;
+    memset(&d, 0, sizeof d);
+    nacid_init(&ac, SR, 99u);
+    ac.p[NACID_P_CUTOFF] = 0.3f;
+    ac.p[NACID_P_RESO] = 0.5f;
+    ac.p[NACID_P_ENVMOD] = 0.5f;
+    ac.p[NACID_P_DECAY] = 0.4f;
+    ac.p[NACID_P_DEVIANCE] = dev;
+    for (int i = 0; i < 4; ++i) {
+        d.lo[i] = 9.0f;
+        d.hi[i] = -9.0f;
+        prev[i] = ac.p[NACID_P_CUTOFF + i];
+    }
+    float step_len = SR * 0.11f, ph = ac.db_ph;
+    for (int ps = 0; ps < bars * NACID_BAR; ++ps) {
+        nacid_step(&ac, 0.0f, step_len);
+        nacid_feel(&ac, mood, ps % 128);
+        for (int i = 0; i < (int)step_len; ++i) {
+            tick();
+            if (i % 8) continue;
+            for (int k = 0; k < 4; ++k) {
+                float v = ac.p[NACID_P_CUTOFF + k] + ac.dv[k];
+                v = v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
+                sum[k] += v;
+                d.lo[k] = v < d.lo[k] ? v : d.lo[k];
+                d.hi[k] = v > d.hi[k] ? v : d.hi[k];
+                if (fabsf(v - prev[k]) > d.jump) d.jump = fabsf(v - prev[k]);
+                prev[k] = v;
+            }
+            n++;
+            d.turns += ac.db_ph < ph;
+            ph = ac.db_ph;
+        }
+    }
+    for (int k = 0; k < 4; ++k) d.mean[k] = sum[k] / (float)n;
+    d.rng = ac.rng;
+    return d;
+}
+
+static void test_deviance(void)
+{
+    dev_t off = dev_run(0.0f, 1.0f, 16), on = dev_run(1.0f, 1.0f, 16);
+    CHECK(off.lo[0] == 0.3f && off.hi[0] == 0.3f && off.lo[1] == 0.5f && off.hi[3] == 0.4f && off.turns == 0,
+          "Deviance 0: the knobs moved");
+    CHECK(off.rng == on.rng, "Deviance: the pattern's random numbers changed");
+    dev_t calm = dev_run(1.0f, 0.0f, 96), hard = dev_run(1.0f, 1.0f, 96), half = dev_run(0.4f, 1.0f, 96);
+    static const char *const name[4] = { "cutoff", "reso", "env mod", "decay" };
+    for (int k = 0; k < 4; ++k)
+        printf("deviance %-7s: calm %.2f (%.2f..%.2f), hard %.2f (%.2f..%.2f), hard at 40 %% %.2f\n", name[k],
+               (double)calm.mean[k], (double)calm.lo[k], (double)calm.hi[k], (double)hard.mean[k], (double)hard.lo[k],
+               (double)hard.hi[k], (double)half.mean[k]);
+    printf("deviance: turns calm %d, hard %d; the largest step %.4f\n", calm.turns, hard.turns, (double)hard.jump);
+    CHECK(hard.mean[1] > calm.mean[1] + 0.2f && hard.mean[1] > 0.7f, "Deviance: the resonance with hard drums %f, calm %f",
+          (double)hard.mean[1], (double)calm.mean[1]);
+    CHECK(hard.mean[2] > calm.mean[2] + 0.2f && hard.mean[2] > 0.5f, "Deviance: Env Mod with hard drums %f, calm %f",
+          (double)hard.mean[2], (double)calm.mean[2]);
+    CHECK(hard.mean[0] > 0.3f && hard.mean[0] < 0.55f && hard.mean[0] > calm.mean[0], "Deviance: the cutoff hard %f calm %f",
+          (double)hard.mean[0], (double)calm.mean[0]);
+    CHECK(hard.mean[3] < calm.mean[3], "Deviance: the decay hard %f calm %f", (double)hard.mean[3], (double)calm.mean[3]);
+    for (int k = 0; k < 4; ++k)
+        CHECK(hard.hi[k] - hard.lo[k] > 0.15f, "Deviance: %s did not move (%f..%f)", name[k], (double)hard.lo[k],
+              (double)hard.hi[k]);
+    CHECK(half.mean[1] > 0.5f && half.mean[1] < hard.mean[1], "Deviance 40: the resonance %f", (double)half.mean[1]);
+    CHECK(hard.turns > calm.turns && calm.turns > 0, "Deviance: turns calm %d, hard %d", calm.turns, hard.turns);
+    CHECK(hard.jump < 0.01f, "Deviance: a knob jumped %f", (double)hard.jump);
+    /* back to 0: the knobs back to where they are set */
+    ac.p[NACID_P_DEVIANCE] = 0.0f;
+    nacid_feel(&ac, 1.0f, 0);
+    for (int i = 0; i < (int)(SR * 0.5f); ++i) tick();
+    CHECK(ac.dv[0] == 0.0f && ac.dv[1] == 0.0f && ac.dv[2] == 0.0f && ac.dv[3] == 0.0f, "Deviance off: offsets left %f",
+          (double)ac.dv[1]);
+}
+
 int main(void)
 {
     nfm_init(&eng, SR, 1u);
@@ -589,6 +693,8 @@ int main(void)
     test_clean();
     test_filter();
     test_generator();
+    test_major();
+    test_deviance();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);
     return fails != 0;
 }
