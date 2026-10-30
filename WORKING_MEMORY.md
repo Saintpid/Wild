@@ -75,3 +75,11 @@
 - Image 171684 B; data/BSS 67712 B; pool unchanged 335816 B (8248 B free).
 - Versioned ELF/dis/bin saved for crash lookup; firmware SHA256:
   06283cc145933d6963bff9850e0ad2da36e254557c2809a7c0dd4f0a62012c3e
+
+## 0.2.0 / 832 - diode ladder, 303 waves
+- Diode-ladder filter from n001se test fw 826 (commit 2164304) applied as is;
+  about 20 % more host time for the acid voice. FM-1 Audio Load check needed.
+- G_ACIDWAVES (Scene page KNOB 2): Original (default, saw/square) or All for
+  a new acid sound. Project format 12; kept through SEL.
+- Repo: github.com/Saintpid/Wild (public). Builds go to
+  C:/Projects/M-Vave FM1 n001se/Firmware Wild.

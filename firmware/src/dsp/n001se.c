@@ -56,6 +56,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_GEQ] = {"Glue EQ", 0, 100, 50},
     [G_GCOLOR] = {"Color", 0, 100, 50},
     [G_GWIDTH] = {"Width", 0, 100, 60},
+    [G_ACIDWAVES] = {"303 waves", 0, 1, 0},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -178,6 +179,7 @@ void ne_param_text(int i, int v, char *b)
     case G_TEMPO: case G_POLY: itoa_s(v, b); return;
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
     case G_USBAUDIO: cpy(b, v ? "On" : "Off"); return;
+    case G_ACIDWAVES: cpy(b, v ? "All" : "Original"); return;
     case G_SELMODE: cpy(b, v == NE_SEL_AB ? "A/B" : v == NE_SEL_COPY ? "Copy" : "Chance"); return;
     case G_PKNOB: {
         int k = ne_pknob_target(v);
@@ -701,7 +703,7 @@ static void gset(int p, int v)
     case G_GLUE: case G_GMIX: case G_GEQ: case G_GCOLOR: case G_GWIDTH: glue_set(); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     case G_MUTADE: break;                        /* (read at the quarters) */
-    case G_SELMODE: break;                       /* (the UI's) */
+    case G_SELMODE: case G_ACIDWAVES: break;     /* (the UI's) */
     }
 }
 

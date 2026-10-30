@@ -99,10 +99,8 @@ jobs:
 
       - name: Check the package (every CRC; all but the app byte-identical to FoMni's)
         run: |
-          pkg=$(ls build/n001se*.fwsc | head -1)
-          python3 tools/check_fwsc.py "$pkg" --app build/n001se.bin --ref build/fomni-ref/build/omni.fwsc
+          python3 tools/check_fwsc.py build/Wild.fwsc --app build/Wild.bin --ref build/fomni-ref/build/omni.fwsc
 
       - name: Update-path and install tests against the package
         run: |
-          [ -f build/n001se.fwsc ] || cp build/n001se-*.fwsc build/n001se.fwsc   # (the tests look for this name)
           sh tests/run_tests.sh
