@@ -313,9 +313,11 @@ NFM_CODE void nacid_stop(nacid *a)
 NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dly)
 {
     a->ins_f_to = filter ? 1.0f : 0.0f;
-    if (drive != a->drive_to) {                   /* (a new drive starts its loudness match over) */
+    if (drive != a->drive_to) {                   /* (a new drive starts its loudness match over, */
+        float dc = a->sat.dc, g = a->sat.gain;    /* the DC and the gain gliding on from where they were) */
         a->drive_to = drive;
         nfm_sat_set(&a->sat, drive);
+        if (a->sat.amount > 0.0f && dc != 0.0f) a->sat.dc = dc, a->sat.gain = g;
     }
     a->rev_to = rev;
     a->dly_to = dly;
@@ -519,7 +521,9 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
         case NACID_SAW: x = 2.0f * t - 1.0f - blep(t, dt); break;
         case NACID_SQUARE: {                     /* a 303's: the saw through a transistor that clips it */
             float w = 2.0f * t - 1.0f - blep(t, dt);
-            x = soft(3.0f * (w + 0.08f)) * 0.95f + 0.1f * w;   /* rounded on the way up, a slant on top */
+            float u = 2.65f * (w + 0.08f);       /* rounded on the way up, a slant on top; anti-aliased */
+            x = sat_adaa(a->sq_u1, u) * 0.95f + 0.1f * w;
+            a->sq_u1 = u;
             break;
         }
         case NACID_PULSE: {                      /* 20 % */

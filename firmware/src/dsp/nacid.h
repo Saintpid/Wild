@@ -81,6 +81,7 @@ typedef struct {
     /* the voice */
     uint32_t now;
     float phase, phase2, freq;     /* the oscillator: it runs on, notes or not */
+    float sq_u1;                   /* the square's clipper: its last input (ADAA) */
     float cv, cv_to, glide;        /* the pitch in semitones over C2 and where it goes, the slide's RC */
     float env, amp;                /* the cutoff envelope, the VCA */
     float att, att_soft, att_hard; /* the VCA's attack: this note's, a plain note's, an accent's */

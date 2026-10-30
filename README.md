@@ -1,6 +1,7 @@
-# Wild 0.2.0 - experimental FM-1 firmware
+# Wild 0.2.1 - experimental FM-1 firmware
 
-**0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.**
+**0.2.1: Drive without the aliasing-like grit, and a cleaner 303 square.** 0.2.0: the 303's diode
+ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
 the FM-1. GLO + OCT- toggles the mixer. 0.1.0 failed hardware startup; 0.1.1 and later fix it.
 
@@ -12,8 +13,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.2.0.fwsc, identity FM-1_832.
-- USB name: Wild FM-1. Screen: Wild 0.2.0.
+- Installable package: build/Wild-0.2.1.fwsc, identity FM-1_833.
+- USB name: Wild FM-1. Screen: Wild 0.2.1.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -21,7 +22,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.2.0 --id 832
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.2.1 --id 833
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -65,7 +66,7 @@ command.
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round.
 - **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
-  filter, a warm drive with even harmonics that does not raise the volume, and a **modulation effect**
+  filter, a warm drive with even harmonics that does not raise the volume (anti-aliased), and a **modulation effect**
   per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.
 - **Chaos** brings glitches: beat repeat, reverse and tape stop. They gather at the end of bars 4 and
   8 of the phrase, as fills into the next bar; elsewhere they are short, an eighth off the beat.
