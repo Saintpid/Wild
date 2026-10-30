@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.2.1
+
+Firmware identity FM-1_833. A warm Drive.
+
+- **Drive no longer sounds like aliasing.** The grit came from how Drive kept its volume level: it
+  reset its gain in steps every 8 samples, which rang as a whine and fizz between the notes'
+  harmonics. The gain now glides, and the curve is a cubic (only the 2nd and 3rd harmonics until it
+  flattens) worked out between the samples (ADAA), so what it makes over the top no longer folds
+  back. At the same settings Drive is a touch gentler than before. Every Drive gets it: the acid
+  line's, the drum sounds', and the Glue's warmth over 60.
+- **The 303's square is cleaner:** the saw's clip that makes it is anti-aliased too, about 11 dB less
+  fizz with the filter open.
+- Turning the acid line's Drive no longer clicks.
+
 ## 0.2.0
 
 Firmware identity FM-1_832. The 303's diode ladder.

@@ -83,3 +83,13 @@
   a new acid sound. Project format 12; kept through SEL.
 - Repo: github.com/Saintpid/Wild (public). Builds go to
   C:/Projects/M-Vave FM1 n001se/Firmware Wild.
+
+## 0.2.1 / 833 - Drive without aliasing
+- Cause: nfm_sat's loudness match set its gain every 8 samples (control rate) in steps: sidebands
+  between the harmonics, -49 dB against -85 dB dry on a held saw. Not the curve (its static aliasing
+  was under -70 dB on the filtered 303).
+- Fix: gain glided per sample (0.003); curve now cubic x - 4x^3/27 (flat at +-1.5) with first-order
+  ADAA (closed form on the cubic part, no divide), pre 0.75..5.25. Square's clip uses the same ADAA
+  (gain 2.65 fits the old Pade shape). nacid_route keeps DC and gain over a Drive change.
+- nacid_test test_clean: note period 403 1/3 samples so aliasing and control-rate products land
+  between the harmonics; fails on 0.2.0 (drive -50 dB, square -36 dB).

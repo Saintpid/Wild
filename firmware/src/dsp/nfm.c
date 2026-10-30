@@ -664,33 +664,33 @@ NFM_CODE void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float
     if (v->sat.amount <= 0.0f) v->ins &= (uint8_t)~NFM_INS_DRIVE;
 }
 
-/* the drive: pre-gain 1..7, a bias 0.1..0.35 (the even harmonics), and the curve's slope at the bias
- * divided out, so a quiet signal comes out as loud as it went in */
+/* the drive: pre-gain 0.75..5.25, a bias 0.1..0.35 (the even harmonics), and the curve's slope at the
+ * bias divided out, so a quiet signal comes out as loud as it went in */
 NFM_CODE void nfm_sat_set(nfm_sat *s, float amount)
 {
     amount = clamp01(amount);
     s->amount = amount;
-    s->pre = 1.0f + 6.0f * amount;
+    s->pre = 0.75f + 4.5f * amount;
     s->bias = 0.1f + 0.25f * amount;
-    s->off = soft_clip(s->bias);
-    {   /* d/dx x(27 + x2)/(27 + 9x2) at the bias */
-        float b = s->bias, b2 = b * b, q = 27.0f + 9.0f * b2;
-        float slope = ((27.0f + 3.0f * b2) * q - 18.0f * b2 * (27.0f + b2)) / (q * q);
-        s->comp = 1.0f / (s->pre * slope);
-    }
+    s->off = sat_curve(s->bias);
+    s->comp = 1.0f / (s->pre * (1.0f - 0.444444f * s->bias * s->bias));
+    s->u1 = s->bias;
     s->dc = 0.0f;
     s->ein = s->eout = 0.0f;
-    s->adapt = 1.0f;
+    s->adapt = s->gain = 1.0f;
 }
 
 NFM_CODE float nfm_sat_tick(nfm_sat *s, float x)
 {
-    float y = (soft_clip(x * s->pre + s->bias) - s->off) * s->comp;
+    float u = x * s->pre + s->bias;
+    float y = (sat_adaa(s->u1, u) - s->off) * s->comp;
+    s->u1 = u;
     s->dc += 0.0015f * (y - s->dc);
     y -= s->dc;
     s->ein += 0.004f * (x * x - s->ein);
     s->eout += 0.004f * (y * y - s->eout);
-    return y * s->adapt;
+    s->gain += (s->adapt - s->gain) * 0.003f;   /* glided (~8 ms): a gain set in steps rang like aliasing */
+    return y * s->gain;
 }
 
 /* loud parts come out of the curve quieter than they went in: the levels followed (~6 ms) and the

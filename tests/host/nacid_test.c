@@ -4,7 +4,8 @@
  * interval, so an octave may not get there), the pitch going on from where it is when a new slide
  * starts, rests closing the gate, the last step into the first, accent on the VCA and the cutoff and
  * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
- * lowering the sweep's start, the square made from the saw, the filter's slope and its stability, and
+ * lowering the sweep's start, the square made from the saw, the drive and the square without aliasing,
+ * the filter's slope and its stability, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step. */
 #include <math.h>
 #include <stdio.h>
@@ -308,6 +309,55 @@ static void test_square(void)
     printf("square: the fall %.2fx as steep as the rise\n", (double)(dn / up));
 }
 
+/* a held note 403 1/3 samples a period (109.3 Hz): so what folds back over the Nyquist falls a third of
+ * the way between the harmonics, and what a control rate (every 8 samples, 50 5/12 periods) makes, 5/12
+ * of the way. Of what it makes under 10 kHz over 18 periods (Hann window), the share (dB) between the
+ * harmonics. */
+static float between_harmonics(int wave, float cut, float drive)
+{
+    static float w[7260];
+    float f = SR / 403.33333f, all = 0.0f, off = 0.0f;
+    fresh(0.85f);
+    ac.wave = (uint8_t)wave;
+    ac.tune = 12.0f * log2f(f / 65.406f);
+    ac.p[NACID_P_CUTOFF] = cut;
+    ac.p[NACID_P_ENVMOD] = 0.0f;
+    ac.step_len = 2.0f * SR;
+    nacid_route(&ac, 0, drive, 0.0f, 0.0f);
+    nacid_hit(&ac, 0, 0);
+    for (int i = 0; i < 4000; ++i) tick();
+    for (int i = 0; i < 7260; ++i) w[i] = tick().out * (0.5f - 0.5f * cosf(6.2831853f * (float)i / 7260.0f));
+    for (int k = 1; k < 1647; ++k) {
+        double re = 0.0, im = 0.0;
+        for (int i = 0; i < 7260; ++i) {
+            double a = 6.283185307179586 * k * i / 7260.0;
+            re += (double)w[i] * cos(a);
+            im += (double)w[i] * sin(a);
+        }
+        float e = (float)(re * re + im * im);
+        all += e;
+        if (k % 18 > 3 && k % 18 < 15) off += e;
+    }
+    return 10.0f * log10f(off / all + 1e-20f);
+}
+
+/* the drive warms without grit: nothing between the harmonics that the note had not without it (its
+ * curve anti-aliased, its loudness match glided, not set in steps); the square's clip anti-aliased */
+static void test_clean(void)
+{
+    for (int c = 0; c < 2; ++c) {
+        float cut = c ? 1.0f : 0.6f, dry = between_harmonics(NACID_SAW, cut, 0.0f);
+        float wet = between_harmonics(NACID_SAW, cut, 1.0f);
+        CHECK(wet < dry + 3.0f, "drive: %.1f dB between the harmonics against %.1f dry (cutoff %.1f)",
+              (double)wet, (double)dry, (double)cut);
+        printf("drive at full, cutoff %.1f: %.1f dB between the harmonics (dry %.1f)\n", (double)cut,
+               (double)wet, (double)dry);
+    }
+    float sq = between_harmonics(NACID_SQUARE, 1.0f, 0.0f);
+    CHECK(sq < -42.0f, "square: %.1f dB between the harmonics", (double)sq);
+    printf("square, open: %.1f dB between the harmonics\n", (double)sq);
+}
+
 /* 10: the filter: a sine through it at a fixed cutoff (no envelope), its level against the VCA */
 static float sine_gain(float f, float cut, float reso)
 {
@@ -536,6 +586,7 @@ int main(void)
     test_accent();
     test_envmod();
     test_square();
+    test_clean();
     test_filter();
     test_generator();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);

@@ -107,13 +107,16 @@ typedef struct {
     float tune;               /* semitones added to every hit (a drawn sound, retuned) */
 } nfm_slot;
 
-/* Saturation that warms rather than distorts: a soft curve, biased so it adds even harmonics, DC
- * removed, and its loudness matched to what goes in (statically for quiet signals, then by
- * following both levels), so turning it up changes the colour, not the volume. */
+/* Saturation that warms rather than distorts: a cubic curve (only the 2nd and 3rd harmonics until it
+ * flattens), biased so it adds even harmonics, anti-aliased (its antiderivative's slope from one sample
+ * to the next, ADAA), DC removed, and its loudness matched to what goes in (statically for quiet
+ * signals, then by following both levels, the gain glided sample by sample), so turning it up changes
+ * the colour, not the volume. */
 typedef struct {
     float amount;             /* 0 off .. 1 */
     float pre, bias, off, comp;
     float dc, ein, eout, adapt;
+    float u1, gain;           /* the curve's last input; the loudness match as it glides to adapt */
 } nfm_sat;
 /* A sound's modulation effect: phaser, flanger, chorus, ring modulator or tremolo, on a share of its
  * hits (chance), with its own LFO that runs on between hits. The settings and the LFO are the sound's
@@ -142,6 +145,30 @@ typedef struct {
 void nfm_mod_block(nfm_mod *m, float sr, int n);
 void nfm_mod_reset(nfm_mod_state *s);
 float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i);
+
+/* nfm_sat's curve: x - 4x^3/27, flat from +-1.5 (slope 1 at 0, 0 at the ends), and its integral */
+NFM_CODE static inline float sat_curve(float x) { return x > 1.5f ? 1.0f : x < -1.5f ? -1.0f : x - 0.148148f * x * x * x; }
+NFM_CODE static inline float sat_int(float x)
+{
+    if (x > 1.5f) return x - 0.5625f;
+    if (x < -1.5f) return -x - 0.5625f;
+    x *= x;
+    return 0.5f * x - 0.037037f * x * x;
+}
+/* the curve's mean between two samples, (F(u1) - F(u0)) / (u1 - u0): what it makes over the Nyquist
+ * mostly gone instead of folded back (as a sample later). On the cubic part in closed form, no divide. */
+NFM_CODE static inline float sat_adaa(float u0, float u1)
+{
+    if (u0 <= 1.5f && u0 >= -1.5f && u1 <= 1.5f && u1 >= -1.5f) {
+        float m = u0 + u1;
+        return 0.5f * m - 0.037037f * m * (u0 * u0 + u1 * u1);
+    }
+    if (u0 > 1.5f && u1 > 1.5f) return 1.0f;
+    if (u0 < -1.5f && u1 < -1.5f) return -1.0f;
+    float d = u1 - u0;
+    if (d < 1e-4f && d > -1e-4f) return sat_curve(0.5f * (u0 + u1));
+    return (sat_int(u1) - sat_int(u0)) / d;
+}
 
 void nfm_sat_set(nfm_sat *s, float amount);
 float nfm_sat_tick(nfm_sat *s, float x);
