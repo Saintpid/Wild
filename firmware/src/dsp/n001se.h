@@ -77,6 +77,7 @@ enum {
     A_REVERB, A_DELAY, A_FILTER, A_DRIVE,
     A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE,
     A_CHAOS,                                         /* the generator: by the rules (0) .. by chance (100) */
+    A_DEV,                                           /* Deviance: cutoff, reso, env mod, decay follow the drums */
     A_NPARAMS
 };
 typedef struct {

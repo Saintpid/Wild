@@ -43,7 +43,7 @@ static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_F
 #define UI_TRACKS (NE_TRACKS + 1)      /* the four drum tracks and the acid line */
 static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the acid line */
     {KA | A_BARS, KA | A_NOTES, KA | A_SLIDES, KA | A_EVOLVE},
-    {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_LEVEL},
+    {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_DEV},
     {KA | A_CUTOFF, KA | A_RESO, KA | A_ENVMOD, KA | A_DECAY},
     {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, KA | A_CHAOS},
     {KA | A_REVERB, KA | A_DELAY, KA | A_FILTER, KA | A_DRIVE},

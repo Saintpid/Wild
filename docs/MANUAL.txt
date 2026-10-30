@@ -196,7 +196,7 @@ MOD (FX, page 2)
 The acid track (track 5) has its own parameters on the same pages:
 
 PATTERN    Bars (1â€“4), Notes (how many steps have notes), Slides, Evolve
-TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min), Level
+TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Deviance (below). Its Level: the mixer (GLO + OCT-) or PRESETS
 SOUND      Cutoff, Reso, Env mod, Decay
 TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0â€“100 %)
 TRACK FX   Reverb, Delay, Filter, Drive
@@ -207,6 +207,13 @@ How the acid line plays, as a TB-303:
   Slide      The pitch glides at the same speed whatever the interval (an RC of 45 ms), so a slide of one or two octaves may not get there before the next step; the next note goes on from where the pitch is.
   Filter     A model of the 303's diode ladder: four stages that load each other, the bottom one twice as fast (the 303's half-size capacitor). Gentle under the cutoff, about 18 dB/oct above a resonant peak, with a high-pass in the resonance feedback, so the bass stays when the resonance goes up. The level stays even as the resonance goes up. At high resonance it sings and saturates, but never runs away.
   Accent     Louder and brighter. The brightness goes through a sweep: accents in a row build up, the more the higher the resonance.
+
+Deviance (the Track page, KNOB 4; 0 = off, the default): the acid line's own hand on its Cutoff, Reso, Env mod and Decay, so it keeps moving while you work on the drums. It does not change the pattern (that is Evolve), and the knobs keep their values: Deviance plays around them, at 100 % mostly by its own.
+  It follows the drums: how busy the playing tracks are (their hits, the loud ones and the ones off the eighths count more), how hard they sound (Edge and Drive) and a little of Chaos. Muted tracks do not count, so a breakdown calms it too.
+  Hard drums: the resonance goes high, Env Mod to the middle or high, the cutoff to the middle (Env Mod opens it enough), the decay shorter. Calm drums: resonance and Env Mod back, the cutoff lower, the decay longer.
+  Each knob goes its own way at its own speed: most take two to eight bars, now and then one sweeps in half a bar, then stays a few bars. One way in six goes against the rules.
+  Now and then, on a beat, a quick twist there and back on one or more knobs (two steps to half a bar, once or a few times over): likelier with hard drums, in bars 4 and 8 of the phrase and on the last beat of a bar.
+  In some phrases the cutoff and Env Mod build over the last four bars and let go on the one.
 
 How a new acid pattern is drawn (Black 10, E1, REC):
   1. The rhythm: likeliest on the one, then the offbeat eighths and the beats, with rests between. It is a motif of a bar (or half a bar twice) that repeats over the bars with small changes, most at the end of bars 2 and 4.

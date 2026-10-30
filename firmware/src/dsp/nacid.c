@@ -53,10 +53,12 @@ NFM_CODE static inline float blep(float t, float dt)
 NFM_CODE static inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
 NFM_CODE static inline float clamp1(float x) { return x < 0.0f ? 0.0f : x > 0.97f ? 0.97f : x; }
 
-/* minor, phrygian, dorian, minor pentatonic, blues, harmonic minor: what acid lines are made of */
+/* minor, phrygian, dorian, minor pentatonic, blues, harmonic minor: what acid lines are made of; and
+ * major, for the brighter ones */
 NFM_DATA static const int8_t scales[NACID_SCALES][8] = {
     { 7, 0, 2, 3, 5, 7, 8, 10 }, { 7, 0, 1, 3, 5, 7, 8, 10 }, { 7, 0, 2, 3, 5, 7, 9, 10 },
     { 5, 0, 3, 5, 7, 10 },       { 6, 0, 3, 5, 6, 7, 10 },    { 7, 0, 2, 3, 5, 7, 8, 11 },
+    { 7, 0, 2, 4, 5, 7, 9, 11 },
 };
 
 NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
@@ -80,6 +82,9 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->att_soft = 1.0f - exp2f_(-1.4427f / (0.003f * sr));  /* the VCA's attack: soft on a plain note */
     a->att_hard = 1.0f - exp2f_(-1.4427f / (0.0003f * sr)); /* and sharp on an accent */
     a->att = a->att_soft;
+    a->drng = a->rng ^ 0x9e3779b9u;
+    a->db_ph = 1.0f;
+    a->dsm = 1.0f - exp2f_(-32.0f * 1.4427f / (0.02f * sr)); /* Deviance's offsets glide: 20 ms */
     nacid_generate(a);
 }
 
@@ -431,16 +436,128 @@ NFM_CODE static void ladder(nacid *a, float g)
     for (int i = 0; i < 4; ++i) a->q[i] = a->P[i * 4] * G[0];
 }
 
+/* ---------------------------------------------------------------------------------- Deviance ---
+ * The four knobs (cutoff, resonance, Env Mod, Decay) played by a hand that listens to the drums. Each
+ * goes its own slow way to where the drums' intensity puts it: hard drums, the resonance high, Env Mod
+ * middle to high and the cutoff in the middle (Env Mod opens it enough); calm ones, the resonance and
+ * Env Mod back, the cutoff lower, the decay longer. One way in six goes against that. Each knob takes
+ * its own time: one may sweep in half a bar while another takes eight, and then stays a few bars. By
+ * chance, on a beat, a quick turn there and back on one or more knobs (two steps to half a bar, once or
+ * a few times over), likelier with hard drums, in bars 4 and 8 of the phrase and on the last beat. In
+ * some phrases (more with hard drums) the cutoff and Env Mod build over the last four bars and let go on
+ * the one. Deviance: how much of it is heard over the knobs as set; at 100, mostly the hand's. */
+NFM_DATA static const float dlo[4] = { 0.25f, 0.45f, 0.30f, 0.55f };   /* the rule's place, calm drums */
+NFM_DATA static const float dhi[4] = { 0.45f, 0.90f, 0.80f, 0.30f };   /* ...hard drums */
+
+NFM_CODE static float step_samples(const nacid *a) { return a->step_len > 0.0f ? a->step_len : a->sr * 0.134f; }
+
+/* knob i: a new way, and how long it takes */
+NFM_CODE static void dev_way(nacid *a, int i)
+{
+    uint32_t *r = &a->drng;
+    float t = lerp(dlo[i], dhi[i], a->d_mood) + (rndf(r) + rndf(r) - 1.0f) * 0.1f;
+    if (rndf(r) < 0.16f) t = 0.1f + 0.85f * rndf(r);         /* against the rules */
+    t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
+    float bars = rndf(r) < 0.3f ? 0.5f + 0.5f * rndf(r) : 2.0f + 6.0f * rndf(r);
+    float d = t - a->dw[i];
+    a->dw_to[i] = t;
+    a->dw_v[i] = (d < 0.0f ? -d : d) * 32.0f / (bars * (float)NACID_BAR * step_samples(a));
+    a->dw_hold[i] = (uint8_t)((int)bars + 1 + (int)(rnd(r) % 4u));
+}
+
+/* a quick turn there and back: which knobs, which way (the cutoff and Env Mod mostly up), how far, how
+ * fast; shorter with hard drums */
+NFM_CODE static void dev_turn(nacid *a)
+{
+    NFM_DATA static const float ch[4] = { 0.6f, 0.35f, 0.5f, 0.4f }, up[4] = { 0.8f, 0.7f, 0.75f, 0.5f };
+    uint32_t *r = &a->drng;
+    float m = a->d_mood, x = rndf(r);
+    int any = 0, len = x < 0.25f + 0.2f * m ? 2 : x < 0.75f ? 4 : 8;
+    for (int i = 0; i < 4; ++i) {
+        a->db_amp[i] = 0.0f;
+        if (rndf(r) < ch[i]) {
+            float amt = (0.1f + 0.15f * rndf(r)) * (0.7f + 0.5f * m);
+            a->db_amp[i] = rndf(r) < up[i] ? amt : -amt;
+            any = 1;
+        }
+    }
+    if (!any) a->db_amp[0] = 0.2f;
+    x = rndf(r);
+    a->db_cyc = (uint8_t)(len == 2 || x < 0.6f ? 1 : x < 0.88f ? 2 : 3);
+    a->db_ph = 0.0f;
+    a->db_inc = 32.0f / ((float)len * step_samples(a));
+}
+
+NFM_CODE void nacid_feel(nacid *a, float mood, int ps)
+{
+    if (a->p[NACID_P_DEVIANCE] <= 0.0f) {          /* off: the offsets glide away (at once if silent) */
+        a->d_live = 0;
+        if (!a->sounding) a->dv[0] = a->dv[1] = a->dv[2] = a->dv[3] = 0.0f;
+        return;
+    }
+    if (!a->d_live) {                              /* from where the knobs are */
+        for (int i = 0; i < 4; ++i) {
+            a->dw[i] = a->dw_to[i] = a->p[NACID_P_CUTOFF + i];
+            a->dw_v[i] = 0.0f;
+            a->dw_hold[i] = 0;
+        }
+        a->d_mood = mood;
+        a->d_live = 1;
+    }
+    a->d_mood += (mood - a->d_mood) * 0.15f;       /* (about a bar to follow) */
+    int pos = ps % NACID_BAR, bar = (ps / NACID_BAR) % 8;
+    if (pos == 0) {
+        for (int i = 0; i < 4; ++i) {
+            if (a->dw_hold[i]) --a->dw_hold[i];
+            else dev_way(a, i);
+        }
+        if (bar == 0) a->d_arc_on = rndf(&a->drng) < 0.3f + 0.4f * a->d_mood;
+    }
+    a->d_arc = a->d_arc_on && bar >= 4 ? (float)(ps % 128 - 64) * (1.0f / 64.0f) : 0.0f;
+    if (pos % 4 == 0 && a->db_ph >= 1.0f) {
+        float c = 0.035f + 0.1f * a->d_mood;
+        if (bar == 3 || bar == 7) c *= 2.0f;
+        if (pos == 12) c *= 1.5f;
+        if (rndf(&a->drng) < c) dev_turn(a);
+    }
+}
+
+/* every 32 samples: the ways on, the turn, the build; the offsets over the knobs glide to them */
+NFM_CODE static void dev_control(nacid *a)
+{
+    if (a->dctl++ & 3) return;
+    float D = a->d_live ? a->p[NACID_P_DEVIANCE] : 0.0f, tw = 0.0f;
+    if (a->db_ph < 1.0f) {                         /* a turn: there and back, db_cyc times */
+        float f = a->db_ph * (float)a->db_cyc;
+        f -= (float)(int)f;
+        tw = 4.0f * f * (1.0f - f);
+        a->db_ph += a->db_inc;
+    }
+    for (int i = 0; i < 4; ++i) {
+        float d = a->dw_to[i] - a->dw[i], v = a->dw_v[i];
+        a->dw[i] = d > v ? a->dw[i] + v : d < -v ? a->dw[i] - v : a->dw_to[i];
+        float to = D * (0.8f * (a->dw[i] - a->p[NACID_P_CUTOFF + i]) + a->db_amp[i] * tw);
+        if (i == 0 || i == 2) to += D * (i ? 0.1f : 0.12f) * a->d_arc;
+        a->dv[i] += (to - a->dv[i]) * a->dsm;
+        if (!a->d_live && a->dv[i] < 1e-5f && a->dv[i] > -1e-5f) a->dv[i] = 0.0f;
+    }
+}
+NFM_CODE static inline float knob(const nacid *a, int i)
+{
+    float v = a->p[NACID_P_CUTOFF + i] + a->dv[i];
+    return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
+}
+
 /* the cutoff and the envelopes' rates, every 8 samples. The cutoff: the knob, the envelope, the
  * accent's sweep. The filter: the 303's diode ladder (ladder()), the resonance's feedback through a
  * high-pass at 100 Hz; up to just short of oscillating. */
 NFM_CODE static void control(nacid *a)
 {
-    float reso = a->p[NACID_P_RESO];
-    float base = 30.0f * exp2f_(a->p[NACID_P_CUTOFF] * 7.6f);          /* 30 Hz .. 5.8 kHz */
+    if (a->d_live || a->dv[0] != 0.0f || a->dv[1] != 0.0f || a->dv[2] != 0.0f || a->dv[3] != 0.0f) dev_control(a);
+    float cut = knob(a, 0), reso = knob(a, 1), em = knob(a, 2), dec = knob(a, 3);
+    float base = 30.0f * exp2f_(cut * 7.6f);                           /* 30 Hz .. 5.8 kHz */
     /* Env Mod as a 303's: the more of it, the lower the sweep starts (1.5 octaves at full), its top
      * where it was (5 octaves over the knob) */
-    float em = a->p[NACID_P_ENVMOD];
     float oct = em * (6.5f * a->env - 1.5f) + a->p[NACID_P_ACCENT] * 3.0f * a->acc_cap;
     float fc = base * exp2f_(oct), g = tan_pi(fc * LADDER_F / a->sr);
     a->ga = g / (1.0f + g);
@@ -449,10 +566,10 @@ NFM_CODE static void control(nacid *a)
     /* the resonance takes the passband down by 1 + k above the feedback's high-pass: given back, the
      * more the higher the cutoff, the envelope's too (from 280 Hz up, a fifth of k an octave; low, the
      * resonance sits on the notes themselves) */
-    float q = 1.52f * a->p[NACID_P_CUTOFF] - 0.65f + 0.2f * oct;     /* (log2 of fc / 280 Hz, over 5) */
+    float q = 1.52f * cut - 0.65f + 0.2f * oct;     /* (log2 of fc / 280 Hz, over 5) */
     a->comp = 1.0f + a->k * (q < 0.0f ? 0.0f : q > 0.7f ? 0.7f : q);
     /* the decay: 80 ms .. 2.5 s; an accent cuts it to 200 ms */
-    float t = a->accent ? 0.2f : 0.08f * exp2f_(a->p[NACID_P_DECAY] * 5.0f);
+    float t = a->accent ? 0.2f : 0.08f * exp2f_(dec * 5.0f);
     a->dk_env = exp2f_(-8.0f * 1.4427f / (t * a->sr));
     a->dk_acc = exp2f_(-1.4427f / (0.2f * a->sr));
     /* the sweep capacitor: it charges from the accent and lets go slowly; the more resonance, the

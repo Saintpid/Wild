@@ -1,7 +1,9 @@
-# Wild 0.2.1 - experimental FM-1 firmware
+# Wild 0.3.0 - experimental FM-1 firmware
 
-**0.2.1: Drive without the aliasing-like grit, and a cleaner 303 square.** 0.2.0: the 303's diode
-ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
+**0.3.0: the 303's own Deviance** (the acid line's Track page, KNOB 4): cutoff, resonance, Env Mod
+and Decay played as by a hand, following how hard the drums sound and how busy they are. And a
+**Major** scale for the acid line. 0.2.1: Drive without the aliasing-like grit, and a cleaner 303
+square. 0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
 the FM-1. GLO + OCT- toggles the mixer. 0.1.0 failed hardware startup; 0.1.1 and later fix it.
 
@@ -13,8 +15,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.2.1.fwsc, identity FM-1_833.
-- USB name: Wild FM-1. Screen: Wild 0.2.1.
+- Installable package: build/Wild-0.3.0.fwsc, identity FM-1_834.
+- USB name: Wild FM-1. Screen: Wild 0.3.0.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -60,8 +62,12 @@ command.
   there), accent (a sweep that builds up, a sharp attack against a plain note's soft one, weak on a
   slid note), Env Mod that lowers where the sweep starts, and a square made from the saw as the 303
   does. Its own sequencer draws musical lines: the rhythm first, a motif
-  that repeats, notes from the scale, octaves, accents and slides where they move the line. Its
-  Chaos takes it from those rules to pure chance.
+  that repeats, notes from the scale (minor, phrygian, dorian, pentatonic, blues, harmonic minor or
+  major), octaves, accents and slides where they move the line. Its Chaos takes it from those rules
+  to pure chance. Its **Deviance** plays its cutoff, resonance, Env Mod and Decay by itself, after the
+  drums: harder and busier drums take it to high resonance, a middle cutoff and more Env Mod, calm
+  ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
+  now and then a move against the rules.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round.
