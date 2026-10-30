@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.2.0
+
+Firmware identity FM-1_832. The 303's diode ladder.
+
+- **The acid line's filter is now the 303's diode ladder:** four stages that load each other, the
+  bottom one twice as fast, as with the 303's half-size capacitor. Gentle under the cutoff, about
+  18 dB/oct above a resonant peak, and the level stays even as the resonance goes up. It takes
+  about 20 % more time for the acid voice: watch Audio Load (GLO + OCT+) on the FM-1.
+- **303 waves** (GLOBAL, the Scene page, KNOB 2): **Original** (the default) draws a new acid sound
+  with the 303's own waves only, saw or square. **All** draws from all six, as before. Wave on the
+  Tone page can still be set to any of them. Kept through SEL, saved with the project (format 12);
+  older projects load with Original.
+
 ## 0.1.4
 
 Firmware identity FM-1_831. Five-channel mixer.

@@ -1,7 +1,7 @@
 /* nacid: an acid bass line, the fifth track. One voice in the manner of a TB-303: an oscillator that
- * never stops, the 303's filter (a diode ladder whose first stage sits an octave lower, with a
- * high-pass in its resonance feedback: about 18 dB/oct in the octave above the cutoff, bass that stays
- * when the resonance goes up), a decaying envelope on the cutoff, accent on the VCA and the cutoff
+ * never stops, the 303's filter (a diode ladder whose stages load each other, the bottom one twice as
+ * fast, with a high-pass in its resonance feedback: gentle under the cutoff, about 18 dB/oct above a
+ * resonant peak, bass that stays when the resonance goes up), a decaying envelope on the cutoff, accent on the VCA and the cutoff
  * through a sweep capacitor that builds up over accents in a row, and the 303's slide: an RC on the
  * pitch (60 ms), the same speed whatever the interval, so a big slide may not get there before the next
  * note. Env Mod lowers where the sweep starts, as on a 303; a plain note's attack is soft, an accent's
@@ -88,7 +88,8 @@ typedef struct {
     float gate;                    /* samples until the gate closes, < 0 held */
     uint8_t gate_on, accent, acc_gate, attack, sounding;
     float s[4], sf, so;            /* the ladder, the feedback's high-pass, the output's */
-    float ga, gb, k, comp;         /* its coefficients (every 8 samples) */
+    float P[16], q[4];             /* the ladder solved (every 8 samples) */
+    float ga, k, comp;             /* the cutoff as a one-pole's gain (displays, tests), the resonance, its make-up */
     float dk_env, dk_acc, chg, dis;
     uint8_t ctl;
     /* the effects: the filter faded in and out, the drive, sends, from nacid_route */
