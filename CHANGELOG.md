@@ -5,6 +5,14 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.1
+
+Firmware identity FM-1_835.
+
+- **Your hand comes first:** turning the acid line's Cutoff, Reso, Env mod or Decay (the Sound page,
+  PRESETS or MIDI CC 74 / 71) while Deviance plays takes all four straight to their set values (a
+  20 ms glide, so no click). Deviance takes them up again, from there, 2 s after the last turn.
+
 ## 0.3.0
 
 Firmware identity FM-1_834. The 303's own Deviance, and a major scale.

@@ -7,7 +7,8 @@
  * lowering the sweep's start, the square made from the saw, the drive and the square without aliasing,
  * the filter's slope and its stability, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
- * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps. */
+ * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps, a rest
+ * after a hand on a knob. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -673,6 +674,22 @@ static void test_deviance(void)
     CHECK(half.mean[1] > 0.5f && half.mean[1] < hard.mean[1], "Deviance 40: the resonance %f", (double)half.mean[1]);
     CHECK(hard.turns > calm.turns && calm.turns > 0, "Deviance: turns calm %d, hard %d", calm.turns, hard.turns);
     CHECK(hard.jump < 0.01f, "Deviance: a knob jumped %f", (double)hard.jump);
+    /* a hand on a knob: Deviance lets go (the knobs as set) for 2 s after the touch, then takes over again */
+    {
+        float step_len = SR * 0.11f, held = 0.0f, after = 0.0f;
+        int ps = 0;
+        nacid_touch(&ac);
+        for (; ps < 40; ++ps) {                    /* 40 steps: 4.4 s */
+            nacid_step(&ac, 0.0f, step_len);
+            nacid_feel(&ac, 1.0f, ps % 128);
+            for (int i = 0; i < (int)step_len; ++i) tick();
+            float d = fabsf(ac.dv[0]) + fabsf(ac.dv[1]) + fabsf(ac.dv[2]) + fabsf(ac.dv[3]);
+            if (ps >= 2 && ps < 17 && d > held) held = d;   /* (0.2 .. 1.9 s) */
+            if (ps >= 24 && d > after) after = d;
+        }
+        printf("deviance: touched, the knobs moved %.4f in its rest, %.3f after it\n", (double)held, (double)after);
+        CHECK(held < 0.001f && after > 0.02f, "Deviance touched: %f in its rest, %f after", (double)held, (double)after);
+    }
     /* back to 0: the knobs back to where they are set */
     ac.p[NACID_P_DEVIANCE] = 0.0f;
     nacid_feel(&ac, 1.0f, 0);

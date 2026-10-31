@@ -214,6 +214,7 @@ Deviance (the Track page, KNOB 4; 0 = off, the default): the acid line's own han
   Each knob goes its own way at its own speed: most take two to eight bars, now and then one sweeps in half a bar, then stays a few bars. One way in six goes against the rules.
   Now and then, on a beat, a quick twist there and back on one or more knobs (two steps to half a bar, once or a few times over): likelier with hard drums, in bars 4 and 8 of the phrase and on the last beat of a bar.
   In some phrases the cutoff and Env Mod build over the last four bars and let go on the one.
+  Turn Cutoff, Reso, Env mod or Decay yourself and Deviance lets go of all four at once: they go to the values you set (a 20 ms glide, no click). 2 s after your last turn it takes them up again, from there.
 
 How a new acid pattern is drawn (Black 10, E1, REC):
   1. The rhythm: likeliest on the one, then the offbeat eighths and the beats, with rests between. It is a motif of a bar (or half a bar twice) that repeats over the bars with small changes, most at the end of bars 2 and 4.

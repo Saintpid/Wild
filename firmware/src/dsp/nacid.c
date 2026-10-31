@@ -445,7 +445,8 @@ NFM_CODE static void ladder(nacid *a, float g)
  * chance, on a beat, a quick turn there and back on one or more knobs (two steps to half a bar, once or
  * a few times over), likelier with hard drums, in bars 4 and 8 of the phrase and on the last beat. In
  * some phrases (more with hard drums) the cutoff and Env Mod build over the last four bars and let go on
- * the one. Deviance: how much of it is heard over the knobs as set; at 100, mostly the hand's. */
+ * the one. Deviance: how much of it is heard over the knobs as set; at 100, mostly the hand's. Turning
+ * one of the four yourself, Deviance lets go of them all for 2 s after the last turn (nacid_touch). */
 NFM_DATA static const float dlo[4] = { 0.25f, 0.45f, 0.30f, 0.55f };   /* the rule's place, calm drums */
 NFM_DATA static const float dhi[4] = { 0.45f, 0.90f, 0.80f, 0.30f };   /* ...hard drums */
 
@@ -488,9 +489,16 @@ NFM_CODE static void dev_turn(nacid *a)
     a->db_inc = 32.0f / ((float)len * step_samples(a));
 }
 
+NFM_CODE void nacid_touch(nacid *a)
+{
+    a->d_hold = 2.0f * a->sr;
+    a->d_live = 0;                                 /* (from the knobs as set when it comes back) */
+}
+
 NFM_CODE void nacid_feel(nacid *a, float mood, int ps)
 {
-    if (a->p[NACID_P_DEVIANCE] <= 0.0f) {          /* off: the offsets glide away (at once if silent) */
+    if (a->d_hold > 0.0f) a->d_hold -= step_samples(a);
+    if (a->p[NACID_P_DEVIANCE] <= 0.0f || a->d_hold > 0.0f) {   /* off or resting: the offsets glide away (at once if silent) */
         a->d_live = 0;
         if (!a->sounding) a->dv[0] = a->dv[1] = a->dv[2] = a->dv[3] = 0.0f;
         return;

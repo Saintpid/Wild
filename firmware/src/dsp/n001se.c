@@ -763,10 +763,10 @@ static void aset(int p, int v)
     case A_SCALE: acid.scale = (uint8_t)v; break;
     case A_EVOLVE: acid.p[NACID_P_EVOLVE] = pct(v); break;
     case A_MUTE: acid.mute = (uint8_t)v; break;
-    case A_CUTOFF: acid.p[NACID_P_CUTOFF] = pct(v); break;
-    case A_RESO: acid.p[NACID_P_RESO] = pct(v); break;
-    case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); break;
-    case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); break;
+    case A_CUTOFF: acid.p[NACID_P_CUTOFF] = pct(v); nacid_touch(&acid); break;
+    case A_RESO: acid.p[NACID_P_RESO] = pct(v); nacid_touch(&acid); break;
+    case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); nacid_touch(&acid); break;
+    case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); nacid_touch(&acid); break;
     case A_ACCENT: acid.p[NACID_P_ACCENT] = pct(v); break;
     case A_WAVE: acid.wave = (uint8_t)v; break;
     case A_TUNE: acid.tune = (float)v; break;

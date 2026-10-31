@@ -1,7 +1,8 @@
-# Wild 0.3.0 - experimental FM-1 firmware
+# Wild 0.3.1 - experimental FM-1 firmware
 
-**0.3.0: the 303's own Deviance** (the acid line's Track page, KNOB 4): cutoff, resonance, Env Mod
-and Decay played as by a hand, following how hard the drums sound and how busy they are. And a
+**0.3.0 / 0.3.1: the 303's own Deviance** (the acid line's Track page, KNOB 4): cutoff, resonance,
+Env Mod and Decay played as by a hand, following how hard the drums sound and how busy they are;
+turn one of them yourself and Deviance rests until 2 s after your last turn. And a
 **Major** scale for the acid line. 0.2.1: Drive without the aliasing-like grit, and a cleaner 303
 square. 0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
@@ -15,8 +16,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.0.fwsc, identity FM-1_834.
-- USB name: Wild FM-1. Screen: Wild 0.3.0.
+- Installable package: build/Wild-0.3.1.fwsc, identity FM-1_835.
+- USB name: Wild FM-1. Screen: Wild 0.3.1.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
