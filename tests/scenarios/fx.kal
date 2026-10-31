@@ -45,7 +45,7 @@ expect apar16 10
 expect apar19 35
 spin K4 20
 expect apar19 55
-# Chaos up: glitches come; Mutade up: in bars 4 and 8 other tracks play, and always back after
+# Chaos up: glitches come; Mutate up: in bars 4 and 8 other tracks play, and always back after
 tap LFO
 spin K1 60
 expect gpar4 100
@@ -58,7 +58,7 @@ wavstop
 expect glitches >0
 # a beat repeat is an eighth at most (two sixteenths: 200)
 expect repeat_max <201
-expect mutades >0
+expect mutates >0
 expect peak_db_max -0.2
 tap PLAY
 wait 50

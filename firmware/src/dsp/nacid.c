@@ -814,13 +814,13 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             if (a->ctl == 0) nfm_sat_control(&a->sat);
         }
         if (a->ins_f > 0.001f) {
-            float gg = e->ins_g, k = e->ins_k;
+            float gg = a->still ? e->ins_g0 : e->ins_g, k = a->still ? e->ins_k0 : e->ins_k;
             float hp = (o - (k + gg) * a->is1 - a->is2) / (1.0f + gg * (gg + k));
             float bp = gg * hp + a->is1;
             a->is1 = gg * hp + bp;
             float lp = gg * bp + a->is2;
             a->is2 = gg * bp + lp;
-            o += (lp + (bp * 1.5f - lp) * e->ins_morph - o) * a->ins_f;
+            o += (lp + (bp * 1.5f - lp) * (a->still ? e->ins_morph0 : e->ins_morph) - o) * a->ins_f;
         }
         if (a->mod.type != NFM_MOD_OFF && (a->mod_to > 0.0f || a->mod_mix > 0.001f)) {
             float y = nfm_mod_tick(&a->mod, &a->ms, o, i);

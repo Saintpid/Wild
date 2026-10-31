@@ -110,6 +110,7 @@ typedef struct {
     float ins_f, ins_f_to;
     float send_rev, send_dly, rev_to, dly_to;
     float is1, is2;
+    uint8_t still;           /* the moving filter at rest (out of the effects' drift) */
     nfm_sat sat;
     float drive_to;
     /* the modulation effect (nfm's), on a share of the notes: faded in and out note by note */

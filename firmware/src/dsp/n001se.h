@@ -13,9 +13,11 @@
  *             scale; Chaos how far the settings wander, Motion how fast. A modulation effect per sound
  *             (phaser, flanger, chorus, ring modulator, tremolo) on a share of its hits. Chaos also
  *             brings GLITCHES: a beat repeat, a stretch played backwards or a tape stop, mostly at the
- *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat. MUTADE, in
+ *             end of bars 4 and 8 of the phrase, elsewhere only an eighth long, off the beat. MUTATE, in
  *             the same bars, mutes and unmutes tracks by chance a quarter at a time, and always goes
- *             back to the mutes as set.
+ *             back to the mutes as set. A track with its DRIFT at Bypass goes past all three (Chaos,
+ *             Motion, Mutate): its hits straight on to the master, its filter at rest, its mutes its own;
+ *             its sends still reach the reverb and the delay, and Space moves those for everyone.
  *   MASTER    a filter (hi cut, lo cut, resonance), the GLUE (a light mastering chain: a compressor with
  *             a transient expander, mixed in parallel, an EQ that leans the mix towards a pink slope,
  *             an inflator, the width with the lows in mono; loudness matched) and a limiter at -0.3 dBFS
@@ -49,7 +51,7 @@ enum {
     G_GLUE,                                          /* the bus compressor's amount (a limiter after it) */
     G_PKNOB,                                         /* what the PRESETS encoder turns (ne_pknob_*) */
     G_USBAUDIO,                                      /* the master output over USB: on / off (CPU) */
-    G_MUTADE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
+    G_MUTATE,                                        /* bars 4 and 8: tracks muted / unmuted by chance */
     G_SELMODE,                                       /* what SEL does (the UI's): NE_SEL_* */
     G_SPACE,                                         /* the reverb's room and the delay's time move */
     G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH,               /* the Glue's mastering: parallel mix, EQ, inflator, width */
@@ -67,6 +69,7 @@ enum {
     T_REVERB, T_DELAY, T_FILTER, T_DRIVE,            /* its effects: sends, the filter's share, drive */
     T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE,         /* its modulation effect (NFM_MOD_*), on a share of hits */
     T_GRID,                                          /* its steps: 0 sixteenths, 1 eighth triplets (12 a bar) */
+    T_DRIFT,                                         /* 1 in the Drift page's effects, 0 past them (Space stays) */
     T_NPARAMS
 };
 /* the acid line's parameters */
@@ -80,6 +83,7 @@ enum {
     A_CHAOS,                                         /* the generator: by the rules (0) .. by chance (100) */
     A_DEV,                                           /* Deviance: cutoff, reso, env mod, decay follow the drums */
     A_GRID,                                          /* its steps: 0 sixteenths, 1 eighth triplets (12 a bar) */
+    A_DRIFT,                                         /* as T_DRIFT */
     A_NPARAMS
 };
 typedef struct {
@@ -155,7 +159,7 @@ const nacid *ne_acid(void);
 extern volatile float ne_acid_level;
 extern volatile uint32_t ne_glitches;                /* glitches played since boot */
 extern volatile uint32_t ne_repeat_max;              /* frames: the longest beat repeat since boot */
-extern volatile uint32_t ne_mutades;                 /* Mutade's quarters since boot */
+extern volatile uint32_t ne_mutates;                 /* Mutate's quarters since boot */
 extern volatile uint32_t ne_limited;                 /* frames the limiter took more than 1 dB off */
 extern volatile float ne_glue_slew;                  /* the Glue compressor's largest gain change in a frame (a share) */
 extern volatile float ne_track_level[NE_TRACKS];     /* each sound's level now, 0..~1 */

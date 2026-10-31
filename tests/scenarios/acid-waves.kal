@@ -34,7 +34,7 @@ tap GLO
 tap GLO
 tap GLO
 tap GLO
-expect view 14
+expect view 15
 spin K2 1
 expect gpar25 1
 shot scene_page.png

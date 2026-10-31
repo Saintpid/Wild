@@ -128,6 +128,48 @@ int main(int argc, char **argv)
           (unsigned)ne_repeat_max);
     printf("32 bars at Chaos and Swing 100: %u glitches, the longest repeat %u frames\n", (unsigned)ne_glitches,
            (unsigned)ne_repeat_max);
+    /* Drift at Bypass on every track, no sends: Chaos and Mutate at full change nothing (the glitches
+     * play on an empty main bus, the filter stands at rest, the mutes stay); Drift in, they do */
+    {
+        uint32_t h[2][3], gl[2][3], mu[2][3];
+        int pass, in, j, p;
+        for (in = 0; in < 2; in++)
+            for (pass = -1; pass < 2; pass++) {   /* (-1: as 0, so all start from the same rest) */
+                p = pass + 1;
+                ne_init();
+                for (t = 0; t < NE_TRACKS; t++) {
+                    ne_tset(t, T_LEVEL, 80);
+                    ne_tset(t, T_FILTER, 100);
+                    ne_tset(t, T_REVERB, 0);
+                    ne_tset(t, T_DELAY, 0);
+                    ne_tset(t, T_DRIFT, in);
+                    ne_generate(t);
+                }
+                ne_aset(A_REVERB, 0);
+                ne_aset(A_DELAY, 0);
+                ne_aset(A_FILTER, 100);
+                ne_aset(A_DRIFT, in);
+                ne_set(G_MOTION, 100);
+                ne_set(G_CHAOS, pass > 0 ? 100 : 0);
+                ne_set(G_MUTATE, pass > 0 ? 100 : 0);
+                ne_play(1);
+                gl[in][p] = ne_glitches;
+                mu[in][p] = ne_mutates;
+                h[in][p] = 2166136261u;
+                for (i = 0; i < (int)(16.0f * 4.0f * 60.0f / 112.0f * NE_SR / 256.0f); i++) {   /* 16 bars */
+                    ne_render(blk, 256, 4096);
+                    for (j = 0; j < 512; j++)
+                        h[in][p] = (h[in][p] ^ (uint32_t)blk[j]) * 16777619u;
+                }
+                gl[in][p] = ne_glitches - gl[in][p];
+                mu[in][p] = ne_mutates - mu[in][p];
+            }
+        CHECK(h[0][1] == h[0][2] && gl[0][2] > 0u && mu[0][2] == 0u, "Drift at Bypass: the same %d, glitches %u, mutates %u",
+              h[0][1] == h[0][2], (unsigned)gl[0][2], (unsigned)mu[0][2]);
+        CHECK(h[1][1] != h[1][2] && gl[1][2] > 0u && mu[1][2] > 0u, "Drift in: differs %d, glitches %u, mutates %u",
+              h[1][1] != h[1][2], (unsigned)gl[1][2], (unsigned)mu[1][2]);
+        printf("16 bars at Chaos and Mutate 100, Drift at Bypass: %u glitches, unheard\n", (unsigned)gl[0][2]);
+    }
     /* the acid line's Deviance follows the drums: harder sounds and more hits, a higher intensity;
      * the drums muted, next to none */
     {

@@ -35,10 +35,10 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
+enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
-                                              "Master", "Glue", "Groove", "Setup", "Scene"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
+                                              "Routing", "Master", "Glue", "Groove", "Setup", "Scene"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -63,7 +63,8 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
-    {G_CHAOS, G_MOTION, G_MUTADE, G_SPACE},
+    {G_CHAOS, G_MOTION, G_MUTATE, G_SPACE},
+    {KT | T_DRIFT, K_NONE, K_NONE, K_NONE},          /* the selected track: in Drift's effects, or past them */
     {G_HICUT, G_LOCUT, G_RESO, G_GLUE},
     {G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
@@ -193,6 +194,8 @@ static void ktext(int k, int v, char *t)
 static int view_here(int v) { return v != V_ADEV || ui.track == NE_ACID; }
 static int view_knob(int i)
 {
+    if (ui.track == NE_ACID && ui.view == V_ROUTE)
+        return i ? K_NONE : KA | A_DRIFT;
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
 }
 
@@ -366,6 +369,7 @@ static int playing(void) { return ne_seq()->playing; }
 /* any track's length, last step, hits, mute: a drum track's or the acid line's */
 static int tlen(int t) { return t == NE_ACID ? ne_acid()->length : trk(t)->length; }
 static int tlast(int t) { return t == NE_ACID ? ne_acid()->last : trk(t)->last; }
+static int tbypass(int t) { return !(t == NE_ACID ? proj.a[A_DRIFT] : proj.t[t][T_DRIFT]); }
 static int tmuted(int t) { return t == NE_ACID ? proj.a[A_MUTE] : trk(t)->mute; }
 static int tsend(int t, int dly)              /* the track sends to the reverb (0) / the delay (1) */
 {
@@ -1249,7 +1253,9 @@ static void draw_track(int t, int32_t y)
         if (tsend(t, 0))
             x = cv_text(x + 4, y + 10, &FONT_XS, "R", K_ACC);
         if (tsend(t, 1))
-            cv_text(x + 4, y + 10, &FONT_XS, "D", K_ACC);
+            x = cv_text(x + 4, y + 10, &FONT_XS, "D", K_ACC);
+        if (tbypass(t))                              /* B: past Drift's effects */
+            cv_text(x + 4, y + 10, &FONT_XS, "B", K_TEXT);
     }
     for (s = 0; s < nb; s++) {
         int st = bar * nb + s;
@@ -1428,6 +1434,7 @@ static void draw_grid(void)
         const nacid *ac = ne_acid();
         h = hash(h, (uint32_t)(uint16_t)ac->last | (uint32_t)ac->length << 16 | (uint32_t)proj.a[A_MUTE] << 24 |
                         (uint32_t)(ui.meter[NE_ACID] * 15.0f) << 25 | (uint32_t)(ac->bar != NE_BAR) << 31);
+        h = hash(h, (uint32_t)proj.a[A_DRIFT]);
         for (s = 0; s < ac->length; s++)
             if (ac->step[s].flags)
                 h = hash(h, (uint32_t)s | (uint32_t)ac->step[s].flags << 8 | (uint32_t)(uint8_t)ac->step[s].note << 16);
@@ -1437,7 +1444,7 @@ static void draw_grid(void)
         h = hash(h, (uint32_t)tr->last | (uint32_t)tr->length << 16 | (uint32_t)tr->mute << 24 |
                         (uint32_t)(ne_fm()->slot[t].kind & 7) << 25);
         h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9 |
-                        (uint32_t)tr->triplet << 10);
+                        (uint32_t)tr->triplet << 10 | (uint32_t)tbypass(t) << 11);
         for (s = 0; s < tr->length; s++)
             if (tr->step[s].on)
                 h = hash(h, (uint32_t)s | (uint32_t)tr->step[s].vel << 8 | (uint32_t)(uint8_t)tr->step[s].note << 16);

@@ -86,7 +86,10 @@ command.
   per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.
 - **Chaos** brings glitches: beat repeat, reverse and tape stop. They gather at the end of bars 4 and
   8 of the phrase, as fills into the next bar; elsewhere they are short, an eighth off the beat.
-  **Mutade** swaps which tracks play, a quarter at a time, in the same bars, and always goes back.
+  **Mutate** swaps which tracks play, a quarter at a time, in the same bars, and always goes back.
+  Each track can go **past** all three: on the **Routing** page (LFO, then LFO again) set its
+  **Drift** to Bypass and it goes straight to the master and the Glue, untouched by the glitches,
+  with its filter standing still and its mutes left alone (a **B** on its row). Space stays for all.
   **Space** lets the reverb move between rooms (small room to large hall) and the delay between
   lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4 bars and each
   place is held for a while. The delay glides like an analog delay, so its repeats bend in pitch.
