@@ -1,5 +1,7 @@
-# Wild 0.3.4 - experimental FM-1 firmware
+# Wild 0.3.5 - experimental FM-1 firmware
 
+**0.3.5: the 303 oversampled** (its oscillator and filter at 2x): less grit with the resonance up
+and the cutoff open, about 5 % more Audio Load. **0.3.3:** no click from the Glue.
 **0.3.4: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
 sound itself a little at every sixteenth, never back: out of its kind in about 128 bars at 90, 8 at
 100. Up to 89 Deviance is as before.
@@ -20,8 +22,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.1.fwsc, identity FM-1_835.
-- USB name: Wild FM-1. Screen: Wild 0.3.1.
+- Installable package: build/Wild-0.3.5.fwsc, identity FM-1_839.
+- USB name: Wild FM-1. Screen: Wild 0.3.5.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -29,7 +31,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.2.1 --id 833
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.5 --id 839
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
