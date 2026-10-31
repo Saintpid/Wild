@@ -5,6 +5,18 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.3
+
+Firmware identity FM-1_837. The click in the Glue, gone.
+
+- **No more clicks from the Glue.** Its compressor read the level a little wrong (a natural log in
+  place of a log2), so as a sound rose or died away its gain jumped about 1.5 dB at a time, in a
+  fifth of a millisecond: a click, on almost every hit, louder the higher the Glue and the Glue mix.
+  It now follows the level smoothly; it squeezes about the same, a tenth of a dB more at most.
+- The Glue's punch (the lift it gives a hit) now comes in over 1.5 ms instead of all at once, which
+  ticked too.
+- Turning any Glue knob with the Glue over 60 no longer restarts its warmth (a click at each turn).
+
 ## 0.3.0
 
 Firmware identity FM-1_834. The 303's own Deviance, and a major scale.
