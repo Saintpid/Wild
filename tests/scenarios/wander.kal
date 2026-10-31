@@ -1,0 +1,33 @@
+# Deviance 90..100 (the drums' Sound page, KNOB 1): the sound itself wanders, never back; below 90 it stays
+# as drawn (the hits vary around it as ever); a muted track waits
+wait 200
+tap ENV
+expect view 2
+expect tpar8 40
+spin K1 49
+expect tpar8 89
+expect mark0 0
+tap PLAY
+wait 9000
+expect moved0 0
+spin K1 11
+expect tpar8 100
+wait 300
+shot wander.png
+expect mark0 0
+wait 9000
+expect moved0 >90
+# turned down again: it stays where it went
+spin K1 -11
+expect tpar8 89
+expect mark0 0
+wait 4000
+expect moved0 0
+# 90, slower: less far in the same time
+spin K1 1
+expect tpar8 90
+expect mark0 0
+wait 9000
+expect moved0 >5
+expect moved0 <70
+tap PLAY

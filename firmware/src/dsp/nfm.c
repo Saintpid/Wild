@@ -414,6 +414,29 @@ NFM_CODE void nfm_mutate(nfm_engine *e, int s, float amount)
         sl->p[i] = clamp01(sl->p[i] + rng_gauss(&e->rng) * params[i].jitter * amount * 3.0f);
 }
 
+/* A step of the base patch's own walk (Deviance 90..100): no pull back, so the sound leaves where it
+ * began; off at the edges it turns back. Level and pan stay the mix's, crush stays as drawn; pitch and
+ * ratios walk slower (they move the most), the algorithm too (a jump, now and then). */
+NFM_CODE void nfm_wander(nfm_engine *e, int s, float sigma)
+{
+    NFM_DATA static const uint8_t slow[] = { NFM_PITCH, NFM_RATIO1, NFM_RATIO2, NFM_RATIO3, NFM_RATIO4, NFM_ALGO };
+    float w[NFM_PARAMS];
+    if (!slot_ok(s) || sigma <= 0.0f) return;
+    for (int i = 0; i < NFM_PARAMS; ++i) w[i] = 1.0f;
+    for (unsigned i = 0; i < sizeof slow; ++i) w[slow[i]] = 0.6f;
+    w[NFM_FOLD] = 0.5f;
+    w[NFM_LEVEL] = w[NFM_PAN] = w[NFM_CRUSH] = 0.0f;
+    nfm_slot *sl = &e->slot[s];
+    for (int i = 0; i < NFM_PARAMS; ++i) {
+        if (w[i] <= 0.0f) continue;
+        float d = rng_gauss(&e->rng) * sigma * w[i], x = sl->p[i] + d;
+        /* op 1 is heard in every algorithm: below its floor it walks up, never quieter or shorter
+         * (a sound that wanders into silence is gone) */
+        if (d < 0.0f && ((i == NFM_LEVEL1 && x < 0.6f) || (i == NFM_DECAY1 && x < 0.12f))) x = sl->p[i] - d;
+        sl->p[i] = x < 0.0f ? (x < -1.0f ? 0.0f : -x) : x > 1.0f ? (x > 2.0f ? 1.0f : 2.0f - x) : x;
+    }
+}
+
 /* ---- engine ------------------------------------------------------------- */
 
 NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)

@@ -172,6 +172,11 @@ static const ne_param_t *kinfo(int k)
     return k & KT ? ne_tparam_info(k & ~KT) : k & KA ? ne_aparam_info(k & ~KA) : ne_param_info(k);
 }
 static int kval(int k) { return k & KT ? proj.t[dtrack()][k & ~KT] : k & KA ? proj.a[k & ~KA] : proj.g[k]; }
+/* the name over a knob: a drum's Deviance from 90 lets the sound wander off (n001se.c), and says so */
+static const char *kname(int k)
+{
+    return k == (KT | T_DEV) && kval(k) >= 90 ? "Wander" : kinfo(k)->name;
+}
 static void ktext(int k, int v, char *t)
 {
     if (k & KT)
@@ -341,7 +346,7 @@ static void turn(int role, int k, int32_t e)
     p = kinfo(k);
     undo_mark(1u << 24 | (uint32_t)k << 8 | ui.track);
     knob_set(k, kval(k) + accel(role, e, p->hi - p->lo));
-    s_cpy(ui.pop[0], p->name);
+    s_cpy(ui.pop[0], kname(k));
     ktext(k, kval(k), ui.pop[1]);
     ui.pop_t = plat_ms() | 1u;
 }
@@ -1465,7 +1470,7 @@ static void draw_knobs(void)
         lo = kinfo(k)->lo;
         hi = kinfo(k)->hi;
         v = kval(k);
-        text_c(cx, 6, &FONT_XS, kinfo(k)->name, C_WHITE);   /* white: read on the small screen */
+        text_c(cx, 6, &FONT_XS, kname(k), C_WHITE);   /* white: read on the small screen */
         ktext(k, v, t);
         {   /* the value: big, unless it has lower case (the big face has none) or is long */
             const char *q = t;

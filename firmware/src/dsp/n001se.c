@@ -875,6 +875,20 @@ static float drum_mood(void)
     return m > 1.0f ? 1.0f : m;
 }
 
+/* Deviance 90..100: the sound itself wanders, a step at each sixteenth (so as fast however many hits it
+ * plays), each hit from where the one before left off, never back. Spread after n bars: 0.3 (normalised:
+ * gone from its kind) in 128 bars at 90, in 8 at 100. Below 90 nothing of this; the per-hit variation
+ * is as it was at every value. Not the 303 (its own Deviance), not a muted track. */
+static const float WANDER[11] = {0.00663f, 0.00761f, 0.00874f, 0.01004f, 0.01154f, 0.01325f,
+                                 0.01522f, 0.01748f, 0.02008f, 0.02307f, 0.0265f};
+static void wander_step(void)
+{
+    int t;
+    for (t = 0; t < NE_TRACKS; t++)
+        if (tpar[t][T_DEV] >= 90 && !seq.track[t].mute)
+            nfm_wander(&fm, t, WANDER[tpar[t][T_DEV] - 90]);
+}
+
 /* the drums' clock steps the acid line (and the glitches: below) */
 static void glitch_step(uint32_t step, float delay, float step_len);
 static void on_step(void *ctx, uint32_t step, float delay, float step_len)
@@ -890,6 +904,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
     glitch_step(step, delay, step_len);
     mutade_step(step);
+    wander_step();
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
