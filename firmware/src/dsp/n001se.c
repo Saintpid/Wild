@@ -24,6 +24,7 @@ volatile float ne_acid_level;
 volatile uint32_t ne_glitches;
 volatile uint32_t ne_mutades;
 volatile uint32_t ne_limited;
+volatile float ne_glue_slew;                     /* the Glue's largest gain step in a frame, a share (tests) */
 volatile uint32_t ne_dropped;
 volatile uint8_t ne_ext;
 volatile uint8_t ne_usb_audio = 1;
@@ -329,7 +330,9 @@ static void master_filter(void)
     mf_g[1] = tan_pi(lc / NE_SR);
     mf_k = 2.0f - 1.9f * pct(gpar[G_RESO]);       /* 2: no peak .. 0.1: a sharp one */
 }
-static float log2_(float x)                      /* x > 0; to about 1e-4 */
+/* log2(x), x > 0; to about 1e-4, and continuous where the exponent steps (the polynomial was ln's up to
+ * 0.3.2: the Glue's level read up to 1.8 dB low, then jumped back at each power of 2, a click in its gain) */
+static float log2_(float x)
 {
     union { float f; uint32_t u; } v;
     float e, m;
@@ -337,15 +340,15 @@ static float log2_(float x)                      /* x > 0; to about 1e-4 */
     e = (float)((int)(v.u >> 23 & 255u) - 127);
     v.u = (v.u & 0x7FFFFFu) | 0x3F800000u;
     m = v.f;
-    return e - 1.7417939f + (2.8212026f + (-1.4699568f + (0.44717955f - 0.056570851f * m) * m) * m) * m;
+    return e - 2.5128774f + (4.070135f + (-2.1206994f + (0.64514372f - 0.081614486f * m) * m) * m) * m;
 }
 
 /* GLUE: a light mastering chain, all of it off at 0 (Glue's amount, the Master page; the rest on the Glue
  * page):
  *   COMPRESSOR  both channels together (the louder one leads). Attack 25 ms, release 120 ms; the amount
  *               lowers the threshold (-8 .. -28 dB) and raises the ratio (2:1 .. 6:1). A transient
- *               EXPANDER in it (a fast level over a slow one, up to +1.2 dB on a hit at 100) gives back
- *               the punch. Glue mix: how much of it, in parallel with what goes in (100: all of it).
+ *               EXPANDER in it (a fast level over a slow one, up to +1.2 dB on a hit at 100, in over
+ *               1.5 ms) gives back the punch. Glue mix: how much of it, in parallel with what goes in (100: all of it).
  *               Over 60 it also warms (nfm_sat, more towards 100: over the top).
  *   EQ          five bands that sum back to the signal (one-pole splits at 90, 700, 2000, 9000 Hz). The
  *               mix's balance over and under 700 Hz is followed (~1.5 s) and leaned towards a slope of
@@ -387,6 +390,23 @@ static float gq_set[5], gq_pink, gq_harsh;       /* the static bands (log2), the
 static float gq_elo = 1e-6f, gq_ehi = 0.29e-6f, gq_eh = 1e-9f, gq_e = 1e-8f;   /* followed */
 static float gw_side, gw_lp[2], gc_wet;
 static uint8_t gq_on;
+/* the Glue's warmth to a new amount, going on from where it is (nfm_sat_set starts it over: its DC, its
+ * loudness match and its last input reset at each turn of a Glue knob, a click) */
+static void glue_sat(nfm_sat *s, float amount)
+{
+    nfm_sat k = *s;
+    if (amount == k.amount && k.pre > 0.0f)
+        return;
+    nfm_sat_set(s, amount);
+    if (k.pre <= 0.0f)                           /* (the first time) */
+        return;
+    s->u1 = (k.u1 - k.bias) * (s->pre / k.pre) + s->bias;
+    s->dc = k.dc;
+    s->ein = k.ein;
+    s->eout = k.eout;
+    s->adapt = k.adapt;
+    s->gain = k.gain;
+}
 static void glue_set(void)
 {
     float a = pct(gpar[G_GLUE]), ratio = 2.0f + 4.0f * a * a, q = pct(gpar[G_GEQ]) * 2.0f;
@@ -395,8 +415,8 @@ static void glue_set(void)
     gl_slope = 1.0f - 1.0f / ratio;
     gl_mix = pct(gpar[G_GMIX]);
     gl_xamt = 0.1f * a;                          /* log2 per octave of transient: 0.2 at most (+1.2 dB) */
-    nfm_sat_set(&gl_sat[0], a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f);   /* 0 .. 0.8 */
-    nfm_sat_set(&gl_sat[1], gl_sat[0].amount);
+    glue_sat(&gl_sat[0], a > 0.6f ? (a - 0.6f) * 2.0f : 0.0f);   /* 0 .. 0.8 */
+    glue_sat(&gl_sat[1], gl_sat[0].amount);
     gq_on = gpar[G_GEQ] > 0;
     gq_set[0] = 0.18f * q;                       /* foundation +1.1 dB (log2 x 6.02) */
     gq_set[1] = -0.13f * q;                      /* box -0.8 dB */
@@ -413,7 +433,7 @@ static void glue_set(void)
 static inline float absf(float x) { return x < 0.0f ? -x : x; }
 /* the compressor's gain for one frame: the levels followed every frame, the gain worked out every 8th
  * (log and exp are dear in the audio interrupt) and slid to between them */
-static float gl_g = 1.0f, gl_dg;
+static float gl_g = 1.0f, gl_dg, gl_x;            /* gl_x: the expander's lift (log2), glided in (~1.5 ms) */
 static uint8_t gl_ctl;
 static inline float glue_gain(float a, float b)
 {
@@ -422,14 +442,19 @@ static inline float glue_gain(float a, float b)
     gl_fast += (x > gl_fast ? GL_FATT : GL_FREL) * (x - gl_fast);
     gl_slow += (x > gl_slow ? GL_SATT : GL_SREL) * (x - gl_slow);
     if (gl_ctl == 0u) {
-        float over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f, l = over > 0.0f ? -over * gl_slope : 0.0f, to;
+        float over = gl_env > 1e-6f ? log2_(gl_env) - gl_thr : -1.0f, l = over > 0.0f ? -over * gl_slope : 0.0f;
+        float to, x = 0.0f;
         if (gl_slow > 1e-5f && gl_fast > gl_slow) {   /* a hit: up by how far it stands over the slow level */
             float t = log2_(gl_fast) - log2_(gl_slow);
-            l += gl_xamt * (t > 2.0f ? 2.0f : t);
+            x = gl_xamt * (t > 2.0f ? 2.0f : t);
         }
+        gl_x += 0.114f * (x - gl_x);             /* (at once it was a dB in 8 frames: a tick on a hit) */
+        l += gl_x;
         to = l != 0.0f ? exp2_(l) : 1.0f;
         to = 1.0f - gl_mix + gl_mix * to;
         gl_dg = (to - gl_g) * 0.125f;
+        if (absf(gl_dg) > ne_glue_slew * gl_g)
+            ne_glue_slew = absf(gl_dg) / gl_g;
         gl_ctl = 8u;
     }
     gl_ctl--;
@@ -505,6 +530,25 @@ static void glue_match(float ein, float eout)
     want = want < 0.0625f ? 0.0625f : want > 16.0f ? 16.0f : want;
     r = 0.5f * (r + want / r);                   /* sqrt, from the last value */
     gl_mk_to = 0.5f * (r + want / r);
+}
+static void glue_reset(void)                     /* all of it from rest (a start: the same sound each time) */
+{
+    int i;
+    gl_env = gl_ein = gl_eout = gl_fast = gl_slow = gl_dg = gl_x = lim_env = 0.0f;
+    gl_mk = gl_mk_to = gl_g = 1.0f;
+    gl_ctl = 0u;
+    gl_sat[0].pre = gl_sat[1].pre = 0.0f;       /* (glue_sat then sets it from nothing) */
+    for (i = 0; i < 8; i++)
+        gq_lp[i >> 2][i & 3] = 0.0f;
+    for (i = 0; i < 5; i++) {
+        gq_g[i] = 1.0f;
+        gq_dg[i] = 0.0f;
+    }
+    gq_elo = 1e-6f;
+    gq_ehi = 0.29e-6f;
+    gq_eh = 1e-9f;
+    gq_e = 1e-8f;
+    gw_lp[0] = gw_lp[1] = 0.0f;
 }
 static inline float lim_gain(float a, float b)   /* the limiter's gain for one frame */
 {
@@ -763,10 +807,10 @@ static void aset(int p, int v)
     case A_SCALE: acid.scale = (uint8_t)v; break;
     case A_EVOLVE: acid.p[NACID_P_EVOLVE] = pct(v); break;
     case A_MUTE: acid.mute = (uint8_t)v; break;
-    case A_CUTOFF: acid.p[NACID_P_CUTOFF] = pct(v); break;
-    case A_RESO: acid.p[NACID_P_RESO] = pct(v); break;
-    case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); break;
-    case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); break;
+    case A_CUTOFF: acid.p[NACID_P_CUTOFF] = pct(v); nacid_touch(&acid); break;
+    case A_RESO: acid.p[NACID_P_RESO] = pct(v); nacid_touch(&acid); break;
+    case A_ENVMOD: acid.p[NACID_P_ENVMOD] = pct(v); nacid_touch(&acid); break;
+    case A_DECAY: acid.p[NACID_P_DECAY] = pct(v); nacid_touch(&acid); break;
     case A_ACCENT: acid.p[NACID_P_ACCENT] = pct(v); break;
     case A_WAVE: acid.wave = (uint8_t)v; break;
     case A_TUNE: acid.tune = (float)v; break;
@@ -875,6 +919,20 @@ static float drum_mood(void)
     return m > 1.0f ? 1.0f : m;
 }
 
+/* Deviance 90..100: the sound itself wanders, a step at each sixteenth (so as fast however many hits it
+ * plays), each hit from where the one before left off, never back. Spread after n bars: 0.3 (normalised:
+ * gone from its kind) in 128 bars at 90, in 8 at 100. Below 90 nothing of this; the per-hit variation
+ * is as it was at every value. Not the 303 (its own Deviance), not a muted track. */
+static const float WANDER[11] = {0.00663f, 0.00761f, 0.00874f, 0.01004f, 0.01154f, 0.01325f,
+                                 0.01522f, 0.01748f, 0.02008f, 0.02307f, 0.0265f};
+static void wander_step(void)
+{
+    int t;
+    for (t = 0; t < NE_TRACKS; t++)
+        if (tpar[t][T_DEV] >= 90 && !seq.track[t].mute)
+            nfm_wander(&fm, t, WANDER[tpar[t][T_DEV] - 90]);
+}
+
 /* the drums' clock steps the acid line (and the glitches: below) */
 static void glitch_step(uint32_t step, float delay, float step_len);
 static void on_step(void *ctx, uint32_t step, float delay, float step_len)
@@ -890,6 +948,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
     glitch_step(step, delay, step_len);
     mutade_step(step);
+    wander_step();
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
@@ -935,6 +994,7 @@ void ne_init(void)
     for (p = 0; p < A_NPARAMS; p++)
         aset(p, AP[p].def);
     nacid_generate(&acid);
+    glue_reset();
     for (p = 0; p < G_NPARAMS; p++)
         gset(p, GP[p].def);
     for (t = 0; t < NE_TRACKS; t++) {

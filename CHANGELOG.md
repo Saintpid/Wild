@@ -19,6 +19,52 @@ Firmware identity FM-1_839. A cleaner 303 at the top.
   rate: their overtones mostly stay under the top, so oversampling them would cost much and give
   little.
 
+## 0.3.4
+
+Firmware identity FM-1_838. Drums that wander off.
+
+- **Deviance 90 to 100 on a drum track lets the sound itself wander.** Up to 89 nothing changes:
+  every hit varies around the sound as before. From 90 the sound moves a little at every sixteenth
+  and each hit starts from where the last one left off, never back, so it slowly becomes something
+  else: at 90 it has left its kind (a kick no longer a kick) after about 128 bars, at 100 after about
+  8. It is as fast however many hits the track plays. The knob's name reads **Wander** from 90.
+  Turn it below 90 and the sound stays where it went; save it and it is saved as it is now; a new
+  sound (black 11) starts over. A muted track waits. Its loudness keeps a floor (it never wanders
+  into silence) and Level, Pan and the crush stay as they are. Not the 303: its Deviance is its own.
+
+## 0.3.3
+
+Firmware identity FM-1_837. The click in the Glue, gone.
+
+- **No more clicks from the Glue.** Its compressor read the level a little wrong (a natural log in
+  place of a log2), so as a sound rose or died away its gain jumped about 1.5 dB at a time, in a
+  fifth of a millisecond: a click, on almost every hit, louder the higher the Glue and the Glue mix.
+  It now follows the level smoothly; it squeezes about the same, a tenth of a dB more at most.
+- The Glue's punch (the lift it gives a hit) now comes in over 1.5 ms instead of all at once, which
+  ticked too.
+- Turning any Glue knob with the Glue over 60 no longer restarts its warmth (a click at each turn).
+
+## 0.3.2
+
+Firmware identity FM-1_836. The 303's Deviance under ENV, and it gets tired.
+
+- **The acid line's Deviance has moved to ENV**, as the drums' Deviance: press ENV three times on
+  the acid line for its own page, Deviance on KNOB 1. Its Track page (EDIT) has **Level** back on
+  KNOB 4. The drum tracks' ENV still has its two pages.
+- **Deviance needs a rest now and then.** Playing hard spends its energy: with hard drums it keeps
+  going for about three phrases, give or take, then takes a break of mostly eight bars (now and then
+  four or twelve), whatever the drums do: from a bar on a half phrase the knobs go back to their calm
+  place in a bar or two, no twists and no build. Then it comes back hard, all at once, from where the
+  drums are. With calm drums it doesn't tire and gets its energy back.
+
+## 0.3.1
+
+Firmware identity FM-1_835.
+
+- **Your hand comes first:** turning the acid line's Cutoff, Reso, Env mod or Decay (the Sound page,
+  PRESETS or MIDI CC 74 / 71) while Deviance plays takes all four straight to their set values (a
+  20 ms glide, so no click). Deviance takes them up again, from there, 2 s after the last turn.
+
 ## 0.3.0
 
 Firmware identity FM-1_834. The 303's own Deviance, and a major scale.

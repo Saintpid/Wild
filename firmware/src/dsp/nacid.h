@@ -26,7 +26,8 @@
  *
  * DEVIANCE plays the cutoff, the resonance, Env Mod and Decay as a hand on a 303 would, following the
  * drums (nacid_feel): slow ways of their own towards where the drums' intensity suggests, now and then
- * against it, quick turns there and back on the beat, a build over a phrase's last bars.
+ * against it, quick turns there and back on the beat, a build over a phrase's last bars; after playing
+ * hard a while, a rest of about eight bars.
  *
  * Portable C99 like nfm; no libc, no malloc. All calls belong to the audio thread or happen between
  * renders. */
@@ -118,6 +119,9 @@ typedef struct {
     float db_ph, db_inc, db_amp[4];    /* a quick turn: its phase (1: none), speed, size on each knob */
     uint8_t db_cyc, d_live, d_arc_on, dctl;
     float d_arc, d_mood, dsm;      /* the phrase's build (0..1), the drums' intensity glided */
+    float d_hold;                  /* samples Deviance rests after a hand on its knobs (nacid_touch) */
+    float d_energy;                /* the hand's energy (1 rested .. 0 spent) */
+    uint8_t d_rest, d_woke;        /* bars of rest left (0: playing); a rest just ended */
     uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
 } nacid;
 
@@ -138,6 +142,9 @@ void nacid_route(nacid *a, int filter, float drive, float send_rev, float send_d
 /* Deviance, at each of the drums' steps (after nacid_step): their intensity now (0 calm .. 1 hard) and
  * the step in the phrase of eight bars (0..127). */
 void nacid_feel(nacid *a, float mood, int phrase_step);
+/* A hand on the cutoff, resonance, Env Mod or Decay: Deviance lets go of them (they glide to where they
+ * are set) and takes them up again, from there, 2 s after the last touch. */
+void nacid_touch(nacid *a);
 /* Play one note now, outside the pattern (accent: 0 / 1): a new attack, never a slide. */
 void nacid_hit(nacid *a, int note, int accent);
 

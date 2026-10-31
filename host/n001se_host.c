@@ -491,7 +491,20 @@ static int expect(const char *what, const char *val)
         got = proj.g[atoi(what + 4)];
     else if (!strncmp(what, "tpar", 4))
         got = proj.t[ui.track < NE_TRACKS ? ui.track : 0][atoi(what + 4)];
-    else if (!strncmp(what, "kind", 4))
+    else if (!strncmp(what, "mark", 4) || !strncmp(what, "moved", 5)) {
+        /* a sound's base patch: mark<t> keeps it (0), moved<t> how far it is from there now (RMS, x 1000) */
+        static float kept[NE_TRACKS][NFM_PARAMS];
+        int t = atoi(what + (what[1] == 'a' ? 4 : 5)) & 3, i;
+        float e = 0.0f;
+        for (i = 0; i < NFM_PARAMS; i++) {
+            float x = ne_fm()->slot[t].p[i] - kept[t][i];
+            if (what[1] == 'a')
+                kept[t][i] = ne_fm()->slot[t].p[i];
+            else if (i != NFM_LEVEL)
+                e += x * x;
+        }
+        got = (int)(sqrtf(e / (float)(NFM_PARAMS - 1)) * 1000.0f);
+    } else if (!strncmp(what, "kind", 4))
         got = ne_fm()->slot[atoi(what + 4) & 3].kind;
     else if (!strcmp(what, "dimkeys"))
         got = (int)dim_keys;

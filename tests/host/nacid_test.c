@@ -8,7 +8,8 @@
  * without aliasing (oversampled),
  * the filter's slope and its stability, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
- * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps. */
+ * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps, a rest
+ * after a hand on a knob. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -664,7 +665,8 @@ static void test_deviance(void)
                (double)calm.mean[k], (double)calm.lo[k], (double)calm.hi[k], (double)hard.mean[k], (double)hard.lo[k],
                (double)hard.hi[k], (double)half.mean[k]);
     printf("deviance: turns calm %d, hard %d; the largest step %.4f\n", calm.turns, hard.turns, (double)hard.jump);
-    CHECK(hard.mean[1] > calm.mean[1] + 0.2f && hard.mean[1] > 0.7f, "Deviance: the resonance with hard drums %f, calm %f",
+    /* (hard: its rests in it, about a quarter of the time) */
+    CHECK(hard.mean[1] > calm.mean[1] + 0.2f && hard.mean[1] > 0.65f, "Deviance: the resonance with hard drums %f, calm %f",
           (double)hard.mean[1], (double)calm.mean[1]);
     CHECK(hard.mean[2] > calm.mean[2] + 0.2f && hard.mean[2] > 0.5f, "Deviance: Env Mod with hard drums %f, calm %f",
           (double)hard.mean[2], (double)calm.mean[2]);
@@ -677,12 +679,78 @@ static void test_deviance(void)
     CHECK(half.mean[1] > 0.5f && half.mean[1] < hard.mean[1], "Deviance 40: the resonance %f", (double)half.mean[1]);
     CHECK(hard.turns > calm.turns && calm.turns > 0, "Deviance: turns calm %d, hard %d", calm.turns, hard.turns);
     CHECK(hard.jump < 0.01f, "Deviance: a knob jumped %f", (double)hard.jump);
+    /* a hand on a knob: Deviance lets go (the knobs as set) for 2 s after the touch, then takes over again */
+    {
+        float step_len = SR * 0.11f, held = 0.0f, after = 0.0f;
+        int ps = 0;
+        nacid_touch(&ac);
+        for (; ps < 40; ++ps) {                    /* 40 steps: 4.4 s */
+            nacid_step(&ac, 0.0f, step_len);
+            nacid_feel(&ac, 1.0f, ps % 128);
+            for (int i = 0; i < (int)step_len; ++i) tick();
+            float d = fabsf(ac.dv[0]) + fabsf(ac.dv[1]) + fabsf(ac.dv[2]) + fabsf(ac.dv[3]);
+            if (ps >= 2 && ps < 17 && d > held) held = d;   /* (0.2 .. 1.9 s) */
+            if (ps >= 24 && d > after) after = d;
+        }
+        printf("deviance: touched, the knobs moved %.4f in its rest, %.3f after it\n", (double)held, (double)after);
+        CHECK(held < 0.001f && after > 0.02f, "Deviance touched: %f in its rest, %f after", (double)held, (double)after);
+    }
     /* back to 0: the knobs back to where they are set */
     ac.p[NACID_P_DEVIANCE] = 0.0f;
     nacid_feel(&ac, 1.0f, 0);
     for (int i = 0; i < (int)(SR * 0.5f); ++i) tick();
     CHECK(ac.dv[0] == 0.0f && ac.dv[1] == 0.0f && ac.dv[2] == 0.0f && ac.dv[3] == 0.0f, "Deviance off: offsets left %f",
           (double)ac.dv[1]);
+}
+
+/* the hand tires: with hard drums a rest of about eight bars now and then, from a bar on a half phrase,
+ * the resonance down to the calm place, no turns; calm drums never; back from it, hard again */
+static void test_rest(void)
+{
+    float step_len = SR * 0.11f;
+    int rests = 0, rest_bars = 0, bad_start = 0, turns_in = 0, back_hard = 0, calm_rests = 0;
+    float reso_rest = 0.0f, reso_play = 0.0f;
+    int n_rest = 0, n_play = 0;
+    for (int pass = 0; pass < 2; ++pass) {
+        float mood = pass ? 0.2f : 1.0f;
+        nacid_init(&ac, SR, 7u);
+        ac.p[NACID_P_RESO] = 0.5f;
+        ac.p[NACID_P_DEVIANCE] = 1.0f;
+        uint8_t was = 0;
+        int woke_at = -1;
+        for (int ps = 0; ps < 256 * NACID_BAR; ++ps) {
+            float ph = ac.db_ph;
+            nacid_step(&ac, 0.0f, step_len);
+            nacid_feel(&ac, mood, ps % 128);
+            if (ac.d_rest && !was) {
+                if (pass) calm_rests++;
+                else rests++;
+                if (ps % (4 * NACID_BAR)) bad_start++;
+            }
+            if (!ac.d_rest && was) woke_at = ps;
+            was = ac.d_rest;
+            for (int i = 0; i < (int)step_len; ++i) tick();
+            if (pass) continue;
+            if (ac.d_rest && ac.db_ph < ph && ph >= 1.0f) turns_in++;
+            float v = ac.p[NACID_P_RESO] + ac.dv[1];
+            if (ac.d_rest && ps % NACID_BAR == 0) rest_bars++;
+            if (ac.d_rest && ac.d_rest < 7) { reso_rest += v; n_rest++; }
+            else if (!ac.d_rest && woke_at < 0) { reso_play += v; n_play++; }
+            if (woke_at >= 0 && ps == woke_at + 5 * NACID_BAR && v > 0.75f) back_hard++;
+        }
+    }
+    reso_rest /= (float)(n_rest ? n_rest : 1);
+    reso_play /= (float)(n_play ? n_play : 1);
+    printf("rest: %d rests over 256 hard bars (%d bars resting), resonance resting %.2f, before %.2f, calm %d\n",
+           rests, rest_bars, (double)reso_rest, (double)reso_play, calm_rests);
+    CHECK(rests >= 4 && rests <= 14, "rest: %d rests over 256 hard bars", rests);
+    CHECK(rest_bars > rests * 5 && rest_bars < rests * 11, "rest: %d bars for %d rests", rest_bars, rests);
+    CHECK(!bad_start, "rest: %d rests not on a half phrase", bad_start);
+    CHECK(!turns_in, "rest: %d turns while resting", turns_in);
+    CHECK(reso_rest < 0.6f && reso_play > 0.7f, "rest: the resonance resting %f, playing %f", (double)reso_rest,
+          (double)reso_play);
+    CHECK(back_hard, "rest: not hard again after a rest");
+    CHECK(!calm_rests, "rest: %d rests with calm drums", calm_rests);
 }
 
 int main(void)
@@ -699,6 +767,7 @@ int main(void)
     test_generator();
     test_major();
     test_deviance();
+    test_rest();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);
     return fails != 0;
 }

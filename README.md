@@ -1,9 +1,14 @@
 # Wild 0.3.5 - experimental FM-1 firmware
 
 **0.3.5: the 303 oversampled** (its oscillator and filter at 2x): less grit with the resonance up
-and the cutoff open, about 5 % more Audio Load.
-**0.3.0: the 303's own Deviance** (the acid line's Track page, KNOB 4): cutoff, resonance, Env Mod
-and Decay played as by a hand, following how hard the drums sound and how busy they are. And a
+and the cutoff open, about 5 % more Audio Load. **0.3.3:** no click from the Glue.
+**0.3.4: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
+sound itself a little at every sixteenth, never back: out of its kind in about 128 bars at 90, 8 at
+100. Up to 89 Deviance is as before.
+**0.3.0 - 0.3.2: the 303's own Deviance** (the acid line's own ENV page, KNOB 1): cutoff, resonance,
+Env Mod and Decay played as by a hand, following how hard the drums sound and how busy they are,
+taking a break of about eight bars when it has played hard a while; turn one of them yourself and
+Deviance rests until 2 s after your last turn. And a
 **Major** scale for the acid line. 0.2.1: Drive without the aliasing-like grit, and a cleaner 303
 square. 0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
@@ -57,7 +62,8 @@ command.
 ## What it sounds like
 
 - **Four FM drums** (tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4): four operators in eight algorithms, noise and a resonator. Every
-  hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
+  hit varies around the sound's base (Deviance); from 90 the base itself wanders off, slowly, into
+  something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), with the 303's gate, slide (an RC of 60 ms that may not get
@@ -69,7 +75,7 @@ command.
   to pure chance. Its **Deviance** plays its cutoff, resonance, Env Mod and Decay by itself, after the
   drums: harder and busier drums take it to high resonance, a middle cutoff and more Env Mod, calm
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
-  now and then a move against the rules.
+  now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round.

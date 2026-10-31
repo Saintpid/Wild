@@ -3,7 +3,7 @@
 # colour, not the loudness
 wait 200
 tap FX
-expect view 4
+expect view 5
 # the kick's: no reverb, no delay, no filter, drive 25
 expect tpar15 0
 expect tpar18 25
@@ -11,7 +11,7 @@ spin K1 40
 expect tpar15 40
 shot trackfx.png
 tap FX
-expect view 5
+expect view 6
 # the kick's modulation effect: off, then a phaser on every hit
 expect tpar19 0
 expect tpar22 60
@@ -21,7 +21,7 @@ spin K4 40
 expect tpar22 100
 shot modfx.png
 tap FX
-expect view 6
+expect view 7
 shot fxbus.png
 # SEL: a scene by chance (the kick's reverb is 40 before it); SEL again: back
 tap SEL
@@ -40,7 +40,7 @@ expect mute 0
 # the acid line's own
 tap OCT-
 tap FX
-expect view 4
+expect view 5
 expect apar16 10
 expect apar19 35
 spin K4 20
