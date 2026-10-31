@@ -27,15 +27,35 @@ expect apar24 0
 spin K4 120
 expect apar24 100
 shot acid_tone.png
-# a step: step 16 (w15) of bar 1 cleared first if set, then set: the root, no accent
+# a step: step 16 (w15) of bar 1, empty: a press sets the root with an accent, again plain, again off
+expect aflags15 0
 tapkey w15
 wait 20
+expect aflags15 3
+tapkey w15
+wait 20
+expect aflags15 1
+tapkey w15
+wait 20
+expect aflags15 0
+# a slid note with an accent loses the accent first and keeps the slide
+tapkey w15
+wait 20
+key w15 down
+wait 20
+spin K3 1
+key w15 up
+wait 20
+expect aflags15 7
+tapkey w15
+wait 20
+expect aflags15 5
 tapkey w15
 wait 20
 expect aflags15 0
 tapkey w15
 wait 20
-expect aflags15 1
+expect aflags15 3
 # held: KNOB 1 its note, KNOB 2 accent on, KNOB 3 slide on
 key w15 down
 wait 20

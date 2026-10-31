@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.10
+
+Firmware identity FM-1_844. The 303's steps work like the drums'.
+
+- **A 303 step key now goes accent, plain, off.** Press an empty step: a note on the root with an
+  accent. Press it again: the accent comes off (a slide on it stays). Again: the note is gone. So
+  it works like the drum steps' strong, soft, off. Holding a step and turning KNOB 1 (note), KNOB 2
+  (accent) and KNOB 3 (slide) works as before.
+
 ## 0.3.9
 
 Firmware identity FM-1_843. Two strengths on the step keys.

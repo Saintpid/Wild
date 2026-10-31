@@ -105,7 +105,7 @@ command.
 
 | Control | Does |
 | --- | --- |
-| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). A press: empty → strong → soft → off. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). A press: empty → strong → soft → off (303: accent → plain → off). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 12 steps |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |
