@@ -3,8 +3,9 @@
  * simulator includes it too. (The frame of it, knobs, bands and autosave, is FiMba-1's and FoMni's ui.c.)
  *
  *   SEQ mode (SEQ lit)  the 16 white keys are the 16 steps of one bar of the selected track: lit = a hit,
- *                  the dim one walking = where it plays. A key sets its step; pressed on a hit, it clears
- *                  it when let go, unless a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
+ *                  the dim one walking = where it plays. A key sets its step, strong; pressed on a hit,
+ *                  when let go it takes it a strength down: a strong one (over 90) soft (80), a soft one
+ *                  off (the acid line's: off); not if a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
  *                  KNOB 2 its note. A track in triplets (the Rhythm page, HOME again: Grid): keys 1-12 its
  *                  12 steps, three to a beat; 13-16 none.
  *   LIVE mode      the white keys play the sounds: four keys a sound, each a step up the scale
@@ -446,10 +447,10 @@ static void white_down(int w)
         }
         return;
     }
-    ui.held_vel = ui.held_was_on ? trk(t)->step[s].vel : 100u;
+    ui.held_vel = ui.held_was_on ? trk(t)->step[s].vel : NSEQ_VEL_STRONG;
     ui.held_note = ui.held_was_on ? trk(t)->step[s].note : 0;
     if (!ui.held_was_on) {
-        ne_step(t, s, 1, 100, 0);
+        ne_step(t, s, 1, NSEQ_VEL_STRONG, 0);
         mark_dirty();
     }
 }
@@ -459,9 +460,11 @@ static void white_up(int w)
     int t = ui.track;
     if (ui.live || ui.list || ui.held_step < 0 || ui.held_step % tbar(t) != w)
         return;
-    if (ui.held_was_on && !ui.held_edited) {
+    if (ui.held_was_on && !ui.held_edited) {       /* a drum hit: a strength down (strong, soft, off) */
         if (t == NE_ACID)
             ne_astep(ui.held_step, 0, ui.held_note);
+        else if (ui.held_vel > NSEQ_VEL_SPLIT)
+            ne_step(t, ui.held_step, 1, NSEQ_VEL_SOFT, ui.held_note);
         else
             ne_step(t, ui.held_step, 0, ui.held_vel, ui.held_note);
         mark_dirty();

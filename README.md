@@ -81,8 +81,8 @@ command.
   now and then moves a hit when the loop comes round. Any track, the 303 too, can run in
   **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
   keys 1–12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
-  quarters nearly always, with now and then a soft one; **Dynamics** (Rhythm page) sets how soft
-  they may get.
+  quarters most: each is strong or soft (the step keys' two strengths), and **Dynamics** (Rhythm
+  page) spreads them from there.
 - **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
   filter, a warm drive with even harmonics that does not raise the volume (anti-aliased), and a **modulation effect**
   per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.
@@ -105,7 +105,7 @@ command.
 
 | Control | Does |
 | --- | --- |
-| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). A press: empty → strong → soft → off. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 12 steps |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |

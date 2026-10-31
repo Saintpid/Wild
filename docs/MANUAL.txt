@@ -118,8 +118,10 @@ THE KEYS
 WHITE KEYS (16 = the 16 steps of the bar shown; a track in triplets: keys 1-12 = its 12 steps, 13-16 nothing)
 
 In SEQ mode:
-  Press an empty step: the step turns on.
-  Press and release a step that is on: the step turns off.
+  Press an empty step: the step turns on, strong (velocity 100).
+  Press and release a drum step that is on: it goes one strength down. A strong one (over 90)
+  becomes soft (80), a soft one (90 or under) turns off. So: empty, strong, soft, off.
+  On the acid track a press on a note turns it off.
   Hold a step and turn:
     Drum tracks: K1 = velocity, K2 = pitch (âˆ’24 to +24)
     The acid track: K1 = note (âˆ’12 to +24), K2 = accent off/on, K3 = slide off/on (right = on, left = off). A slide belongs to the note that slides on: it glides into the next step's note.
@@ -173,11 +175,12 @@ RHYTHM (HOME, page 2)
              on the first three sixteenths of each beat. New patterns in triplets are drawn for
              triplets (kicks on the beats, hats on the late third). Swing does not move triplets.
              The acid line has the same knob on its Rhythm page.
-  Dynamics   How soft a new pattern's hits may be, 0-100 (50 to start). Hits lean towards the top of
-             MIDI's 1-127: the quarters nearly always hard, now and then a soft one (about one in
-             seven), the steps between them spread wider but still mostly strong. 0: every hit full
-             (127); 100: down to about 17. It acts on new patterns (black 10, REC), not on the hits
-             already there; hold a step and turn KNOB 1 to set one by hand.
+  Dynamics   How far a new pattern's hits spread, 0-100 (50 to start). Each new hit is first strong
+             or soft, the step keys' two strengths: strong on most quarters (85 %), on about half of
+             the other steps (45 %). Dynamics then spreads it down: at 0 every hit is exactly 127 or
+             80; at 100 a strong one goes down to 95 (still strong), a soft one to 20. It acts on new
+             patterns (black 10, REC), not on the hits already there; hold a step and turn KNOB 1 to
+             set one by hand.
 
 TRACK (EDIT)
   Rnd len    Random length: Fixed, or 1â€“N bars. Sometimes the last bar is shorter, for odd lengths.

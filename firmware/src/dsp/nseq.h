@@ -7,8 +7,8 @@
  * second and third sixteenth of each quarter, the second and third played a
  * third and two thirds of a sixteenth late (the fourth plays none). A generator places a random number of hits,
  * drawn from a min..max range for the whole track, weighted towards the
- * positions that suit the slot's kind of sound. Their velocities lean to the
- * top, the quarters most, with now and then a soft one (dyn: how far down). Swing and loose timing
+ * positions that suit the slot's kind of sound. Each hit is strong or soft
+ * (strong likelier on the quarters), then spread down from there (dyn). Swing and loose timing
  * delay hits within their step.
  *
  * Portable C99 like nfm. All calls belong to the audio thread or happen
@@ -26,6 +26,11 @@
 #define NSEQ_TBAR 12           /* a bar of triplets */
 #define NSEQ_TMAX_STEPS (NSEQ_TBAR * NSEQ_MAX_BARS)
 #define NSEQ_QUEUE 32
+/* The two strengths a hit has on the step keys (any velocity 1..127 still plays as it is): strong, as a
+ * key sets it, and soft; above SPLIT a hit counts as strong (a press takes it down to soft). */
+#define NSEQ_VEL_STRONG 100
+#define NSEQ_VEL_SOFT 80
+#define NSEQ_VEL_SPLIT 90
 
 /* MIDI notes that drive the generator (see nseq_midi_note). */
 #define NSEQ_NOTE_TRACK0 36    /* C1 and up: new pattern for track 1, 2, ... */
