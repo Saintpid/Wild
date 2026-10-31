@@ -132,3 +132,6 @@
 
 ## 0.3.10 / 844 - 303 step key: accent, plain, off
 - User chose: empty -> note with accent -> plain (slide kept) -> off, like the drums' strong/soft/off.
+
+## 0.3.11 / 845 - soft strength 64
+- User: soft 80 was too close to strong 100; soft is now 64, SPLIT 82 (midway). Generator soft range 64..20.

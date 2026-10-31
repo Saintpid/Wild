@@ -4,7 +4,7 @@
  *
  *   SEQ mode (SEQ lit)  the 16 white keys are the 16 steps of one bar of the selected track: lit = a hit,
  *                  the dim one walking = where it plays. A key sets its step, strong; pressed on a hit,
- *                  when let go it takes it a strength down: a strong one (over 90) soft (80), a soft one
+ *                  when let go it takes it a strength down: a strong one (over 82) soft (64), a soft one
  *                  off (the acid line's: a note with an accent, plain, off); not if a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
  *                  KNOB 2 its note. A track in triplets (the Rhythm page, HOME again: Grid): keys 1-12 its
  *                  12 steps, three to a beat; 13-16 none.
