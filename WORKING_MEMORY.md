@@ -93,3 +93,14 @@
   (gain 2.65 fits the old Pade shape). nacid_route keeps DC and gain over a Drive change.
 - nacid_test test_clean: note period 403 1/3 samples so aliasing and control-rate products land
   between the harmonics; fails on 0.2.0 (drive -50 dB, square -36 dB).
+
+## 0.3.5 / 839 - the 303 at 2x
+- Oscillator + diode ladder (with its feedback high-pass) run at 2x; halfband 27 taps (7 multiplies,
+  flat to 17 kHz, -57 dB from 27 kHz) back down; VCA, drive, inserts at 1x. Cutoff's top kept where it
+  was at 1x (tan_pi argument capped at 0.3 of the 1x rate), so only aliasing and warping change.
+- Between-harmonics (Hann, test_clean): saw open -58.3 -> -66.9 dB, square -47.2 -> -51.5. A
+  Blackman-Harris 4x reference: full resonance open saw -54 (1x) / -63 (2x) / -70 (4x).
+- Cost on host: acid voice +70 % (0.099 -> 0.172 s per 60 s), whole ne_render about +5 %.
+- Not oversampled: FM ops (inherent, all voices = too costly), fold (x11 bandwidth on mostly low
+  sounds; hats are noise anyway), crush (aliasing is the point), Glue inflator (cubic, HF low in level).
+

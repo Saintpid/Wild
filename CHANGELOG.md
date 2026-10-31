@@ -5,6 +5,58 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.5
+
+Firmware identity FM-1_839. A cleaner 303 at the top.
+
+- **The 303 is oversampled.** Its oscillator and diode-ladder filter now run at twice the sample
+  rate and come back down through a halfband filter. With the resonance up and the cutoff open
+  (or swept open by Env Mod and accents), the filter's clip used to fold overtones back down as a
+  faint inharmonic hiss and grit between the notes; that is now about 9 dB lower, and the square
+  about 4 dB cleaner. The sound is otherwise the same: the cutoff, the resonance and the level are
+  where they were. It costs the acid voice about 70 % more time, about 5 % of the whole render:
+  check Audio Load (GLO + OCT+). The drums' FM, the fold and the master bus stay at the normal
+  rate: their overtones mostly stay under the top, so oversampling them would cost much and give
+  little.
+
+## 0.3.4
+
+Firmware identity FM-1_838. Drums that wander off.
+
+- **Deviance 90 to 100 on a drum track lets the sound itself wander.** Up to 89 nothing changes:
+  every hit varies around the sound as before. From 90 the sound moves a little at every sixteenth
+  and each hit starts from where the last one left off, never back, so it slowly becomes something
+  else: at 90 it has left its kind (a kick no longer a kick) after about 128 bars, at 100 after about
+  8. It is as fast however many hits the track plays. The knob's name reads **Wander** from 90.
+  Turn it below 90 and the sound stays where it went; save it and it is saved as it is now; a new
+  sound (black 11) starts over. A muted track waits. Its loudness keeps a floor (it never wanders
+  into silence) and Level, Pan and the crush stay as they are. Not the 303: its Deviance is its own.
+
+## 0.3.3
+
+Firmware identity FM-1_837. The click in the Glue, gone.
+
+- **No more clicks from the Glue.** Its compressor read the level a little wrong (a natural log in
+  place of a log2), so as a sound rose or died away its gain jumped about 1.5 dB at a time, in a
+  fifth of a millisecond: a click, on almost every hit, louder the higher the Glue and the Glue mix.
+  It now follows the level smoothly; it squeezes about the same, a tenth of a dB more at most.
+- The Glue's punch (the lift it gives a hit) now comes in over 1.5 ms instead of all at once, which
+  ticked too.
+- Turning any Glue knob with the Glue over 60 no longer restarts its warmth (a click at each turn).
+
+## 0.3.2
+
+Firmware identity FM-1_836. The 303's Deviance under ENV, and it gets tired.
+
+- **The acid line's Deviance has moved to ENV**, as the drums' Deviance: press ENV three times on
+  the acid line for its own page, Deviance on KNOB 1. Its Track page (EDIT) has **Level** back on
+  KNOB 4. The drum tracks' ENV still has its two pages.
+- **Deviance needs a rest now and then.** Playing hard spends its energy: with hard drums it keeps
+  going for about three phrases, give or take, then takes a break of mostly eight bars (now and then
+  four or twelve), whatever the drums do: from a bar on a half phrase the knobs go back to their calm
+  place in a bar or two, no twists and no build. Then it comes back hard, all at once, from where the
+  drums are. With calm drums it doesn't tire and gets its energy back.
+
 ## 0.3.1
 
 Firmware identity FM-1_835.

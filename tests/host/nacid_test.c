@@ -4,7 +4,8 @@
  * interval, so an octave may not get there), the pitch going on from where it is when a new slide
  * starts, rests closing the gate, the last step into the first, accent on the VCA and the cutoff and
  * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
- * lowering the sweep's start, the square made from the saw, the drive and the square without aliasing,
+ * lowering the sweep's start, the square made from the saw, the drive, the square and the resonance
+ * without aliasing (oversampled),
  * the filter's slope and its stability, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
  * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps, a rest
@@ -344,11 +345,14 @@ static float between_harmonics(int wave, float cut, float drive)
 }
 
 /* the drive warms without grit: nothing between the harmonics that the note had not without it (its
- * curve anti-aliased, its loudness match glided, not set in steps); the square's clip anti-aliased */
+ * curve anti-aliased, its loudness match glided, not set in steps); the square's clip anti-aliased; the
+ * resonance's clip with the cutoff open folds little back (the oscillator and the ladder at 2x: at 1x,
+ * -58 dB and the square -47) */
 static void test_clean(void)
 {
     for (int c = 0; c < 2; ++c) {
         float cut = c ? 1.0f : 0.6f, dry = between_harmonics(NACID_SAW, cut, 0.0f);
+        if (c) CHECK(dry < -63.0f, "saw, open: %.1f dB between the harmonics", (double)dry);
         float wet = between_harmonics(NACID_SAW, cut, 1.0f);
         CHECK(wet < dry + 3.0f, "drive: %.1f dB between the harmonics against %.1f dry (cutoff %.1f)",
               (double)wet, (double)dry, (double)cut);
@@ -356,7 +360,7 @@ static void test_clean(void)
                (double)wet, (double)dry);
     }
     float sq = between_harmonics(NACID_SQUARE, 1.0f, 0.0f);
-    CHECK(sq < -42.0f, "square: %.1f dB between the harmonics", (double)sq);
+    CHECK(sq < -49.0f, "square: %.1f dB between the harmonics", (double)sq);
     printf("square, open: %.1f dB between the harmonics\n", (double)sq);
 }
 
@@ -661,7 +665,8 @@ static void test_deviance(void)
                (double)calm.mean[k], (double)calm.lo[k], (double)calm.hi[k], (double)hard.mean[k], (double)hard.lo[k],
                (double)hard.hi[k], (double)half.mean[k]);
     printf("deviance: turns calm %d, hard %d; the largest step %.4f\n", calm.turns, hard.turns, (double)hard.jump);
-    CHECK(hard.mean[1] > calm.mean[1] + 0.2f && hard.mean[1] > 0.7f, "Deviance: the resonance with hard drums %f, calm %f",
+    /* (hard: its rests in it, about a quarter of the time) */
+    CHECK(hard.mean[1] > calm.mean[1] + 0.2f && hard.mean[1] > 0.65f, "Deviance: the resonance with hard drums %f, calm %f",
           (double)hard.mean[1], (double)calm.mean[1]);
     CHECK(hard.mean[2] > calm.mean[2] + 0.2f && hard.mean[2] > 0.5f, "Deviance: Env Mod with hard drums %f, calm %f",
           (double)hard.mean[2], (double)calm.mean[2]);
@@ -698,6 +703,56 @@ static void test_deviance(void)
           (double)ac.dv[1]);
 }
 
+/* the hand tires: with hard drums a rest of about eight bars now and then, from a bar on a half phrase,
+ * the resonance down to the calm place, no turns; calm drums never; back from it, hard again */
+static void test_rest(void)
+{
+    float step_len = SR * 0.11f;
+    int rests = 0, rest_bars = 0, bad_start = 0, turns_in = 0, back_hard = 0, calm_rests = 0;
+    float reso_rest = 0.0f, reso_play = 0.0f;
+    int n_rest = 0, n_play = 0;
+    for (int pass = 0; pass < 2; ++pass) {
+        float mood = pass ? 0.2f : 1.0f;
+        nacid_init(&ac, SR, 7u);
+        ac.p[NACID_P_RESO] = 0.5f;
+        ac.p[NACID_P_DEVIANCE] = 1.0f;
+        uint8_t was = 0;
+        int woke_at = -1;
+        for (int ps = 0; ps < 256 * NACID_BAR; ++ps) {
+            float ph = ac.db_ph;
+            nacid_step(&ac, 0.0f, step_len);
+            nacid_feel(&ac, mood, ps % 128);
+            if (ac.d_rest && !was) {
+                if (pass) calm_rests++;
+                else rests++;
+                if (ps % (4 * NACID_BAR)) bad_start++;
+            }
+            if (!ac.d_rest && was) woke_at = ps;
+            was = ac.d_rest;
+            for (int i = 0; i < (int)step_len; ++i) tick();
+            if (pass) continue;
+            if (ac.d_rest && ac.db_ph < ph && ph >= 1.0f) turns_in++;
+            float v = ac.p[NACID_P_RESO] + ac.dv[1];
+            if (ac.d_rest && ps % NACID_BAR == 0) rest_bars++;
+            if (ac.d_rest && ac.d_rest < 7) { reso_rest += v; n_rest++; }
+            else if (!ac.d_rest && woke_at < 0) { reso_play += v; n_play++; }
+            if (woke_at >= 0 && ps == woke_at + 5 * NACID_BAR && v > 0.75f) back_hard++;
+        }
+    }
+    reso_rest /= (float)(n_rest ? n_rest : 1);
+    reso_play /= (float)(n_play ? n_play : 1);
+    printf("rest: %d rests over 256 hard bars (%d bars resting), resonance resting %.2f, before %.2f, calm %d\n",
+           rests, rest_bars, (double)reso_rest, (double)reso_play, calm_rests);
+    CHECK(rests >= 4 && rests <= 14, "rest: %d rests over 256 hard bars", rests);
+    CHECK(rest_bars > rests * 5 && rest_bars < rests * 11, "rest: %d bars for %d rests", rest_bars, rests);
+    CHECK(!bad_start, "rest: %d rests not on a half phrase", bad_start);
+    CHECK(!turns_in, "rest: %d turns while resting", turns_in);
+    CHECK(reso_rest < 0.6f && reso_play > 0.7f, "rest: the resonance resting %f, playing %f", (double)reso_rest,
+          (double)reso_play);
+    CHECK(back_hard, "rest: not hard again after a rest");
+    CHECK(!calm_rests, "rest: %d rests with calm drums", calm_rests);
+}
+
 int main(void)
 {
     nfm_init(&eng, SR, 1u);
@@ -712,6 +767,7 @@ int main(void)
     test_generator();
     test_major();
     test_deviance();
+    test_rest();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);
     return fails != 0;
 }

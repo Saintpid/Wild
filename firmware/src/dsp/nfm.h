@@ -245,6 +245,8 @@ void nfm_set_choke(nfm_engine *e, int slot, int on);
 void nfm_randomize(nfm_engine *e, int slot, int kind);
 /* Nudge the base patch itself by amount (0..1): a permanent small step. */
 void nfm_mutate(nfm_engine *e, int slot, float amount);
+/* One step of the base patch's own random walk, sigma per parameter (normalised): it goes and stays. */
+void nfm_wander(nfm_engine *e, int slot, float sigma);
 int nfm_slot_kind(const nfm_engine *e, int slot);
 
 /* Play slot. velocity 0..1, transpose in semitones (0 for drums).

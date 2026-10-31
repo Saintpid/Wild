@@ -26,26 +26,28 @@
  *   FX             the selected track's effects (reverb, delay, filter, drive); again: its modulation
  *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
- * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, FX); a step key sets a note,
+ * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: ENV's third page
+ * is only its own, KNOB 1 its Deviance, as the drums' is on their Sound page); a step key sets a note,
  * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide (into the next step). CC 74 / 71: its
  * cutoff / resonance. Its Chaos (the Tone page, KNOB 4): how far its new patterns leave the rules.
  *
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Track FX", "Mod", "FX bus", "Drift",
+enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
                                               "Master", "Glue", "Groove", "Setup", "Scene"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
 #define UI_TRACKS (NE_TRACKS + 1)      /* the four drum tracks and the acid line */
 static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the acid line */
     {KA | A_BARS, KA | A_NOTES, KA | A_SLIDES, KA | A_EVOLVE},
-    {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_DEV},
+    {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_LEVEL},
     {KA | A_CUTOFF, KA | A_RESO, KA | A_ENVMOD, KA | A_DECAY},
     {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, KA | A_CHAOS},
+    {KA | A_DEV, K_NONE, K_NONE, K_NONE},
     {KA | A_REVERB, KA | A_DELAY, KA | A_FILTER, KA | A_DRIVE},
     {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
@@ -54,6 +56,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
+    {K_NONE, K_NONE, K_NONE, K_NONE},                /* (the acid line's only) */
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
     {G_REVERB, G_DELAY, G_FILTER, G_DRIVE},
@@ -169,6 +172,11 @@ static const ne_param_t *kinfo(int k)
     return k & KT ? ne_tparam_info(k & ~KT) : k & KA ? ne_aparam_info(k & ~KA) : ne_param_info(k);
 }
 static int kval(int k) { return k & KT ? proj.t[dtrack()][k & ~KT] : k & KA ? proj.a[k & ~KA] : proj.g[k]; }
+/* the name over a knob: a drum's Deviance from 90 lets the sound wander off (n001se.c), and says so */
+static const char *kname(int k)
+{
+    return k == (KT | T_DEV) && kval(k) >= 90 ? "Wander" : kinfo(k)->name;
+}
 static void ktext(int k, int v, char *t)
 {
     if (k & KT)
@@ -178,6 +186,8 @@ static void ktext(int k, int v, char *t)
     else
         ne_param_text(k, v, t);
 }
+/* the pages a track has: the Deviance page under ENV is the acid line's (the drums' is on Sound) */
+static int view_here(int v) { return v != V_ADEV || ui.track == NE_ACID; }
 static int view_knob(int i)
 {
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
@@ -336,7 +346,7 @@ static void turn(int role, int k, int32_t e)
     p = kinfo(k);
     undo_mark(1u << 24 | (uint32_t)k << 8 | ui.track);
     knob_set(k, kval(k) + accel(role, e, p->hi - p->lo));
-    s_cpy(ui.pop[0], p->name);
+    s_cpy(ui.pop[0], kname(k));
     ktext(k, kval(k), ui.pop[1]);
     ui.pop_t = plat_ms() | 1u;
 }
@@ -375,6 +385,8 @@ static int step_on(int t, int s)
 static void select_track(int t)
 {
     ui.track = (uint8_t)((t + UI_TRACKS) % UI_TRACKS);
+    if (!view_here(ui.view))
+        ui.view = V_SOUND;
     if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
         ui.bar_lock = 0;
     {
@@ -857,7 +869,7 @@ static void button(int b)
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
             if (VIEW_BTN[v] == b) {
-                if (VIEW_BTN[ui.view] == b && ui.view + 1 < NVIEWS && VIEW_BTN[ui.view + 1] == b)
+                if (VIEW_BTN[ui.view] == b && ui.view + 1 < NVIEWS && VIEW_BTN[ui.view + 1] == b && view_here(ui.view + 1))
                     v = ui.view + 1;
                 set_view(v);
                 break;
@@ -1025,8 +1037,13 @@ static void input(void)
         else
             select_track(ui.track + (e > 0 ? 1 : -1));
     }
-    if ((e = plat_enc(EN_ALGO)) != 0)                /* the pages */
-        set_view((ui.view + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS);
+    if ((e = plat_enc(EN_ALGO)) != 0) {              /* the pages */
+        int v = ui.view;
+        do
+            v = (v + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS;
+        while (!view_here(v));
+        set_view(v);
+    }
     if ((e = plat_enc(EN_PRESET)) != 0) {
         int k = ne_pknob_target(proj.g[G_PKNOB]);   /* (NE_PK_TRACK is KT: the selected track's) */
         if (ui.list)
@@ -1150,7 +1167,7 @@ static void draw_header(void)
             while (first > 0 && VIEW_BTN[first - 1] == VIEW_BTN[ui.view])
                 first--;
             for (v = first; v < NVIEWS && VIEW_BTN[v] == VIEW_BTN[ui.view]; v++)
-                n++;
+                n += view_here(v);
             if (n > 1) {
                 for (v = 0; v < n; v++)
                     cv_round(x - 4 + v * 9, 12, 6, 6, 3, first + v == ui.view ? K_TEXT : K_LINE);
@@ -1453,7 +1470,7 @@ static void draw_knobs(void)
         lo = kinfo(k)->lo;
         hi = kinfo(k)->hi;
         v = kval(k);
-        text_c(cx, 6, &FONT_XS, kinfo(k)->name, C_WHITE);   /* white: read on the small screen */
+        text_c(cx, 6, &FONT_XS, kname(k), C_WHITE);   /* white: read on the small screen */
         ktext(k, v, t);
         {   /* the value: big, unless it has lower case (the big face has none) or is long */
             const char *q = t;

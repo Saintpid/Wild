@@ -26,7 +26,8 @@
  *
  * DEVIANCE plays the cutoff, the resonance, Env Mod and Decay as a hand on a 303 would, following the
  * drums (nacid_feel): slow ways of their own towards where the drums' intensity suggests, now and then
- * against it, quick turns there and back on the beat, a build over a phrase's last bars.
+ * against it, quick turns there and back on the beat, a build over a phrase's last bars; after playing
+ * hard a while, a rest of about eight bars.
  *
  * Portable C99 like nfm; no libc, no malloc. All calls belong to the audio thread or happen between
  * renders. */
@@ -94,6 +95,8 @@ typedef struct {
     float gate;                    /* samples until the gate closes, < 0 held */
     uint8_t gate_on, accent, acc_gate, attack, sounding;
     float s[4], sf, so;            /* the ladder, the feedback's high-pass, the output's */
+    float hb_a[16], hb_b[8];       /* the halfband back from 2x: the samples on its taps, on its centre */
+    uint8_t hb_i;
     float P[16], q[4];             /* the ladder solved (every 8 samples) */
     float ga, k, comp;             /* the cutoff as a one-pole's gain (displays, tests), the resonance, its make-up */
     float dk_env, dk_acc, chg, dis;
@@ -117,6 +120,8 @@ typedef struct {
     uint8_t db_cyc, d_live, d_arc_on, dctl;
     float d_arc, d_mood, dsm;      /* the phrase's build (0..1), the drums' intensity glided */
     float d_hold;                  /* samples Deviance rests after a hand on its knobs (nacid_touch) */
+    float d_energy;                /* the hand's energy (1 rested .. 0 spent) */
+    uint8_t d_rest, d_woke;        /* bars of rest left (0: playing); a rest just ended */
     uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
 } nacid;
 
