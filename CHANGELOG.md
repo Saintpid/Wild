@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.9
+
+Firmware identity FM-1_843. Two strengths on the step keys.
+
+- **A step key now has two strengths.** Press an empty step: a strong hit (velocity 100, as
+  before). Press it again: soft (80). Again: off. A hit already there goes one strength down
+  whatever its velocity: anything over 90 becomes soft, 90 or under goes off. Holding a step and
+  turning KNOB 1 still sets any velocity 1-127, and letting go after a turn changes nothing more.
+  The 303's steps work as before (a press on a note takes it off).
+- **New drum patterns use the same two strengths** as their first layer: strong on most quarters
+  (85 %) and on about half of the other steps (45 %), soft otherwise. **Dynamics** (Rhythm page,
+  KNOB 2) now spreads them from there: at 0 every hit is exactly 127 or 80, at 100 a strong one
+  goes down to 95 and a soft one to 20.
+
 ## 0.3.8
 
 Firmware identity FM-1_842. Drums that play like hands.

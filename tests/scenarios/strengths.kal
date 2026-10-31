@@ -1,0 +1,41 @@
+# a drum step's two strengths on its key: an empty step is set strong (100); pressed again, soft (80);
+# again, off. A hit of any velocity over 90 goes to soft, one at 90 or under off; turning a knob while
+# held keeps it as turned
+wait 200
+expect track 0
+expect step1 0
+tapkey w1
+wait 20
+expect step1 1
+expect vel1 100
+tapkey w1
+wait 20
+expect step1 1
+expect vel1 80
+tapkey w1
+wait 20
+expect step1 0
+# set, then held and turned up to 127: it stays at 127
+tapkey w1
+wait 20
+key w1 down
+wait 20
+spin K1 40
+key w1 up
+wait 20
+expect step1 1
+expect vel1 127
+tapkey w1
+wait 20
+expect vel1 80
+# held and turned down (to 60): let go, it stays; pressed, it goes
+key w1 down
+wait 20
+spin K1 -5
+key w1 up
+wait 20
+expect vel1 60
+tapkey w1
+wait 20
+expect step1 0
+expect dropped 0

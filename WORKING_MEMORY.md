@@ -122,3 +122,10 @@
   Own RNG (vrng) so hit placement keeps its stream. T_DYN (Rhythm page KNOB 2, default 50, format 16).
 - drum_mood scales hits by 0.85 so the 303 Deviance reads the starting set as before.
 - glue_test Width check now compares sides above 60 Hz (the lows go mono by design).
+
+## 0.3.9 / 843 - two strengths on the step keys
+- User: press empty -> strong (100, as before), again -> soft (80), again -> off; existing hit goes one
+  strength down whatever it is (>90 -> 80, <=90 -> off). Must coexist with future exact per-step
+  velocity (1..127): stored velocity untouched otherwise. NSEQ_VEL_STRONG/SOFT/SPLIT in nseq.h.
+- Generator: first layer strong/soft (beat 85 %, else 45 %), then Dynamics spreads down
+  (strong 127..95, soft 80..20). Acid steps unchanged.

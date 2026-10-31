@@ -322,11 +322,11 @@ int main(int argc, char **argv)
         CHECK(tr->length == 36 && n == 6 && asteps == 0, "triplets: a new pattern %d steps, %d hits; acid notes past four bars %d",
               tr->length, n, asteps);
     }
-    /* Dynamics: new hits lean to the top, the quarters most, a soft quarter now and then; at 0 all full,
-     * at 100 down to about 17 */
+    /* two strengths, then Dynamics: at 0 each new hit is strong (127) or soft (NSEQ_VEL_SOFT), strong
+     * on 85 % of the quarters and 45 % of the rest; at 100 a strong one stays over the split, a soft one
+     * goes down to 20 */
     {
-        int nb = 0, no = 0, soft = 0, lo = 127, flat = 1, d;
-        float sb = 0.0f, so = 0.0f;
+        int nb = 0, no = 0, sbn = 0, son = 0, two = 1, lo = 127, strong_lo = 127, d;
         const nseq_track *tr = &ne_seq()->track[1];
         ne_init();
         ne_tset(1, T_RANDLEN, 0);
@@ -343,27 +343,27 @@ int main(int argc, char **argv)
                     int v = tr->step[s2].vel;
                     if (!tr->step[s2].on)
                         continue;
-                    if (!d) {
-                        flat &= v == 127;
+                    if (d) {
+                        lo = v < lo ? v : lo;
+                        if (v > NSEQ_VEL_SPLIT && v < strong_lo)
+                            strong_lo = v;
                         continue;
                     }
-                    lo = v < lo ? v : lo;
-                    if (s2 % 4 == 0) {
-                        sb += (float)v, nb++;
-                        soft += v < 90;
-                    } else {
-                        so += (float)v, no++;
-                    }
+                    two &= v == 127 || v == NSEQ_VEL_SOFT;
+                    if (s2 % 4 == 0)
+                        nb++, sbn += v == 127;
+                    else
+                        no++, son += v == 127;
                 }
             }
         }
-        sb /= (float)(nb ? nb : 1);
-        so /= (float)(no ? no : 1);
-        printf("Dynamics 100: quarters %.0f on average (%.0f%% soft), the rest %.0f, the softest %d; at 0 all full: %s\n",
-               (double)sb, 100.0 * soft / (nb ? nb : 1), (double)so, lo, flat ? "yes" : "no");
-        CHECK(flat && sb > 104.0f && so > 85.0f && so < sb - 8.0f && soft > nb / 14 && soft < nb / 4 && lo < 35 && lo >= 15,
-              "Dynamics: quarters %f, rest %f, %d of %d soft, softest %d, flat at 0 %d", (double)sb, (double)so, soft, nb, lo,
-              flat);
+        printf("two strengths: strong on %d%% of the quarters, %d%% of the rest%s; at Dynamics 100 the softest %d, "
+               "the softest strong %d\n", 100 * sbn / (nb ? nb : 1), 100 * son / (no ? no : 1),
+               two ? "" : " (other values at 0!)", lo, strong_lo);
+        CHECK(two && sbn * 100 > nb * 78 && sbn * 100 < nb * 92 && son * 100 > no * 37 && son * 100 < no * 53 &&
+                  lo >= 20 && lo < 32 && strong_lo >= 95,
+              "two strengths: %d of %d quarters strong, %d of %d others, flat %d, softest %d, softest strong %d", sbn, nb,
+              son, no, two, lo, strong_lo);
     }
     /* saved and restored: the same */
     ne_snapshot(&a);

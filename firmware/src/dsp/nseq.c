@@ -103,20 +103,18 @@ NFM_CODE static int pick_step(nseq *q, const float *w, int len)
     return -1;
 }
 
-/* A new hit's velocity, 1..127, as a hand plays: most near the top. On the quarter nearly always
- * hard, a soft one now and then (15 %); between them spread wider, still leaning up. dyn: how far
- * below full it may go (100: down to about 17). */
+/* A new hit's velocity, as a hand plays, in two layers. First strong or soft, the step keys' two
+ * strengths: on the quarter strong 85 % of the time, between them 45 %. Then dyn spreads it down
+ * from there: a strong one from 127 (to 95 at most, still strong), a soft one from NSEQ_VEL_SOFT (to
+ * 20 at dyn 100). dyn 0: 127 and NSEQ_VEL_SOFT only. */
 NFM_CODE static int velocity(nseq *q, const nseq_track *tr, int s)
 {
-    float x, u = rndf(&q->vrng);
-    int beat = tr->triplet ? s % 3 == 0 : s % 4 == 0;
-    if (!beat)
-        x = u * u * (0.4f + 0.6f * u);            /* (a mean of about 0.3 of the way down) */
-    else if (rndf(&q->vrng) < 0.15f)
-        x = 0.35f + 0.65f * u;                    /* the soft one */
+    int beat = tr->triplet ? s % 3 == 0 : s % 4 == 0, v;
+    float u = rndf(&q->vrng), d = (float)tr->dyn * 0.01f;
+    if (rndf(&q->vrng) < (beat ? 0.85f : 0.45f))
+        v = 127 - (int)(32.0f * d * u * u + 0.5f);
     else
-        x = 0.35f * u * u * u;
-    int v = 127 - (int)(x * (float)tr->dyn * 1.1f + 0.5f);
+        v = NSEQ_VEL_SOFT - (int)((float)(NSEQ_VEL_SOFT - 20) * d * u + 0.5f);
     return v < 1 ? 1 : v > 127 ? 127 : v;
 }
 
