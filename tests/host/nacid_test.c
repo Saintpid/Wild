@@ -4,7 +4,8 @@
  * interval, so an octave may not get there), the pitch going on from where it is when a new slide
  * starts, rests closing the gate, the last step into the first, accent on the VCA and the cutoff and
  * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
- * lowering the sweep's start, the square made from the saw, the drive and the square without aliasing,
+ * lowering the sweep's start, the square made from the saw, the drive, the square and the resonance
+ * without aliasing (oversampled),
  * the filter's slope and its stability, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
  * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps. */
@@ -343,11 +344,14 @@ static float between_harmonics(int wave, float cut, float drive)
 }
 
 /* the drive warms without grit: nothing between the harmonics that the note had not without it (its
- * curve anti-aliased, its loudness match glided, not set in steps); the square's clip anti-aliased */
+ * curve anti-aliased, its loudness match glided, not set in steps); the square's clip anti-aliased; the
+ * resonance's clip with the cutoff open folds little back (the oscillator and the ladder at 2x: at 1x,
+ * -58 dB and the square -47) */
 static void test_clean(void)
 {
     for (int c = 0; c < 2; ++c) {
         float cut = c ? 1.0f : 0.6f, dry = between_harmonics(NACID_SAW, cut, 0.0f);
+        if (c) CHECK(dry < -63.0f, "saw, open: %.1f dB between the harmonics", (double)dry);
         float wet = between_harmonics(NACID_SAW, cut, 1.0f);
         CHECK(wet < dry + 3.0f, "drive: %.1f dB between the harmonics against %.1f dry (cutoff %.1f)",
               (double)wet, (double)dry, (double)cut);
@@ -355,7 +359,7 @@ static void test_clean(void)
                (double)wet, (double)dry);
     }
     float sq = between_harmonics(NACID_SQUARE, 1.0f, 0.0f);
-    CHECK(sq < -42.0f, "square: %.1f dB between the harmonics", (double)sq);
+    CHECK(sq < -49.0f, "square: %.1f dB between the harmonics", (double)sq);
     printf("square, open: %.1f dB between the harmonics\n", (double)sq);
 }
 

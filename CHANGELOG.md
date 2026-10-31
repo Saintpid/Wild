@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.5
+
+Firmware identity FM-1_839. A cleaner 303 at the top.
+
+- **The 303 is oversampled.** Its oscillator and diode-ladder filter now run at twice the sample
+  rate and come back down through a halfband filter. With the resonance up and the cutoff open
+  (or swept open by Env Mod and accents), the filter's clip used to fold overtones back down as a
+  faint inharmonic hiss and grit between the notes; that is now about 9 dB lower, and the square
+  about 4 dB cleaner. The sound is otherwise the same: the cutoff, the resonance and the level are
+  where they were. It costs the acid voice about 70 % more time, about 5 % of the whole render:
+  check Audio Load (GLO + OCT+). The drums' FM, the fold and the master bus stay at the normal
+  rate: their overtones mostly stay under the top, so oversampling them would cost much and give
+  little.
+
 ## 0.3.0
 
 Firmware identity FM-1_834. The 303's own Deviance, and a major scale.

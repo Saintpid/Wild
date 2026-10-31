@@ -559,7 +559,8 @@ NFM_CODE static void control(nacid *a)
     /* Env Mod as a 303's: the more of it, the lower the sweep starts (1.5 octaves at full), its top
      * where it was (5 octaves over the knob) */
     float oct = em * (6.5f * a->env - 1.5f) + a->p[NACID_P_ACCENT] * 3.0f * a->acc_cap;
-    float fc = base * exp2f_(oct), g = tan_pi(fc * LADDER_F / a->sr);
+    float fc = base * exp2f_(oct), w = fc * LADDER_F / a->sr;
+    float g = tan_pi((w > 0.3f ? 0.3f : w) * 0.5f);                    /* (at 2x; its top where it was at 1x) */
     a->ga = g / (1.0f + g);
     ladder(a, g);
     a->k = reso * LADDER_K;
@@ -581,13 +582,90 @@ NFM_CODE static void control(nacid *a)
     a->dis = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.08f + 0.5f * reso) * a->sr));
 }
 
+/* ----------------------------------------------------------------------------- 2x oversampled ---
+ * The oscillator and the ladder run at twice the rate: the clip in the resonance's feedback (and the
+ * square's) makes overtones past the top that would fold back between a note's harmonics, most with the
+ * resonance up and the cutoff open, and the ladder keeps its shape further up. Back down through a
+ * halfband: 27 taps, 7 multiplies a sample, flat to 17 kHz, -57 dB from 27 kHz. */
+NFM_DATA static const float hbc[7] = { 0.31402690f, -0.09586685f, 0.04802163f, -0.02583784f, 0.01338052f, -0.00619374f, 0.00246937f };
+
+/* the wave at phase t, dt its step */
+NFM_CODE static inline float osc(nacid *a, float t, float dt)
+{
+    float x;
+    switch (a->wave) {
+    default:
+    case NACID_SAW: x = 2.0f * t - 1.0f - blep(t, dt); break;
+    case NACID_SQUARE: {                     /* a 303's: the saw through a transistor that clips it */
+        float w = 2.0f * t - 1.0f - blep(t, dt);
+        float u = 2.65f * (w + 0.08f);       /* rounded on the way up, a slant on top; anti-aliased */
+        x = sat_adaa(a->sq_u1, u) * 0.95f + 0.1f * w;
+        a->sq_u1 = u;
+        break;
+    }
+    case NACID_PULSE: {                      /* 20 % */
+        float t2 = t + 0.8f;
+        if (t2 >= 1.0f) t2 -= 1.0f;
+        x = (t < 0.2f ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt) + 0.6f;   /* (its DC off) */
+        break;
+    }
+    case NACID_TRI: x = t < 0.5f ? 4.0f * t - 1.0f : 3.0f - 4.0f * t; break;
+    case NACID_SINE: {                       /* a parabola pair, near enough a sine */
+        float u = t < 0.5f ? t * 4.0f - 1.0f : 3.0f - t * 4.0f;
+        x = u * (1.5f - 0.5f * u * u);
+        break;
+    }
+    case NACID_DUO: {                        /* two saws, 12 cents apart */
+        float dt2 = dt * 1.00696f, t2 = a->phase2 + dt2;
+        if (t2 >= 1.0f) t2 -= 1.0f;
+        a->phase2 = t2;
+        x = (2.0f * t - 1.0f - blep(t, dt) + 2.0f * t2 - 1.0f - blep(t2, dt2)) * 0.6f;
+        break;
+    }
+    }
+    return x;
+}
+
+NFM_CODE static inline float ladder_tick(nacid *a, float x, float hf, float Gf)
+{
+    /* the filter: the diode ladder (ladder()), the feedback through its high-pass solved for the
+     * sample (y4 = B + q4 u), a soft clip on the way in, where it sings */
+    const float *P = a->P, *s = a->s;
+    float k = a->k;
+    float B = P[12] * s[0] + P[13] * s[1] + P[14] * s[2] + P[15] * s[3];
+    float u = 4.0f * soft(0.25f * (x * 0.12f * a->comp - k * hf * (B - a->sf)) / (1.0f + k * hf * a->q[3]));
+    float y0 = P[0] * s[0] + P[1] * s[1] + P[2] * s[2] + P[3] * s[3] + a->q[0] * u;
+    float y1 = P[4] * s[0] + P[5] * s[1] + P[6] * s[2] + P[7] * s[3] + a->q[1] * u;
+    float y2 = P[8] * s[0] + P[9] * s[1] + P[10] * s[2] + P[11] * s[3] + a->q[2] * u;
+    float y3 = B + a->q[3] * u;
+    a->s[0] = y0 + y0 - s[0];
+    a->s[1] = y1 + y1 - s[1];
+    a->s[2] = y2 + y2 - s[2];
+    a->s[3] = y3 + y3 - s[3];
+    float v = (y3 - a->sf) * Gf;             /* the feedback's high-pass: its low-pass state */
+    a->sf += v + v;
+    return y3;
+}
+
+/* two samples at 2x in (x0 first), one out: x1's on the taps, x0's on the centre (6 samples late) */
+NFM_CODE static inline float halfband(nacid *a, float x0, float x1)
+{
+    unsigned i = a->hb_i = (uint8_t)((a->hb_i + 1u) & 15u);
+    const float *h = a->hb_a;
+    a->hb_a[i] = x1;
+    a->hb_b[i & 7u] = x0;
+    float y = 0.5f * a->hb_b[(i - 6u) & 7u];
+    for (unsigned k = 0; k < 7u; ++k) y += hbc[k] * (h[(i - 6u + k) & 15u] + h[(i - 7u - k) & 15u]);
+    return y;
+}
+
 NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
     const float rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
     const float vdk = exp2f_(-1.4427f / (3.0f * a->sr));          /* the VCA's decay while the gate is held */
     const float fade = 1.0f - exp2f_(-1.4427f / (0.01f * a->sr));
     const float sm = 1.0f - exp2f_(-1.4427f / (0.002f * a->sr));  /* the accent on the VCA, without a click */
-    const float gf = tan_pi(100.0f / a->sr), hf = 1.0f / (1.0f + gf), Gf = gf * hf;
+    const float gf = tan_pi(50.0f / a->sr), hf = 1.0f / (1.0f + gf), Gf = gf * hf;   /* 100 Hz at 2x */
     const float ho = 1.0f - exp2f_(-1.4427f * 6.2832f * 40.0f / a->sr);   /* the output's coupling: 40 Hz */
     float lvl = a->p[NACID_P_LEVEL] * 0.6f * e->master;
     nfm_mod_block(&a->mod, a->sr, n);
@@ -602,11 +680,12 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             a->cv = d < 0.0005f && d > -0.0005f ? a->cv_to : a->cv + d * a->glide;
             a->freq = 65.406f * exp2f_(a->cv * (1.0f / 12.0f));
         }
-        float dt = a->freq / a->sr, t = a->phase + dt, x;
+        float dh = 0.5f * a->freq / a->sr, t0 = a->phase + dh, t = t0 + dh;   /* (dh: a step at 2x) */
+        if (t0 >= 1.0f) t0 -= 1.0f;
         if (t >= 1.0f) t -= 1.0f;
         a->phase = t;
         if (!a->sounding) {                      /* (the oscillator runs on, unheard) */
-            if (a->wave == NACID_DUO && (a->phase2 += dt * 1.00696f) >= 1.0f) a->phase2 -= 1.0f;
+            if (a->wave == NACID_DUO && (a->phase2 += dh * 2.01392f) >= 1.0f) a->phase2 -= 1.0f;
             continue;
         }
         if (a->gate > 0.0f && (a->gate -= 1.0f) <= 0.0f) a->gate_on = 0;
@@ -630,57 +709,14 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             a->sounding = 0;
             a->amp = a->acc_vca = 0.0f;
             a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = 0.0f;
+            nfm_zero(a->hb_a, sizeof a->hb_a);
+            nfm_zero(a->hb_b, sizeof a->hb_b);
             continue;
         }
 
-        switch (a->wave) {
-        default:
-        case NACID_SAW: x = 2.0f * t - 1.0f - blep(t, dt); break;
-        case NACID_SQUARE: {                     /* a 303's: the saw through a transistor that clips it */
-            float w = 2.0f * t - 1.0f - blep(t, dt);
-            float u = 2.65f * (w + 0.08f);       /* rounded on the way up, a slant on top; anti-aliased */
-            x = sat_adaa(a->sq_u1, u) * 0.95f + 0.1f * w;
-            a->sq_u1 = u;
-            break;
-        }
-        case NACID_PULSE: {                      /* 20 % */
-            float t2 = t + 0.8f;
-            if (t2 >= 1.0f) t2 -= 1.0f;
-            x = (t < 0.2f ? 1.0f : -1.0f) + blep(t, dt) - blep(t2, dt) + 0.6f;   /* (its DC off) */
-            break;
-        }
-        case NACID_TRI: x = t < 0.5f ? 4.0f * t - 1.0f : 3.0f - 4.0f * t; break;
-        case NACID_SINE: {                       /* a parabola pair, near enough a sine */
-            float u = t < 0.5f ? t * 4.0f - 1.0f : 3.0f - t * 4.0f;
-            x = u * (1.5f - 0.5f * u * u);
-            break;
-        }
-        case NACID_DUO: {                        /* two saws, 12 cents apart */
-            float dt2 = dt * 1.00696f, t2 = a->phase2 + dt2;
-            if (t2 >= 1.0f) t2 -= 1.0f;
-            a->phase2 = t2;
-            x = (2.0f * t - 1.0f - blep(t, dt) + 2.0f * t2 - 1.0f - blep(t2, dt2)) * 0.6f;
-            break;
-        }
-        }
-
-        /* the filter: the diode ladder (ladder()), the feedback through its high-pass solved for the
-         * sample (y4 = B + q4 u), a soft clip on the way in, where it sings */
-        const float *P = a->P, *s = a->s;
-        float k = a->k;
-        float B = P[12] * s[0] + P[13] * s[1] + P[14] * s[2] + P[15] * s[3];
-        float u = 4.0f * soft(0.25f * (x * 0.12f * a->comp - k * hf * (B - a->sf)) / (1.0f + k * hf * a->q[3]));
-        float y0 = P[0] * s[0] + P[1] * s[1] + P[2] * s[2] + P[3] * s[3] + a->q[0] * u;
-        float y1 = P[4] * s[0] + P[5] * s[1] + P[6] * s[2] + P[7] * s[3] + a->q[1] * u;
-        float y2 = P[8] * s[0] + P[9] * s[1] + P[10] * s[2] + P[11] * s[3] + a->q[2] * u;
-        float y3 = B + a->q[3] * u;
-        a->s[0] = y0 + y0 - s[0];
-        a->s[1] = y1 + y1 - s[1];
-        a->s[2] = y2 + y2 - s[2];
-        a->s[3] = y3 + y3 - s[3];
-        u = y3;
-        float v = (u - a->sf) * Gf;              /* the feedback's high-pass: its low-pass state */
-        a->sf += v + v;
+        /* the oscillator and the ladder twice a sample, back down through the halfband */
+        float u = ladder_tick(a, osc(a, t0, dh), hf, Gf);
+        u = halfband(a, u, ladder_tick(a, osc(a, t, dh), hf, Gf));
         a->so += (u - a->so) * ho;
         float o = (u - a->so) * 6.7f * a->amp * (1.0f + 0.9f * a->p[NACID_P_ACCENT] * a->acc_vca) * lvl;
 
