@@ -158,6 +158,40 @@ int main(int argc, char **argv)
         CHECK(calm > 0.15f && calm < 0.5f && hard > 0.85f && quiet < 0.05f && pk <= 1.0f,
               "303 Deviance: intensity %f %f %f, peak %f", (double)calm, (double)hard, (double)quiet, (double)pk);
     }
+    /* Deviance 90..100: the sound wanders off. After 8 bars: at 89 and muted, its base as drawn; at 90 a
+     * little way; at 100 far (gone from its kind in about that) */
+    {
+        static nfm_slot was[NE_TRACKS];
+        float d[NE_TRACKS];
+        static const int DEV[NE_TRACKS] = {89, 90, 100, 100};
+        ne_init();
+        for (t = 0; t < NE_TRACKS; t++) {
+            ne_tset(t, T_DEV, DEV[t]);
+            was[t] = ne_fm()->slot[t];
+        }
+        ne_tset(3, T_MUTE, 1);
+        ne_play(1);
+        render((int)(8.0f * 4.0f * 60.0f / 112.0f * NE_SR / 256.0f), 0);
+        for (t = 0; t < NE_TRACKS; t++) {
+            float e = 0.0f;
+            for (i = 0; i < NFM_PARAMS; i++) {
+                float x = ne_fm()->slot[t].p[i] - was[t].p[i];
+                if (i != NFM_LEVEL)
+                    e += x * x;
+            }
+            d[t] = e;
+        }
+        for (t = 0; t < NE_TRACKS; t++) {           /* (the spread per parameter) */
+            float x = d[t] / (float)(NFM_PARAMS - 1), r = x > 0.0f ? x : 0.0f;
+            for (i = 0; i < 20 && x > 0.0f; i++)
+                r = 0.5f * (r + x / r);
+            d[t] = r;
+        }
+        printf("Deviance after 8 bars, the base moved: %.3f at 89, %.3f at 90, %.3f at 100, %.3f muted\n", (double)d[0],
+               (double)d[1], (double)d[2], (double)d[3]);
+        CHECK(d[0] == 0.0f && d[3] == 0.0f && d[1] > 0.03f && d[1] < 0.12f && d[2] > 0.18f && d[2] > 2.5f * d[1],
+              "Deviance wander: %f %f %f %f", (double)d[0], (double)d[1], (double)d[2], (double)d[3]);
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();

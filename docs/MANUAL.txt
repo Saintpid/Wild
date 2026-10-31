@@ -169,7 +169,11 @@ TRACK (EDIT)
   Mute       Off/on
 
 SOUND (ENV, page 1)
-  Deviance   How much the tone varies from hit to hit
+  Deviance   How much the tone varies from hit to hit. From 90 (the name reads Wander) the sound
+             itself wanders too: a little at every sixteenth, each hit from where the last left off,
+             never back. Out of its kind in about 128 bars at 90, about 8 at 100, however many hits
+             the track plays. Below 90 again, it stays where it went (and is saved so); a new sound
+             starts over; a muted track waits. Level, pan and crush stay; it never fades to silence.
   Length     The sound's length
   Edge       Attack and bite
   Ring       Resonance and ring

@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.3
+
+Firmware identity FM-1_837. Drums that wander off.
+
+- **Deviance 90 to 100 on a drum track lets the sound itself wander.** Up to 89 nothing changes:
+  every hit varies around the sound as before. From 90 the sound moves a little at every sixteenth
+  and each hit starts from where the last one left off, never back, so it slowly becomes something
+  else: at 90 it has left its kind (a kick no longer a kick) after about 128 bars, at 100 after about
+  8. It is as fast however many hits the track plays. The knob's name reads **Wander** from 90.
+  Turn it below 90 and the sound stays where it went; save it and it is saved as it is now; a new
+  sound (black 11) starts over. A muted track waits. Its loudness keeps a floor (it never wanders
+  into silence) and Level, Pan and the crush stay as they are. Not the 303: its Deviance is its own.
+
 ## 0.3.2
 
 Firmware identity FM-1_836. The 303's Deviance under ENV, and it gets tired.

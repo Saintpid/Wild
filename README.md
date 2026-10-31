@@ -1,5 +1,8 @@
-# Wild 0.3.2 - experimental FM-1 firmware
+# Wild 0.3.3 - experimental FM-1 firmware
 
+**0.3.3: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
+sound itself a little at every sixteenth, never back: out of its kind in about 128 bars at 90, 8 at
+100. Up to 89 Deviance is as before.
 **0.3.0 - 0.3.2: the 303's own Deviance** (the acid line's own ENV page, KNOB 1): cutoff, resonance,
 Env Mod and Decay played as by a hand, following how hard the drums sound and how busy they are,
 taking a break of about eight bars when it has played hard a while; turn one of them yourself and
@@ -57,7 +60,8 @@ command.
 ## What it sounds like
 
 - **Four FM drums** (tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4): four operators in eight algorithms, noise and a resonator. Every
-  hit varies around the sound's base (Deviance). A new sound is drawn from a kind: kick, snare, hat,
+  hit varies around the sound's base (Deviance); from 90 the base itself wanders off, slowly, into
+  something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), with the 303's gate, slide (an RC of 60 ms that may not get
