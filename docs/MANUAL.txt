@@ -119,8 +119,8 @@ WHITE KEYS (16 = the 16 steps of the bar shown; a track in triplets: keys 1-12 =
 
 In SEQ mode:
   Press an empty step: the step turns on, strong (velocity 100).
-  Press and release a drum step that is on: it goes one strength down. A strong one (over 90)
-  becomes soft (80), a soft one (90 or under) turns off. So: empty, strong, soft, off.
+  Press and release a drum step that is on: it goes one strength down. A strong one (over 82)
+  becomes soft (64), a soft one (82 or under) turns off. So: empty, strong, soft, off.
   On the acid track the same with accent: an empty step gets a note with an accent, the next
   press takes the accent off (a slide stays), the next turns the note off. So: empty, accent,
   plain, off.
@@ -180,7 +180,7 @@ RHYTHM (HOME, page 2)
   Dynamics   How far a new pattern's hits spread, 0-100 (50 to start). Each new hit is first strong
              or soft, the step keys' two strengths: strong on most quarters (85 %), on about half of
              the other steps (45 %). Dynamics then spreads it down: at 0 every hit is exactly 127 or
-             80; at 100 a strong one goes down to 95 (still strong), a soft one to 20. It acts on new
+             64; at 100 a strong one goes down to 95 (still strong), a soft one to 20. It acts on new
              patterns (black 10, REC), not on the hits already there; hold a step and turn KNOB 1 to
              set one by hand.
 

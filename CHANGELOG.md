@@ -5,6 +5,14 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.11
+
+Firmware identity FM-1_845. A softer soft hit.
+
+- **The soft strength on the drum steps is now 64 instead of 80**, so it stands clearly apart from
+  the strong one (100). A second press on a strong step makes it 64; any hit over 82 counts as
+  strong. New patterns' soft hits start from 64 too (down to 20 at Dynamics 100).
+
 ## 0.3.10
 
 Firmware identity FM-1_844. The 303's steps work like the drums'.
