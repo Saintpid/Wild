@@ -12,7 +12,7 @@ static int fails;
 
 #define FRAMES (int)(8.0f * 4.0f * 60.0f / 112.0f * NE_SR)
 static int32_t blk[2 * 256];
-typedef struct { float e, pk, eside, eside_lo, elo, ehi, ediff; } meas;
+typedef struct { float e, pk, eside, eside_lo, elo, ehi, ediff, slew; } meas;
 
 static void wav_header(FILE *f, uint32_t n)
 {
@@ -37,6 +37,7 @@ static void wav_header(FILE *f, uint32_t n)
 
 /* the starting set with the Glue's knobs as given; the first bar left out of the levels (the followers settle) */
 static int hot;                                  /* every level at 100: into the limiter */
+static int touch;                                /* a Glue knob turned (to where it is) every beat */
 static meas run(int glue, int mix, int eq, int color, int width, const char *dir, const char *name)
 {
     meas m;
@@ -66,6 +67,8 @@ static meas run(int glue, int mix, int eq, int color, int width, const char *dir
     }
     ne_play(1);
     while (f < FRAMES) {
+        if (touch && f % 11776 == 0)
+            ne_set(G_GMIX, mix);
         ne_render(blk, 256, 4096);
         for (i = 0; i < 256; i++, f++) {
             float a = (float)blk[2 * i] * (1.0f / 8388608.0f), b = (float)blk[2 * i + 1] * (1.0f / 8388608.0f);
@@ -78,8 +81,10 @@ static meas run(int glue, int mix, int eq, int color, int width, const char *dir
                 int16_t o[2] = {(int16_t)(blk[2 * i] >> 8), (int16_t)(blk[2 * i + 1] >> 8)};
                 fwrite(o, 2, 2, wav);
             }
-            if (f < FRAMES / 8)
+            if (f < FRAMES / 8) {
+                ne_glue_slew = 0.0f;             /* (its gain gliding from the last run's first) */
                 continue;
+            }
             m.e += a * a + b * b;
             m.eside += s * s;
             m.eside_lo += slo2 * slo2;
@@ -96,6 +101,7 @@ static meas run(int glue, int mix, int eq, int color, int width, const char *dir
                 m.pk = b;
         }
     }
+    m.slew = ne_glue_slew;
     if (wav) {
         wav_header(wav, (uint32_t)FRAMES * 4u);
         fclose(wav);
@@ -111,7 +117,7 @@ static float db(float r)                         /* 10 log10 r, by log2 (n001se.
     e = (float)((int)(v.u >> 23 & 255u) - 127);
     v.u = (v.u & 0x7FFFFFu) | 0x3F800000u;
     m = v.f;
-    return 3.0103f * (e - 1.7417939f + (2.8212026f + (-1.4699568f + (0.44717955f - 0.056570851f * m) * m) * m) * m);
+    return 3.0103f * (e - 2.5128774f + (4.070135f + (-2.1206994f + (0.64514372f - 0.081614486f * m) * m) * m) * m);
 }
 
 int main(int argc, char **argv)
@@ -119,7 +125,11 @@ int main(int argc, char **argv)
     const char *dir = argc > 1 ? argv[1] : 0;
     meas off = run(0, 50, 50, 50, 60, 0, 0);     /* (the first run after start differs: a warm-up) */
     off = run(0, 50, 50, 50, 60, dir, "glue_off.wav");
-    meas nbb = run(88, 50, 50, 100, 65, dir, "glue_nbb.wav");
+    meas nbb = run(88, 50, 50, 100, 65, dir, "glue_nbb.wav"), nbb2, nbb_touched;
+    nbb2 = run(88, 50, 50, 100, 65, 0, 0);
+    touch = 1;
+    nbb_touched = run(88, 50, 50, 100, 65, 0, 0);
+    touch = 0;
     meas flat = run(88, 50, 0, 100, 65, 0, 0);
     meas mono = run(60, 50, 50, 50, 0, 0, 0);
     meas wide = run(60, 50, 50, 50, 100, 0, 0);
@@ -159,6 +169,16 @@ int main(int argc, char **argv)
         CHECK(d_nbb < d_flat - 0.3f, "the EQ did not lean towards the slope (%.2f dB off, flat %.2f)", (double)d_nbb,
               (double)d_flat);
     }
+    /* no click in the compressor: its gain glides, never a step (a level read by an ln for a log2 jumped
+     * 1.5 dB in 8 frames at each power of 2; the expander's lift came in a dB in 8 frames) */
+    printf("the compressor's gain, its largest change in a frame: %.4f dB (all of it, hot: %.4f dB)\n",
+           (double)(8.69f * nbb.slew), (double)(8.69f * loud.slew));
+    CHECK(nbb.slew > 0.0f && nbb.slew < 0.004f, "the compressor's gain stepped %.4f in a frame", (double)nbb.slew);
+    CHECK(loud.slew > 0.0f && loud.slew < 0.008f, "hot, the compressor's gain stepped %.4f in a frame",
+          (double)loud.slew);
+    printf("a Glue knob turned to where it is every beat: energy %.6g, untouched %.6g\n", (double)nbb_touched.e,
+           (double)nbb2.e);
+    CHECK(nbb_touched.e == nbb2.e && nbb_touched.pk == nbb2.pk, "turning a Glue knob changed the sound (the warmth reset)");
     printf(fails ? "glue: %d FAILED\n" : "glue: all ok\n", fails);
     return fails != 0;
 }
