@@ -6,7 +6,7 @@ wait 200
 tap FX
 expect view 6
 tap GLO
-expect view 10
+expect view 11
 spin K1 -40
 expect gpar12 60
 spin K4 70
@@ -14,7 +14,7 @@ expect gpar15 100
 shot master.png
 # the Glue page, GLOBAL's second: its mix, EQ, color, width
 tap GLO
-expect view 11
+expect view 12
 spin K1 50
 expect gpar21 100
 spin K3 50
@@ -103,7 +103,7 @@ expect dropped 0
 tap GLO
 tap GLO
 tap GLO
-expect view 12
+expect view 13
 spin K2 10
 expect gpar1 10
 wait 2000

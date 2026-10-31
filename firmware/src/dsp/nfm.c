@@ -446,8 +446,8 @@ NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)
     e->inv_sr = 1.0f / sample_rate;
     e->rng = seed ? seed : 0x6d2b79f5u;
     e->master = 0.9f;
-    e->ins_g = 0.5f;
-    e->ins_k = 1.0f;
+    e->ins_g = e->ins_g0 = 0.5f;
+    e->ins_k = e->ins_k0 = 1.0f;
     e->voice_limit = NFM_VOICES;
     e->priority_slot = -1;
     for (int v = 0; v < NFM_VOICES; ++v) e->voice[v].slot = -1;
@@ -993,13 +993,14 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */
     if (v->ins & NFM_INS_DRIVE) x = nfm_sat_tick(&v->sat, x);
     if (v->ins & NFM_INS_FILTER) {
-        float g = e->ins_g, k = e->ins_k;
+        int still = e->direct >> v->slot & 1;
+        float g = still ? e->ins_g0 : e->ins_g, k = still ? e->ins_k0 : e->ins_k;
         float hp = (x - (k + g) * v->ins_s1 - v->ins_s2) / (1.0f + g * (g + k));
         float bp = g * hp + v->ins_s1;
         v->ins_s1 = g * hp + bp;
         float lp = g * bp + v->ins_s2;
         v->ins_s2 = g * bp + lp;
-        x = lp + (bp * 1.5f - lp) * e->ins_morph;
+        x = lp + (bp * 1.5f - lp) * (still ? e->ins_morph0 : e->ins_morph);
     }
 
     if (v->fading) {
@@ -1026,9 +1027,19 @@ NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *r
     nfm_zero(out_r, (unsigned)n * 4u);
     if (rev) nfm_zero(rev, (unsigned)n * 4u);
     if (dly) nfm_zero(dly, (unsigned)n * 4u);
+    float *dl = e->dir_l, *dr = e->dir_r;
+    if (dl) {
+        nfm_zero(dl, (unsigned)n * 4u);
+        nfm_zero(dr, (unsigned)n * 4u);
+    }
     for (int si = 0; si < NFM_SLOTS; ++si) nfm_mod_block(&e->mod[si], e->sr, n);
     for (int vi = 0; vi < NFM_VOICES; ++vi) {
         nfm_voice *v = &e->voice[vi];
+        float *ol = out_l, *or_ = out_r;
+        if (dl && v->slot >= 0 && e->direct >> v->slot & 1) {
+            ol = dl;
+            or_ = dr;
+        }
         for (int i = 0; i < n && v->slot >= 0; ++i) {
             if (v->ctl == 0) {
                 voice_control(e, v);
@@ -1037,8 +1048,8 @@ NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *r
             --v->ctl;
             float x = voice_tick(e, v, &e->rng);
             if (v->mod_on) x = nfm_mod_tick(&e->mod[v->slot], &v->ms, x, i);
-            out_l[i] += x * v->gain_l;
-            out_r[i] += x * v->gain_r;
+            ol[i] += x * v->gain_l;
+            or_[i] += x * v->gain_r;
             float mono = x * (v->gain_l + v->gain_r) * 0.5f;
             if (rev && v->send_rev > 0.0f) rev[i] += mono * v->send_rev;
             if (dly && v->send_dly > 0.0f) dly[i] += mono * v->send_dly;
@@ -1049,6 +1060,11 @@ NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *r
         out_l[i] *= g;
         out_r[i] *= g;
     }
+    if (dl)
+        for (int i = 0; i < n; ++i) {
+            dl[i] *= g;
+            dr[i] *= g;
+        }
     if (rev) for (int i = 0; i < n; ++i) rev[i] *= g;
     if (dly) for (int i = 0; i < n; ++i) dly[i] *= g;
 }

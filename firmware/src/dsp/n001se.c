@@ -22,7 +22,7 @@ volatile float ne_track_level[NE_TRACKS];
 volatile float ne_out_level;
 volatile float ne_acid_level;
 volatile uint32_t ne_glitches;
-volatile uint32_t ne_mutades;
+volatile uint32_t ne_mutates;
 volatile uint32_t ne_limited;
 volatile float ne_glue_slew;                     /* the Glue's largest gain step in a frame, a share (tests) */
 volatile uint32_t ne_dropped;
@@ -50,7 +50,7 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_GLUE] = {"Glue", 0, 100, 30},
     [G_PKNOB] = {"Presets", 0, 0, 0},                 /* (hi: NE_PKNOBS - 1, below) */
     [G_USBAUDIO] = {"USB audio", 0, 1, 1},
-    [G_MUTADE] = {"Mutade", 0, 100, 0},
+    [G_MUTATE] = {"Mutate", 0, 100, 0},
     [G_SELMODE] = {"SEL mode", 0, NE_SEL_MODES - 1, NE_SEL_CHANCE},
     [G_SPACE] = {"Space", 0, 100, 0},
     [G_GMIX] = {"Glue mix", 0, 100, 50},             /* the Glue page: its mastering chain */
@@ -84,6 +84,7 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_MODRATE] = {"Rate", 0, 100, 30},
     [T_MODCHANCE] = {"Chance", 0, 100, 60},
     [T_GRID] = {"Grid", 0, 1, 0},
+    [T_DRIFT] = {"Drift", 0, 1, 1},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -113,20 +114,21 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_CHAOS] = {"Chaos", 0, 100, 25},
     [A_DEV] = {"Deviance", 0, 100, 0},
     [A_GRID] = {"Grid", 0, 1, 0},
+    [A_DRIFT] = {"Drift", 0, 1, 1},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60},
+    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1},
+    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1},
+    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1},
+    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
 static const uint8_t PKNOB[] = {
-    G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTADE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
+    G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTATE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
     G_HICUT, G_LOCUT, G_RESO,
     NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
@@ -199,7 +201,7 @@ void ne_param_text(int i, int v, char *b)
     case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
     case G_LOCUT: if (!v) { cpy(b, "Open"); return; } break;
     case G_GWIDTH: if (!v) { cpy(b, "Mono"); return; } break;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTADE: case G_GEQ: case G_GCOLOR: if (!v) { cpy(b, "Off"); return; } break;
+    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTATE: case G_GEQ: case G_GCOLOR: if (!v) { cpy(b, "Off"); return; } break;
     }
     itoa_s(v, b);
 }
@@ -214,6 +216,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     case T_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
+    case T_DRIFT: cpy(b, v ? "In" : "Bypass"); return;
     }
     itoa_s(v, b);
 }
@@ -232,6 +235,7 @@ void ne_aparam_text(int i, int v, char *b)
     case A_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     case A_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     case A_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
+    case A_DRIFT: cpy(b, v ? "In" : "Bypass"); return;
     }
     itoa_s(v, b);
 }
@@ -753,7 +757,7 @@ static void gset(int p, int v)
     case G_HICUT: case G_LOCUT: case G_RESO: master_filter(); break;
     case G_GLUE: case G_GMIX: case G_GEQ: case G_GCOLOR: case G_GWIDTH: glue_set(); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
-    case G_MUTADE: break;                        /* (read at the quarters) */
+    case G_MUTATE: break;                        /* (read at the quarters) */
     case G_SELMODE: case G_ACIDWAVES: break;     /* (the UI's) */
     }
 }
@@ -789,6 +793,7 @@ static void tset(int t, int p, int v)
     case T_MODAMT: fm.mod[t].amount = pct(v); break;
     case T_MODRATE: fm.mod[t].rate = pct(v); break;
     case T_MODCHANCE: fm.mod[t].chance = pct(v); break;
+    case T_DRIFT: fm.direct = (uint8_t)(v ? fm.direct & ~(1u << t) : fm.direct | 1u << t); break;
     case T_KIND: break;                /* takes effect with the next new sound */
     case T_GRID: nseq_set_flag(&seq, t, NSEQ_FLAG_TRIPLET, v); break;
     }
@@ -829,6 +834,7 @@ static void aset(int p, int v)
     case A_CHAOS: acid.p[NACID_P_CHAOS] = pct(v); break;
     case A_DEV: acid.p[NACID_P_DEVIANCE] = pct(v); break;
     case A_GRID: nacid_set_grid(&acid, v); break;
+    case A_DRIFT: acid.still = (uint8_t)!v; break;
     }
 }
 
@@ -846,11 +852,11 @@ static void acid_route(int bar)
     nacid_route(&acid, bar ? filter : acid.ins_f_to > 0.5f && amt[NFX_FILTER] > 0.0f, drive, send[1], send[0]);
 }
 
-/* MUTADE: in the phrase's bars 4 and 8, a quarter at a time, by chance a different set of tracks plays:
+/* MUTATE: in the phrase's bars 4 and 8, a quarter at a time, by chance a different set of tracks plays:
  * each track's mute flipped with a chance of 0.45 (at least one changes, at least one plays). At the
- * next quarter it is back to the mutes as set (tpar, apar), or another set. A quarter's chance: Mutade
+ * next quarter it is back to the mutes as set (tpar, apar), or another set. A quarter's chance: Mutate
  * x 0.4, the last quarter x 0.8. Decided at the step before (the sequencer has picked a step's hits by
- * the time it tells us of it). */
+ * the time it tells us of it). A track with its Drift at Bypass keeps its mute as set. */
 static uint8_t mx_on;
 static float gx_rnd(void);
 static void mute_set(int t, int m)
@@ -860,12 +866,12 @@ static void mute_set(int t, int m)
     else
         nseq_set_flag(&seq, t, NSEQ_FLAG_MUTE, m);
 }
-static void mutade_step(uint32_t step)
+static void mutate_step(uint32_t step)
 {
     uint32_t ps = (step + 1u) % (8u * NE_BAR), pos = ps % NE_BAR;
-    float m = pct(gpar[G_MUTADE]);
-    int t, flip = 0, plays = 0;
-    uint8_t mu[NE_TRACKS + 1];
+    float m = pct(gpar[G_MUTATE]);
+    int t, flip = 0, plays = 0, n = 0;
+    uint8_t mu[NE_TRACKS + 1], in[NE_TRACKS + 1];
     if (pos % 4u)
         return;
     if (mx_on) {                                 /* back to the mutes as set */
@@ -878,23 +884,28 @@ static void mutade_step(uint32_t step)
         return;
     for (t = 0; t <= NE_TRACKS; t++) {
         mu[t] = (uint8_t)(t == NE_ACID ? apar[A_MUTE] : tpar[t][T_MUTE]);
+        if (t == NE_ACID ? acid.still : fm.direct >> t & 1)
+            continue;                            /* (past it) */
+        in[n++] = (uint8_t)t;
         if (gx_rnd() < 0.45f) {
             mu[t] ^= 1u;
             flip = 1;
         }
     }
+    if (!n)                                      /* every track past it */
+        return;
     if (!flip) {
-        t = (int)(gx_rnd() * (float)(NE_TRACKS + 1)) % (NE_TRACKS + 1);
+        t = in[(int)(gx_rnd() * (float)n) % n];
         mu[t] ^= 1u;
     }
     for (t = 0; t <= NE_TRACKS; t++)
         plays += !mu[t];
     if (!plays)                                  /* never silence: one plays */
-        mu[(int)(gx_rnd() * (float)(NE_TRACKS + 1)) % (NE_TRACKS + 1)] = 0;
+        mu[in[(int)(gx_rnd() * (float)n) % n]] = 0;
     for (t = 0; t <= NE_TRACKS; t++)
         mute_set(t, mu[t]);
     mx_on = 1;
-    ne_mutades++;
+    ne_mutates++;
 }
 
 /* the drums' intensity, for the acid line's Deviance (a quarter at a time): how busy the playing tracks
@@ -959,7 +970,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
         acid_mood = drum_mood();
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
     glitch_step(step, delay, step_len);
-    mutade_step(step);
+    mutate_step(step);
     wander_step();
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
@@ -967,7 +978,10 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
 static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
     (void)ctx;
-    nacid_render(&acid, &fm, l, r, rev, dly, n);
+    if (acid.still && fm.dir_l)                  /* Drift at Bypass: the direct bus (this chunk's) */
+        nacid_render(&acid, &fm, fm.dir_l, fm.dir_r, rev, dly, n);
+    else
+        nacid_render(&acid, &fm, l, r, rev, dly, n);
 }
 
 static void new_sound(int t, int kind)
@@ -1007,6 +1021,9 @@ void ne_init(void)
         aset(p, AP[p].def);
     nacid_generate(&acid);
     glue_reset();
+    gx_on = gx_pending = mx_on = 0;              /* no glitch or Mutate's quarter from before (tests) */
+    gx_quiet = gx_w = 0;
+    nfm_zero(gx_buf, sizeof gx_buf);
     for (p = 0; p < G_NPARAMS; p++)
         gset(p, GP[p].def);
     for (t = 0; t < NE_TRACKS; t++) {
@@ -1206,7 +1223,7 @@ static void drain(void)
 #define BLK 64
 void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
 {
-    static float l[BLK], r[BLK];
+    static float l[BLK], r[BLK], dl[BLK], dr[BLK];   /* the main bus, the direct one (Drift at Bypass) */
     const float gain = (float)gain_q12 * (1.0f / 4096.0f) * 8388607.0f;
     float pk = 0.0f;
     uint32_t j;
@@ -1222,7 +1239,7 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     if (!seq.playing) {
         gx_on = gx_pending = 0;
         if (mx_on)
-            mutade_step(NE_BAR - 1u);            /* (a step before a first beat outside bars 4 and 8) */
+            mutate_step(NE_BAR - 1u);            /* (a step before a first beat outside bars 4 and 8) */
     }
     if (ne_ext && seq.now - clk_seen > 22050u) {   /* the clock stopped coming: our own tempo again */
         ne_ext = 0;
@@ -1233,11 +1250,20 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     while (n) {
         uint32_t k = n > BLK ? BLK : n;
         float ein = 0.0f, eout = 0.0f, elo = 0.0f, ehi = 0.0f, eh = 0.0f, imk2 = 1.0f / (gl_mk * gl_mk);
+        int dir = fm.direct || acid.still;
         gx_clock = seq.now;
+        fm.dir_l = dir ? dl : 0;
+        fm.dir_r = dir ? dr : 0;
         nseq_render(&seq, l, r, (int)k);
-        if (mf_on[0] | mf_on[1])
-            for (j = 0; j < k; j++) {
-                float a = l[j], b = r[j];
+        fm.dir_l = fm.dir_r = 0;
+        for (j = 0; j < k; j++) {
+            float a = l[j], b = r[j], g, m;
+            glitch(&a, &b);                      /* the glitches on the main bus, then the direct one */
+            if (dir) {
+                a += dl[j];
+                b += dr[j];
+            }
+            if (mf_on[0] | mf_on[1]) {           /* the master filter on both */
                 if (mf_on[0]) {
                     a = svf(a, mf_g[0], mf_k, mf_s[0][0], 0);
                     b = svf(b, mf_g[0], mf_k, mf_s[0][1], 0);
@@ -1246,12 +1272,9 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
                     a = svf(a, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][0], 1);
                     b = svf(b, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][1], 1);
                 }
-                l[j] = a < -1.0f ? -1.0f : a > 1.0f ? 1.0f : a;
-                r[j] = b < -1.0f ? -1.0f : b > 1.0f ? 1.0f : b;
+                a = a < -1.0f ? -1.0f : a > 1.0f ? 1.0f : a;
+                b = b < -1.0f ? -1.0f : b > 1.0f ? 1.0f : b;
             }
-        for (j = 0; j < k; j++) {
-            float a = l[j], b = r[j], g, m;
-            glitch(&a, &b);
             if (gl_on) {
                 ein += a * a + b * b;
                 g = glue_gain(a, b);

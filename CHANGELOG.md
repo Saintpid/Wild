@@ -5,6 +5,22 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.7
+
+Firmware identity FM-1_841. Tracks that stay out of the Drift.
+
+- **Each track can go past Chaos, Motion and Mutate.** A new page, **Routing**, comes after Drift
+  (press LFO twice). Its knob **Drift** is the selected track's: **In** (as before, the default) or
+  **Bypass**. A track at Bypass goes straight on to the master filter, the Glue and out: the
+  glitches (beat repeat, reverse, tape stop) never cut it up, its moving filter stands still where
+  it rests, and Mutate leaves its mute alone. Its reverb and delay sends work as before, and Space
+  still moves the rooms for everyone. Every track has its own, the 303 too, and a **B** on a
+  track's row shows it is out. Keep the kick and the 303 steady while the rest breaks up.
+- **Mutade is now called Mutate.** It does the same.
+- The master filter (hi cut, lo cut) now comes after the glitches, so a beat repeat is filtered as
+  it plays rather than as it was recorded. You will hardly hear it.
+- Projects and presets from before load as they were, every track In.
+
 ## 0.3.6
 
 Firmware identity FM-1_840. Triplets.

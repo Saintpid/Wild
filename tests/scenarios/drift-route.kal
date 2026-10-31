@@ -1,0 +1,45 @@
+# Routing (LFO again, after Drift): the selected track's Drift, In or Bypass. At Bypass the track goes
+# past Chaos, Motion and Mutate: no glitch on it, its filter at rest, its mutes its own. Space stays.
+wait 200
+tap LFO
+expect view 9
+tap LFO
+expect view 10
+# the kick: In by default; turned down, Bypass (the B on its row)
+expect tpar24 1
+spin K1 -1
+expect tpar24 0
+shot routing.png
+# every track past it: Mutate at full plays no quarter
+tap OCT+
+spin K1 -1
+expect tpar24 0
+tap OCT+
+spin K1 -1
+tap OCT+
+spin K1 -1
+tap OCT+
+expect track 4
+expect apar27 1
+spin K1 -1
+expect apar27 0
+tap LFO
+expect view 9
+spin K3 100
+expect gpar18 100
+tap PLAY
+wait 8000
+expect mutates 0
+expect mutediff 0
+# the acid line in again: Mutate plays with it
+tap LFO
+expect view 10
+spin K1 1
+expect apar27 1
+wait 10000
+expect mutates >0
+shot routing_playing.png
+tap PLAY
+wait 50
+expect mutediff 0
+expect dropped 0

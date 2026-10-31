@@ -98,7 +98,7 @@ HOME       Pattern → Rhythm
 EDIT       Track
 ENV        Sound â†’ Tone
 FX         Track FX â†’ Mod â†’ FX bus
-LFO        Drift
+LFO        Drift → Routing
 GLOBAL     Master â†’ Glue â†’ Groove â†’ Setup â†’ Scene
 
 ====================================================================
@@ -260,9 +260,14 @@ DRIFT (LFO)
              In bars 4 and 8 of the phrase they come on the beats, and mostly in the last quarter, as a way into the next bar. They never run past the end of the bar. At Chaos 40 about one in three of those bars gets a glitch, at Chaos 100 nearly all of them.
              In the other bars they come only now and then, always on an eighth between the beats (never on the quarters), and they are only an eighth long.
   Motion     How fast the effects glide and move over time
-  Mutade     In bars 4 and 8 of the phrase a different set of tracks plays by chance, a quarter at a time: muted tracks may come in and playing ones drop out. It happens most often in the last quarter. At the next quarter it is back to your mutes (or a new set), and after the bar it is always back. 0 = off (the default).
+  Mutate     In bars 4 and 8 of the phrase a different set of tracks plays by chance, a quarter at a time: muted tracks may come in and playing ones drop out. It happens most often in the last quarter. At the next quarter it is back to your mutes (or a new set), and after the bar it is always back. 0 = off (the default).
   Space      The reverb and the delay move between places of their own. The reverb: a small room, a room, the usual one, a larger room and a big hall (length and tone). The delay: a dotted eighth (the usual one), an eighth, a sixteenth and a quarter, still ping-pong. 0 = still, as before (the default). The higher, the more often they move, but always slowly: a glide takes 1 to 4 bars, and a place is held at least 4 bars (at 100) or 10 (at 50). At 100 they move about every 8 bars. The delay glides its time like an analog delay, so the repeats bend in pitch on the way (up when it gets shorter, down when it gets longer), more the shorter the glide. Back at 0, both go home over 2 bars.
              With Space up, SEL also moves them, by the same chance as Space (at 100 every time), over one bar.
+
+ROUTING (LFO, page 2): the selected track's way through Drift
+  Drift      In (the default): the track goes through Chaos, Motion and Mutate as above.
+             Bypass: the track goes past them, straight on to the master filter, the Glue and out. Its sound is never cut up by a glitch (beat repeat, reverse, tape stop), its moving filter stands still where it rests (the track's Filter amount still decides how many hits go through it), and Mutate leaves its mute alone. Its reverb and delay sends work as before, and Space moves the rooms for everyone. The track's row shows a B.
+             Use it to keep, say, the kick and the 303 steady while the rest breaks up. Select the track with SELECT or OCT-/OCT+, each track (the 303 too) has its own.
 
 MASTER (GLOBAL, page 1)
   Hi cut     Low-pass filter on the whole mix (100 = Open)
@@ -377,6 +382,6 @@ TIPS FOR LIVE SETS
 - Put an important parameter on the PRESETS encoder, for example 303 Cutoff, Glue or Chaos, so you always have it at hand whatever the page.
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
-- Mutade at 30â€“50 builds tension before every round without touching the mutes yourself.
+- Mutate at 30â€“50 builds tension before every round without touching the mutes yourself.
 - Press SEL for a new scene in the middle of a set, and SEL again to land back. With SEL mode A/B you can build a second version of the whole set and switch to it for a big change.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).

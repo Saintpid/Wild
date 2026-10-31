@@ -121,7 +121,9 @@ void nfx_route(nfx *fx, const float amt[NFX_EFFECTS], int *filter, float *drive,
 /* Another source on the bus, rendered after the voices into the dry bus and the sends. */
 void nfx_set_source(nfx *fx, void (*src)(void *, float *, float *, float *, float *, int), void *ctx);
 
-/* Render the engine through the effects, clipped to -1..1. */
+/* Render the engine through the effects, clipped to -1..1. With the engine's direct bus (dir_l, dir_r)
+ * its slots and the source's share go there: main + direct is the same clipped sum, the bus moved on
+ * by n frames. */
 void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int n);
 
 /* For displays: a drifting setting 0..1. */

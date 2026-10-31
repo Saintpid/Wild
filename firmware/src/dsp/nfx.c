@@ -200,6 +200,10 @@ NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
     e->ins_g = tan_pi(fc / sr);
     e->ins_k = 2.0f - 1.85f * m[NFX_M_RESO].cur;
     e->ins_morph = m[NFX_M_MORPH].cur;
+    fc = 150.0f * exp2f_(m[NFX_M_CUTOFF].base * 6.06f);   /* ...and at rest (the direct bus) */
+    e->ins_g0 = tan_pi(fc / sr);
+    e->ins_k0 = 2.0f - 1.85f * m[NFX_M_RESO].base;
+    e->ins_morph0 = m[NFX_M_MORPH].base;
 
     /* Delay: tempo-synced; SPACE glides the time from one station to the next like an analog delay,
      * so the repeats bend in pitch on the way (smoothly at both ends). The render loop follows the
@@ -260,6 +264,7 @@ NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int
     static float rev[64], dly[64];
     while (n > 0) {
         int c = n < 64 ? n : 64;
+        float *dl = e->dir_l, *dr = e->dir_r;
         update(fx, e, c);
         nfm_render_bus(e, out_l, out_r, rev, dly, c);
         if (fx->src) fx->src(fx->src_ctx, out_l, out_r, rev, dly, c);
@@ -307,8 +312,17 @@ NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int
             }
             float rl = (y[0] + y[2]) * 0.5f, rr = (y[1] + y[3]) * 0.5f;
 
-            out_l[i] = soft(out_l[i] + yl * dret + rl * rret);
-            out_r[i] = soft(out_r[i] + yr * dret + rr * rret);
+            float ol = out_l[i] + yl * dret + rl * rret, or_ = out_r[i] + yr * dret + rr * rret;
+            out_l[i] = soft(ol);
+            out_r[i] = soft(or_);
+            if (dl) {                            /* the direct bus: its share of the clip of the sum */
+                dl[i] = soft(ol + dl[i]) - out_l[i];
+                dr[i] = soft(or_ + dr[i]) - out_r[i];
+            }
+        }
+        if (dl) {
+            e->dir_l = dl + c;
+            e->dir_r = dr + c;
         }
         fx->now += (uint32_t)c;
         out_l += c;

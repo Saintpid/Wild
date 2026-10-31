@@ -217,6 +217,12 @@ typedef struct {
     /* Shared insert settings, written by the effects module per block:
      * filter coefficient g, damping k, lowpass->bandpass morph. */
     float ins_g, ins_k, ins_morph;
+    float ins_g0, ins_k0, ins_morph0;   /* ...and the same at rest, for the slots in direct */
+    /* The DIRECT bus: the slots whose bits are set here play into dir_l / dir_r (n frames from there,
+     * overwritten like out_l) instead of the main bus, their insert filter at rest; their sends as
+     * ever. NULL: everything on the main bus. */
+    uint8_t direct;
+    float *dir_l, *dir_r;
     /* New hits use only voices below this (1..NFM_VOICES). A CPU guard can
      * lower it; voices above it still finish what they are playing. */
     int voice_limit;
