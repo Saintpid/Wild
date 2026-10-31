@@ -121,7 +121,9 @@ In SEQ mode:
   Press an empty step: the step turns on, strong (velocity 100).
   Press and release a drum step that is on: it goes one strength down. A strong one (over 90)
   becomes soft (80), a soft one (90 or under) turns off. So: empty, strong, soft, off.
-  On the acid track a press on a note turns it off.
+  On the acid track the same with accent: an empty step gets a note with an accent, the next
+  press takes the accent off (a slide stays), the next turns the note off. So: empty, accent,
+  plain, off.
   Hold a step and turn:
     Drum tracks: K1 = velocity, K2 = pitch (âˆ’24 to +24)
     The acid track: K1 = note (âˆ’12 to +24), K2 = accent off/on, K3 = slide off/on (right = on, left = off). A slide belongs to the note that slides on: it glides into the next step's note.

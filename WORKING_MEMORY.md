@@ -129,3 +129,6 @@
   velocity (1..127): stored velocity untouched otherwise. NSEQ_VEL_STRONG/SOFT/SPLIT in nseq.h.
 - Generator: first layer strong/soft (beat 85 %, else 45 %), then Dynamics spreads down
   (strong 127..95, soft 80..20). Acid steps unchanged.
+
+## 0.3.10 / 844 - 303 step key: accent, plain, off
+- User chose: empty -> note with accent -> plain (slide kept) -> off, like the drums' strong/soft/off.

@@ -5,7 +5,7 @@
  *   SEQ mode (SEQ lit)  the 16 white keys are the 16 steps of one bar of the selected track: lit = a hit,
  *                  the dim one walking = where it plays. A key sets its step, strong; pressed on a hit,
  *                  when let go it takes it a strength down: a strong one (over 90) soft (80), a soft one
- *                  off (the acid line's: off); not if a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
+ *                  off (the acid line's: a note with an accent, plain, off); not if a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
  *                  KNOB 2 its note. A track in triplets (the Rhythm page, HOME again: Grid): keys 1-12 its
  *                  12 steps, three to a beat; 13-16 none.
  *   LIVE mode      the white keys play the sounds: four keys a sound, each a step up the scale
@@ -29,7 +29,7 @@
  *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
  * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: ENV's third page
- * is only its own, KNOB 1 its Deviance, as the drums' is on their Sound page); a step key sets a note,
+ * is only its own, KNOB 1 its Deviance, as the drums' is on their Sound page); a step key sets a note (with an accent),
  * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide (into the next step). CC 74 / 71: its
  * cutoff / resonance. Its Chaos (the Tone page, KNOB 4): how far its new patterns leave the rules.
  *
@@ -437,12 +437,12 @@ static void white_down(int w)
     ui.held_step = (int8_t)s;
     ui.held_edited = 0;
     ui.held_was_on = (uint8_t)step_on(t, s);
-    if (t == NE_ACID) {                              /* a note on the root, no accent, no slide */
+    if (t == NE_ACID) {                              /* a note on the root, with an accent, no slide */
         const nacid_note *st = &ne_acid()->step[s];
-        ui.held_flags = ui.held_was_on ? st->flags : NACID_ON;
+        ui.held_flags = ui.held_was_on ? st->flags : NACID_ON | NACID_ACCENT;
         ui.held_note = ui.held_was_on ? st->note : 0;
         if (!ui.held_was_on) {
-            ne_astep(s, NACID_ON, 0);
+            ne_astep(s, NACID_ON | NACID_ACCENT, 0);
             mark_dirty();
         }
         return;
@@ -460,8 +460,10 @@ static void white_up(int w)
     int t = ui.track;
     if (ui.live || ui.list || ui.held_step < 0 || ui.held_step % tbar(t) != w)
         return;
-    if (ui.held_was_on && !ui.held_edited) {       /* a drum hit: a strength down (strong, soft, off) */
-        if (t == NE_ACID)
+    if (ui.held_was_on && !ui.held_edited) {       /* a strength down: strong, soft, off (acid: accent, plain, off) */
+        if (t == NE_ACID && ui.held_flags & NACID_ACCENT)
+            ne_astep(ui.held_step, ui.held_flags & ~NACID_ACCENT, ui.held_note);   /* (a slide stays) */
+        else if (t == NE_ACID)
             ne_astep(ui.held_step, 0, ui.held_note);
         else if (ui.held_vel > NSEQ_VEL_SPLIT)
             ne_step(t, ui.held_step, 1, NSEQ_VEL_SOFT, ui.held_note);
