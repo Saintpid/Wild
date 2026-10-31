@@ -20,6 +20,9 @@
  * beat and the motif are gone.
  *
  * The drums' sequencer clocks it (nacid_step, from nseq's step hook), so swing and tempo are shared.
+ * In triplets (bar 12) its steps are eighth triplets: the owner steps it on three of a quarter's four
+ * sixteenths, each a third of one later, steps 4/3 of a sixteenth long; the rules above count beats of
+ * three.
  * Its sound goes through the drums' effects: nacid_render adds to the dry bus and to the reverb and
  * delay sends, with its own drive and the moving filter (by chance, a bar at a time: nacid_route).
  * Besides a 303's saw and square (the saw clipped, as the 303 makes it): a narrow pulse, a triangle, a sine and two detuned saws.
@@ -39,6 +42,7 @@
 #define NACID_BAR 16
 #define NACID_MAX_BARS 4
 #define NACID_STEPS (NACID_BAR * NACID_MAX_BARS)
+#define NACID_TBAR 12              /* a bar of triplets */
 #define NACID_SCALES 7
 enum { NACID_SAW, NACID_SQUARE, NACID_PULSE, NACID_TRI, NACID_SINE, NACID_DUO, NACID_WAVES };
 
@@ -74,6 +78,7 @@ typedef struct {
     /* the pattern */
     nacid_note step[NACID_STEPS];
     uint8_t length, pos, scale, wave, mute;   /* wave: NACID_* */
+    uint8_t bar;                   /* steps in a bar: NACID_BAR, or NACID_TBAR in triplets */
     int16_t last;                  /* the step last played, -1 stopped (displays) */
     float p[NACID_PARAMS];
     float tune;                    /* semitones on the whole line */
@@ -131,6 +136,10 @@ void nacid_init(nacid *a, float sr, uint32_t seed);
 void nacid_generate(nacid *a);
 void nacid_set_length(nacid *a, int steps);
 void nacid_set_step(nacid *a, int step, int flags, int note);
+/* Triplets (1) or sixteenths (0): the flag alone (nacid_set_grid), or the pattern moved along to the
+ * nearest steps in time, the length the same time (nacid_regrid; as nseq_regrid). */
+void nacid_set_grid(nacid *a, int triplet);
+void nacid_regrid(nacid *a, int triplet);
 void nacid_reset(nacid *a);        /* the sequencer starts: from the top */
 void nacid_stop(nacid *a);         /* the gate closes */
 

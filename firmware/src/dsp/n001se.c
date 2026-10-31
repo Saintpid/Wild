@@ -83,6 +83,7 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_MODAMT] = {"Amount", 0, 100, 50},
     [T_MODRATE] = {"Rate", 0, 100, 30},
     [T_MODCHANCE] = {"Chance", 0, 100, 60},
+    [T_GRID] = {"Grid", 0, 1, 0},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -111,6 +112,7 @@ static const ne_param_t AP[A_NPARAMS] = {
     [A_MODCHANCE] = {"Chance", 0, 100, 60},
     [A_CHAOS] = {"Chaos", 0, 100, 25},
     [A_DEV] = {"Deviance", 0, 100, 0},
+    [A_GRID] = {"Grid", 0, 1, 0},
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
@@ -211,6 +213,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_PITCH: if (v) { b[0] = '+'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Root"); return;
     case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
+    case T_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
     }
     itoa_s(v, b);
 }
@@ -228,12 +231,13 @@ void ne_aparam_text(int i, int v, char *b)
     }
     case A_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     case A_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
+    case A_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
     }
     itoa_s(v, b);
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -270,6 +274,7 @@ void ne_panic(void) { post(C_PANIC, 0, 0, 0, 0, 0); }
 void ne_space_shift(void) { post(C_SPACE, 0, 0, 0, 0, 0); }
 void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
 void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
+void ne_regrid(int t, int on) { post(C_REGRID, t, on, 0, 0, 0); }
 
 /* ------------------------------------------------------------ the state --- */
 static int16_t gpar[G_NPARAMS], tpar[NE_TRACKS][T_NPARAMS];
@@ -762,7 +767,7 @@ static void tset(int t, int p, int v)
     tpar[t][p] = (int16_t)v;
     tr = &seq.track[t];
     switch (p) {
-    case T_BARS: nseq_set_length(&seq, t, v * NE_BAR); break;
+    case T_BARS: nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
     case T_RANDLEN: nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v); break;
     case T_HITLO: nseq_set_hits(&seq, t, v, tpar[t][T_HITHI] < v ? v : tpar[t][T_HITHI]); break;
     case T_HITHI: nseq_set_hits(&seq, t, tpar[t][T_HITLO] > v ? v : tpar[t][T_HITLO], v); break;
@@ -785,6 +790,7 @@ static void tset(int t, int p, int v)
     case T_MODRATE: fm.mod[t].rate = pct(v); break;
     case T_MODCHANCE: fm.mod[t].chance = pct(v); break;
     case T_KIND: break;                /* takes effect with the next new sound */
+    case T_GRID: nseq_set_flag(&seq, t, NSEQ_FLAG_TRIPLET, v); break;
     }
     (void)tr;
 }
@@ -799,7 +805,7 @@ static void aset(int p, int v)
     v = v < AP[p].lo ? AP[p].lo : v > AP[p].hi ? AP[p].hi : v;
     apar[p] = (int16_t)v;
     switch (p) {
-    case A_BARS: nacid_set_length(&acid, v * NACID_BAR); break;
+    case A_BARS: nacid_set_length(&acid, v * acid.bar); break;
     case A_NOTES: acid.p[NACID_P_DENSITY] = pct(v); break;
     case A_SLIDES: acid.p[NACID_P_SLIDES] = pct(v); break;
     case A_ACCENTS: acid.p[NACID_P_ACCENTS] = pct(v); break;
@@ -822,6 +828,7 @@ static void aset(int p, int v)
     case A_MODCHANCE: acid.mod.chance = pct(v); break;
     case A_CHAOS: acid.p[NACID_P_CHAOS] = pct(v); break;
     case A_DEV: acid.p[NACID_P_DEVIANCE] = pct(v); break;
+    case A_GRID: nacid_set_grid(&acid, v); break;
     }
 }
 
@@ -903,10 +910,10 @@ static float drum_mood(void)
         float h = 0.0f, lv = pct(tpar[t][T_LEVEL]);
         if (tr->mute || !tr->length)
             continue;
-        for (s = 0; s < tr->length; s++)
+        for (s = 0; s < tr->length; s++)                    /* (off the eighths; in triplets off the beats) */
             if (tr->step[s].on)
-                h += (float)tr->step[s].vel * (s % 2 ? 1.3f / 127.0f : 1.0f / 127.0f);
-        hits += h * (float)NE_BAR / (float)tr->length;
+                h += (float)tr->step[s].vel * ((tr->triplet ? s % 3 : s % 2) ? 1.3f / 127.0f : 1.0f / 127.0f);
+        hits += h * (float)nseq_bar(tr) / (float)tr->length;
         snd += lv * (0.6f * pct(tpar[t][T_SPIKE]) + 0.8f * pct(tpar[t][T_DRIVE]) * pct(gpar[G_DRIVE]));
         w += lv;
     }
@@ -941,8 +948,13 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (step == 0u)
         nacid_reset(&acid);
     acid.root = seq.root;
-    acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
-    nacid_step(&acid, delay, step_len);
+    if (acid.bar != NACID_TBAR) {
+        acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
+        nacid_step(&acid, delay, step_len);
+    } else if (step % 4u != 3u) {                /* triplets: as nseq's, not swung */
+        acid_route(acid.pos % NACID_TBAR == 0 || acid.pos >= acid.length);
+        nacid_step(&acid, (float)(step % 4u) * step_len * (1.0f / 3.0f), step_len * (4.0f / 3.0f));
+    }
     if (apar[A_DEV] > 0 && step % 4u == 0u)
         acid_mood = drum_mood();
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
@@ -1090,7 +1102,9 @@ void ne_acid_restore(const ne_acid_t *s)
     hold = 1;
     __asm__ volatile("" ::: "memory");
     nacid_stop(&acid);
-    nacid_set_length(&acid, s->len);
+    acid.length = (uint8_t)(s->len < 1 ? 1 : s->len > NE_ASTEPS ? NE_ASTEPS : s->len);   /* (its grid: A_GRID, after) */
+    if (acid.pos >= acid.length)
+        acid.pos = 0;
     for (i = 0; i < NE_ASTEPS; i++)
         nacid_set_step(&acid, i, s->flags[i], s->note[i]);
     __asm__ volatile("" ::: "memory");
@@ -1176,6 +1190,15 @@ static void drain(void)
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
         case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); break;
         case C_SPACE: nfx_space_shift(&fx); break;
+        case C_REGRID:
+            if (c.t == NE_ACID) {
+                nacid_regrid(&acid, c.a);
+                apar[A_GRID] = (int16_t)(c.a != 0);
+            } else if ((unsigned)c.t < NE_TRACKS) {
+                nseq_regrid(&seq, c.t, c.a);
+                tpar[c.t][T_GRID] = (int16_t)(c.a != 0);
+            }
+            break;
         }
     }
 }

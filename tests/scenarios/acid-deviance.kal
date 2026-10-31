@@ -4,7 +4,7 @@ wait 200
 tap OCT-
 expect track 4
 tap EDIT
-expect view 1
+expect view 2
 spin K4 -10
 expect apar15 60
 spin K4 10
@@ -12,11 +12,11 @@ expect apar15 70
 spin K3 10
 expect apar5 6
 tap ENV
-expect view 2
-tap ENV
 expect view 3
 tap ENV
 expect view 4
+tap ENV
+expect view 5
 expect apar25 0
 expect adev 0
 spin K1 70
@@ -24,7 +24,7 @@ expect apar25 70
 wait 100
 shot acid_deviance.png
 tap ENV
-expect view 2
+expect view 3
 # it plays: the knobs move on their own, the pattern stays as it was
 tap PLAY
 wait 6000
@@ -34,29 +34,29 @@ expect adev >20
 # a drum track has no Deviance page: from it, to Sound (its own Deviance, KNOB 1)
 tap ENV
 tap ENV
-expect view 4
+expect view 5
 tap OCT+
 expect track 0
-expect view 2
-tap ENV
 expect view 3
 tap ENV
-expect view 2
+expect view 4
+tap ENV
+expect view 3
 tap OCT-
 tap ENV
 tap ENV
-expect view 4
+expect view 5
 spin K1 -100
 expect apar25 0
 wait 1000
 expect adev 0
 # a hand on the cutoff (the Sound page) while it moves: the knobs as set at once, again 2 s after
-expect view 4
+expect view 5
 spin K1 70
 wait 6000
 expect adev >20
 tap ENV
-expect view 2
+expect view 3
 spin K1 1
 wait 400
 expect adev 0

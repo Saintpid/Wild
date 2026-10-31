@@ -11,6 +11,7 @@ NFM_CODE static inline uint32_t rnd(uint32_t *s)
 }
 NFM_CODE static inline float rndf(uint32_t *s) { return (float)(rnd(s) >> 8) * (1.0f / 16777216.0f); }
 NFM_CODE static int track_ok(int t) { return t >= 0 && t < NSEQ_TRACKS; }
+NFM_CODE static int max_steps(const nseq_track *tr) { return tr->triplet ? NSEQ_TMAX_STEPS : NSEQ_MAX_STEPS; }
 
 /* Where in the bar each kind likes to play, sixteenths 1..16. Downbeats
  * for kicks, 2 and 4 for snares, off-beats for hats; perc and clicks fill
@@ -25,13 +26,26 @@ NFM_DATA static const uint8_t profile[NFM_KINDS][NSEQ_BAR] = {
     [NFM_KIND_CLAP]  = {  1, 1, 1, 1,  9, 1, 1, 2,  1, 1, 2, 1,  9, 1, 3, 2 },
 };
 
+/* The same in triplets, three a quarter: the beats, the shuffle's late third (hats), the middle one
+ * least. */
+NFM_DATA static const uint8_t profile3[NFM_KINDS][NSEQ_TBAR] = {
+    [NFM_KIND_KICK]  = { 10, 1, 3,  3, 1, 4,  7, 1, 3,  3, 2, 4 },
+    [NFM_KIND_SNARE] = {  1, 1, 1,  9, 1, 2,  1, 1, 2,  9, 1, 3 },
+    [NFM_KIND_HAT]   = {  3, 2, 6,  3, 2, 6,  3, 2, 6,  3, 2, 6 },
+    [NFM_KIND_PERC]  = {  2, 3, 4,  1, 3, 3,  2, 4, 3,  1, 3, 4 },
+    [NFM_KIND_CLICK] = {  1, 3, 2,  1, 3, 2,  1, 2, 3,  2, 3, 2 },
+    [NFM_KIND_METAL] = {  4, 1, 2,  2, 1, 3,  3, 1, 2,  2, 1, 3 },
+    [NFM_KIND_CLAP]  = {  1, 1, 1,  9, 1, 2,  1, 1, 2,  9, 1, 3 },
+};
+
 /* Minor pentatonic: percussion pitched to it rarely clashes. */
 NFM_DATA static const int8_t scale[] = { 0, 3, 5, 7, 10 };
 
 NFM_CODE static const uint8_t *track_profile(nseq *q, int t)
 {
     int k = nfm_slot_kind(q->engine, t);
-    return profile[k >= 0 && k < NFM_KINDS ? k : NFM_KIND_PERC];
+    k = k >= 0 && k < NFM_KINDS ? k : NFM_KIND_PERC;
+    return q->track[t].triplet ? profile3[k] : profile[k];
 }
 
 NFM_CODE static int8_t pick_note(nseq *q, int range)
@@ -69,7 +83,7 @@ NFM_CODE static void random_length(nseq *q, nseq_track *tr)
         tail = tails[rnd(&q->rng) % (unsigned)sizeof tails];
         if (bars == 1 && tail < 7) tail = 7;
     }
-    tr->length = (uint8_t)((bars - 1) * NSEQ_BAR + tail);
+    tr->length = (uint8_t)(tr->triplet ? nseq_to_triplets((bars - 1) * NSEQ_BAR + tail) : (bars - 1) * NSEQ_BAR + tail);
     if (tr->pos >= tr->length) tr->pos = 0;
 }
 
@@ -95,21 +109,21 @@ NFM_CODE void nseq_generate(nseq *q, int t)
     nseq_track *tr = &q->track[t];
     const uint8_t *prof = track_profile(q, t);
     if (tr->len_random) random_length(q, tr);
-    int len = tr->length, lo = tr->hits_min, hi = tr->hits_max;
+    int len = tr->length, lo = tr->hits_min, hi = tr->hits_max, bar = nseq_bar(tr);
     float *w = work;
     if (hi < lo) { int x = hi; hi = lo; lo = x; }
     int count = lo + (int)(rnd(&q->rng) % (unsigned)(hi - lo + 1));
     if (count > len) count = len;
 
     nfm_zero(tr->step, sizeof tr->step);
-    for (int s = 0; s < len; ++s) w[s] = (float)prof[s % NSEQ_BAR] * (0.8f + 0.4f * rndf(&q->rng));
+    for (int s = 0; s < len; ++s) w[s] = (float)prof[s % bar] * (0.8f + 0.4f * rndf(&q->rng));
     /* Kicks usually anchor the loop on its first step. */
     int anchor = nfm_slot_kind(q->engine, t) == NFM_KIND_KICK && rndf(&q->rng) < 0.75f;
 
     for (int k = 0; k < count; ++k) {
         int s = k == 0 && anchor ? 0 : pick_step(q, w, len);
         if (s < 0) break;
-        float strength = (float)prof[s % NSEQ_BAR] / 10.0f;
+        float strength = (float)prof[s % bar] / 10.0f;
         int vel = 64 + (int)(strength * 45.0f) + (int)(rndf(&q->rng) * 18.0f);
         tr->step[s] = (nseq_step){ 1, (uint8_t)(vel > 127 ? 127 : vel), pick_note(q, tr->pitch_range), 0 };
         w[s] = 0.0f;
@@ -119,7 +133,7 @@ NFM_CODE void nseq_generate(nseq *q, int t)
             w[(s + len - 1) % len] *= 0.3f;
         }
         /* ...and echo the same spot in other bars, so ideas repeat. */
-        for (int b = s % NSEQ_BAR; b < len; b += NSEQ_BAR)
+        for (int b = s % bar; b < len; b += bar)
             if (b != s) w[b] *= 1.6f;
     }
 }
@@ -141,7 +155,7 @@ NFM_CODE static void evolve(nseq *q, int t)
     int from = on[rnd(&q->rng) % (unsigned)n];
     const uint8_t *prof = track_profile(q, t);
     float *w = work;
-    for (int s = 0; s < len; ++s) w[s] = tr->step[s].on ? 0.0f : (float)prof[s % NSEQ_BAR];
+    for (int s = 0, bar = nseq_bar(tr); s < len; ++s) w[s] = tr->step[s].on ? 0.0f : (float)prof[s % bar];
     int to = pick_step(q, w, len);
     if (to < 0) return;
     tr->step[to] = tr->step[from];
@@ -210,7 +224,7 @@ NFM_CODE void nseq_set_length(nseq *q, int t, int steps)
 {
     if (!track_ok(t)) return;
     if (steps < 1) steps = 1;
-    if (steps > NSEQ_MAX_STEPS) steps = NSEQ_MAX_STEPS;
+    if (steps > max_steps(&q->track[t])) steps = max_steps(&q->track[t]);
     q->track[t].length = (uint8_t)steps;
     if (q->track[t].pos >= steps) q->track[t].pos = 0;
 }
@@ -243,7 +257,50 @@ NFM_CODE void nseq_set_flag(nseq *q, int t, int which, int v)
     case NSEQ_FLAG_EVOLVE: tr->evolve = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_PITCH_RANGE: tr->pitch_range = (uint8_t)(v < 0 ? 0 : v > 24 ? 24 : v); break;
     case NSEQ_FLAG_LEN_RANDOM: tr->len_random = (uint8_t)(v < 0 ? 0 : v > NSEQ_MAX_BARS ? NSEQ_MAX_BARS : v); break;
+    case NSEQ_FLAG_TRIPLET:
+        tr->triplet = v ? 1 : 0;
+        if (tr->length > max_steps(tr)) tr->length = (uint8_t)max_steps(tr);
+        if (tr->pos >= tr->length) tr->pos = 0;
+        break;
     }
+}
+
+/* a hit's step on the other grid: the quarter's sixteenths 1 2 3 4 to its triplets 1 2 3 3 (the offbeat
+ * eighth to the late third: a shuffle), triplets 1 2 3 back to sixteenths 1 2 3 */
+NFM_CODE static int regrid_step(int s, int triplet)
+{
+    return triplet ? s / 4 * 3 + (s % 4 < 2 ? s % 4 : 2) : s / 3 * 4 + s % 3;
+}
+
+NFM_CODE void nseq_regrid(nseq *q, int t, int triplet)
+{
+    if (!track_ok(t)) return;
+    nseq_track *tr = &q->track[t];
+    nseq_step *st = tr->step, old;
+    triplet = triplet ? 1 : 0;
+    if (tr->triplet == triplet) return;
+    if (triplet) {                                /* fewer steps: forwards, each onto one at or before it */
+        for (int s = 0; s < NSEQ_MAX_STEPS; ++s) {
+            int d = regrid_step(s, 1);
+            old = st[s];
+            st[s].on = 0;
+            if (old.on && (!st[d].on || st[d].vel < old.vel)) st[d] = old;
+        }
+        tr->length = (uint8_t)nseq_to_triplets(tr->length);
+        tr->pos = (uint8_t)nseq_to_triplets(tr->pos);
+    } else {                                      /* more: backwards, each onto one at or after it */
+        for (int s = NSEQ_TMAX_STEPS - 1; s >= 0; --s) {
+            int d = regrid_step(s, 0);
+            old = st[s];
+            st[s].on = 0;
+            if (old.on) st[d] = old;
+        }
+        tr->length = (uint8_t)nseq_to_sixteenths(tr->length);
+        tr->pos = (uint8_t)nseq_to_sixteenths(tr->pos);
+    }
+    tr->triplet = (uint8_t)triplet;
+    if (tr->length < 1) tr->length = 1;
+    if (tr->pos >= tr->length) tr->pos = 0;
 }
 
 NFM_CODE int nseq_midi_note(nseq *q, int note, int velocity)
@@ -284,10 +341,11 @@ NFM_CODE static void schedule(nseq *q, int t, const nseq_step *st, float delay)
 
 NFM_CODE static void global_step(nseq *q, float step_len)
 {
-    int cand[NSEQ_TRACKS], n = 0;
+    int cand[NSEQ_TRACKS], n = 0, ph = (int)(q->steps & 3u);
     float swing = (q->steps & 1u) ? q->swing * 0.5f * step_len : 0.0f;
     for (int t = 0; t < NSEQ_TRACKS; ++t) {
         nseq_track *tr = &q->track[t];
+        if (tr->triplet && ph == 3) continue;    /* (triplets: three steps in a quarter's four) */
         if (tr->pos >= tr->length) tr->pos = 0;
         int s = tr->pos;
         tr->last = (int16_t)s;
@@ -314,7 +372,8 @@ NFM_CODE static void global_step(nseq *q, float step_len)
     for (int i = 0; i < n; ++i) {
         nseq_track *tr = &q->track[cand[i]];
         float late = q->loose * 0.12f * step_len * rndf(&q->rng);
-        schedule(q, cand[i], &tr->step[tr->last], swing + late);
+        /* triplets: a third of a sixteenth later each, not swung */
+        schedule(q, cand[i], &tr->step[tr->last], (tr->triplet ? (float)ph * step_len * (1.0f / 3.0f) : swing) + late);
     }
     if (q->on_step) q->on_step(q->step_ctx, q->steps, swing, step_len);
     ++q->steps;

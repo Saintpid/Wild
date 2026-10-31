@@ -2,7 +2,10 @@
  *
  * Eight tracks, one per nfm slot. Each track loops over its own length,
  * 1..128 sixteenth steps (1..8 bars of 16), so tracks of different lengths
- * drift against each other. A generator places a random number of hits,
+ * drift against each other. A track may run in triplets instead: eighth
+ * triplets, three steps a quarter, 12 a bar (1..96 steps), on the first,
+ * second and third sixteenth of each quarter, the second and third played a
+ * third and two thirds of a sixteenth late (the fourth plays none). A generator places a random number of hits,
  * drawn from a min..max range for the whole track, weighted towards the
  * positions that suit the slot's kind of sound. Swing and loose timing
  * delay hits within their step.
@@ -19,6 +22,8 @@
 #define NSEQ_BAR 16
 #define NSEQ_MAX_BARS 8
 #define NSEQ_MAX_STEPS (NSEQ_BAR * NSEQ_MAX_BARS)
+#define NSEQ_TBAR 12           /* a bar of triplets */
+#define NSEQ_TMAX_STEPS (NSEQ_TBAR * NSEQ_MAX_BARS)
 #define NSEQ_QUEUE 32
 
 /* MIDI notes that drive the generator (see nseq_midi_note). */
@@ -47,6 +52,7 @@ typedef struct {
     int16_t last;        /* step last played, -1 before start (for displays) */
     uint16_t loops;
     uint8_t len_random;  /* 0: fixed length; 1..8: generate picks 1..N bars */
+    uint8_t triplet;     /* its steps are eighth triplets (12 a bar), not sixteenths */
 } nseq_track;
 
 typedef struct {
@@ -93,8 +99,17 @@ void nseq_set_length(nseq *q, int track, int steps);
 void nseq_set_hits(nseq *q, int track, int lo, int hi);
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
-enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM };
+enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM,
+       NSEQ_FLAG_TRIPLET };  /* (the flag alone: the steps are taken as they are) */
 
+/* A track into triplets (1) or sixteenths (0), its pattern moved along: each hit to the nearest step of
+ * the other grid in time (the offbeat eighth to the third triplet, a shuffle; two on one step: the
+ * louder), the length the same time (bars stay bars), the playhead where it is. */
+void nseq_regrid(nseq *q, int track, int triplet);
+/* the grids' step counts for the same time: sixteenths -> triplets and back */
+static inline int nseq_to_triplets(int n) { return n / 4 * 3 + (n % 4 < 3 ? n % 4 : 3); }
+static inline int nseq_to_sixteenths(int n) { return n / 3 * 4 + n % 3; }
+static inline int nseq_bar(const nseq_track *tr) { return tr->triplet ? NSEQ_TBAR : NSEQ_BAR; }
 /* Note-on from MIDI. Returns 1 if the note was used. */
 int nseq_midi_note(nseq *q, int note, int velocity);
 

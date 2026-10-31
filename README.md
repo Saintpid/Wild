@@ -78,7 +78,9 @@ command.
   now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
-  now and then moves a hit when the loop comes round.
+  now and then moves a hit when the loop comes round. Any track, the 303 too, can run in
+  **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
+  keys 1–12, drawn on the screen where they fall in time.
 - **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
   filter, a warm drive with even harmonics that does not raise the volume (anti-aliased), and a **modulation effect**
   per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.
@@ -98,7 +100,7 @@ command.
 
 | Control | Does |
 | --- | --- |
-| **White keys** | The 16 steps of the bar shown. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 12 steps |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |

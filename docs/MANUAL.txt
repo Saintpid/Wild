@@ -94,7 +94,7 @@ SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 5), S
            SEL is lit while you are in the scene, in B or in the copy. The Setup and Scene pages are never swapped. Changing SEL mode, loading a preset or a reset forgets the copy. Swapping patterns or sounds gives a very short break in the sound.
 
 Page buttons (another press goes to the button's next page):
-HOME       Pattern
+HOME       Pattern → Rhythm
 EDIT       Track
 ENV        Sound â†’ Tone
 FX         Track FX â†’ Mod â†’ FX bus
@@ -115,7 +115,7 @@ K1â€“K4      The four knobs under the screen. What they do depends on the p
 
 THE KEYS
 
-WHITE KEYS (16 = the 16 steps of the bar shown)
+WHITE KEYS (16 = the 16 steps of the bar shown; a track in triplets: keys 1-12 = its 12 steps, 13-16 nothing)
 
 In SEQ mode:
   Press an empty step: the step turns on.
@@ -162,6 +162,18 @@ PATTERN (HOME)
   Hits max   The most hits in the pattern (equal to min = exactly that many)
   Evolve     Chance in % per loop that one step of the pattern changes
 
+RHYTHM (HOME, page 2)
+  Grid       16ths or Triplets. In triplets the track's steps are eighth-note triplets: three to a
+             quarter, 12 to a bar, so white keys 1-12 are the bar's steps (in groups of three, one
+             group per beat) and keys 13-16 do nothing. The screen draws the row's 12 steps where they
+             fall in time against the other tracks, and the length shows a "3" ("2b 3"). Turning it
+             moves the pattern along: each hit goes to the nearest step of the new grid in time (the
+             offbeat eighth becomes the third triplet, a shuffle; if two land on one step the louder
+             stays), and the length stays the same number of bars. Back to 16ths, the triplets land
+             on the first three sixteenths of each beat. New patterns in triplets are drawn for
+             triplets (kicks on the beats, hats on the late third). Swing does not move triplets.
+             The acid line has the same knob on its Rhythm page.
+
 TRACK (EDIT)
   Rnd len    Random length: Fixed, or 1â€“N bars. Sometimes the last bar is shorter, for odd lengths.
   Pitch      How much the steps may vary in pitch (+-N semitones), Root = no variation
@@ -202,6 +214,7 @@ The acid track (track 5) has its own parameters on the same pages:
 PATTERN    Bars (1â€“4), Notes (how many steps have notes), Slides, Evolve
 TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
 SOUND      Cutoff, Reso, Env mod, Decay
+RHYTHM     Grid: 16ths or Triplets, as on the drum tracks (1-4 bars of 12 steps in triplets)
 TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0â€“100 %)
 DEVIANCE   (ENV, page 3: the acid line's only) Deviance (below)
 TRACK FX   Reverb, Delay, Filter, Drive

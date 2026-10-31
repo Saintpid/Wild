@@ -5,6 +5,25 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.6
+
+Firmware identity FM-1_840. Triplets.
+
+- **Any track can run in triplets.** Press HOME twice for the new **Rhythm** page; its **Grid**
+  knob turns the selected track (the 303 too) from 16ths to **Triplets**: eighth-note triplets,
+  three steps to a quarter, 12 to a bar. White keys 1-12 are then the bar's steps, in groups of
+  three, one group per beat; keys 13-16 do nothing. On the screen the row draws its 12 steps where
+  they fall in time against the other tracks, and the length reads e.g. "2b 3". The other tracks
+  play on in 16ths, so you can lay a triplet hat or a triplet acid line over a straight beat.
+- **Turning Grid keeps the groove.** The pattern moves along with it: every hit goes to the nearest
+  step in time (an offbeat eighth becomes the late third triplet, a shuffle), and the track keeps
+  its number of bars. Turned back, the triplets land on the first three sixteenths of each beat.
+  New patterns in triplets are drawn for triplets: kicks on the beats, hats on the shuffle's late
+  third, the 303's rules counting beats of three. Swing leaves triplets alone. Saved with the
+  project and the presets; older projects load in 16ths.
+- **HOME now has two pages**, Pattern and Rhythm, like the other page buttons. HOME on the Pattern
+  page goes on to Rhythm.
+
 ## 0.3.5
 
 Firmware identity FM-1_839. A cleaner 303 at the top.
