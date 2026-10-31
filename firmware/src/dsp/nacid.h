@@ -26,7 +26,8 @@
  *
  * DEVIANCE plays the cutoff, the resonance, Env Mod and Decay as a hand on a 303 would, following the
  * drums (nacid_feel): slow ways of their own towards where the drums' intensity suggests, now and then
- * against it, quick turns there and back on the beat, a build over a phrase's last bars.
+ * against it, quick turns there and back on the beat, a build over a phrase's last bars; after playing
+ * hard a while, a rest of about eight bars.
  *
  * Portable C99 like nfm; no libc, no malloc. All calls belong to the audio thread or happen between
  * renders. */
@@ -117,6 +118,8 @@ typedef struct {
     uint8_t db_cyc, d_live, d_arc_on, dctl;
     float d_arc, d_mood, dsm;      /* the phrase's build (0..1), the drums' intensity glided */
     float d_hold;                  /* samples Deviance rests after a hand on its knobs (nacid_touch) */
+    float d_energy;                /* the hand's energy (1 rested .. 0 spent) */
+    uint8_t d_rest, d_woke;        /* bars of rest left (0: playing); a rest just ended */
     uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
 } nacid;
 

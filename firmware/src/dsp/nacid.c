@@ -84,6 +84,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->att = a->att_soft;
     a->drng = a->rng ^ 0x9e3779b9u;
     a->db_ph = 1.0f;
+    a->d_energy = 1.0f;
     a->dsm = 1.0f - exp2f_(-32.0f * 1.4427f / (0.02f * sr)); /* Deviance's offsets glide: 20 ms */
     nacid_generate(a);
 }
@@ -446,24 +447,60 @@ NFM_CODE static void ladder(nacid *a, float g)
  * a few times over), likelier with hard drums, in bars 4 and 8 of the phrase and on the last beat. In
  * some phrases (more with hard drums) the cutoff and Env Mod build over the last four bars and let go on
  * the one. Deviance: how much of it is heard over the knobs as set; at 100, mostly the hand's. Turning
- * one of the four yourself, Deviance lets go of them all for 2 s after the last turn (nacid_touch). */
+ * one of the four yourself, Deviance lets go of them all for 2 s after the last turn (nacid_touch).
+ *
+ * The hand tires: playing hard spends its energy (with hard drums about three phrases' worth, give or
+ * take), and when it is gone it rests, from a bar on a half phrase: the knobs back to the calm place in
+ * a bar or two, whatever the drums do, no turns, no build, for eight bars (now and then four or twelve).
+ * Then all of it at once again, from where the drums are. Playing calm, it gets its energy back. */
 NFM_DATA static const float dlo[4] = { 0.25f, 0.45f, 0.30f, 0.55f };   /* the rule's place, calm drums */
 NFM_DATA static const float dhi[4] = { 0.45f, 0.90f, 0.80f, 0.30f };   /* ...hard drums */
 
 NFM_CODE static float step_samples(const nacid *a) { return a->step_len > 0.0f ? a->step_len : a->sr * 0.134f; }
 
-/* knob i: a new way, and how long it takes */
+/* the intensity the hand plays at: the drums', none while it rests */
+NFM_CODE static inline float dev_mood(const nacid *a) { return a->d_rest ? 0.0f : a->d_mood; }
+
+/* knob i: a new way, and how long it takes (resting: to the calm place in a bar or two, and it stays;
+ * just rested: back in one to four bars) */
 NFM_CODE static void dev_way(nacid *a, int i)
 {
     uint32_t *r = &a->drng;
-    float t = lerp(dlo[i], dhi[i], a->d_mood) + (rndf(r) + rndf(r) - 1.0f) * 0.1f;
-    if (rndf(r) < 0.16f) t = 0.1f + 0.85f * rndf(r);         /* against the rules */
+    float t = lerp(dlo[i], dhi[i], dev_mood(a)) + (rndf(r) + rndf(r) - 1.0f) * 0.1f;
+    if (!a->d_rest && rndf(r) < 0.16f) t = 0.1f + 0.85f * rndf(r);   /* against the rules */
     t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
-    float bars = rndf(r) < 0.3f ? 0.5f + 0.5f * rndf(r) : 2.0f + 6.0f * rndf(r);
+    float bars = a->d_rest ? 1.0f + rndf(r) : a->d_woke ? 1.0f + 3.0f * rndf(r)
+                 : rndf(r) < 0.3f ? 0.5f + 0.5f * rndf(r) : 2.0f + 6.0f * rndf(r);
     float d = t - a->dw[i];
     a->dw_to[i] = t;
     a->dw_v[i] = (d < 0.0f ? -d : d) * 32.0f / (bars * (float)NACID_BAR * step_samples(a));
-    a->dw_hold[i] = (uint8_t)((int)bars + 1 + (int)(rnd(r) % 4u));
+    a->dw_hold[i] = a->d_rest ? 255 : (uint8_t)((int)bars + 1 + (int)(rnd(r) % 4u));
+}
+
+/* a bar's energy: spent playing hard (above a third of the way, a phrase of the hardest takes a third
+ * of it, by chance more or less), got back playing calm; gone, a rest from the next half phrase. A
+ * rest's end: every knob a new way at once, from the drums. */
+NFM_CODE static void dev_energy(nacid *a, int bar)
+{
+    uint32_t *r = &a->drng;
+    a->d_woke = 0;
+    if (a->d_rest) {
+        if (--a->d_rest) return;
+        a->d_energy = 1.0f;
+        a->d_woke = 1;
+        for (int i = 0; i < 4; ++i) a->dw_hold[i] = 0;
+        return;
+    }
+    float m = a->d_mood - 0.33f;
+    if (m > 0.0f) a->d_energy -= m * (1.0f / 0.67f) * (1.0f / 24.0f) * (0.5f + rndf(r));
+    else a->d_energy += -m * 0.1f;
+    a->d_energy = a->d_energy > 1.0f ? 1.0f : a->d_energy;
+    if (a->d_energy <= 0.0f && bar % 4 == 0) {
+        float x = rndf(r);
+        a->d_rest = (uint8_t)(x < 0.2f ? 4 : x < 0.85f ? 8 : 12);
+        a->d_arc_on = 0;
+        for (int i = 0; i < 4; ++i) a->dw_hold[i] = 0;
+    }
 }
 
 /* a quick turn there and back: which knobs, which way (the cutoff and Env Mod mostly up), how far, how
@@ -472,7 +509,7 @@ NFM_CODE static void dev_turn(nacid *a)
 {
     NFM_DATA static const float ch[4] = { 0.6f, 0.35f, 0.5f, 0.4f }, up[4] = { 0.8f, 0.7f, 0.75f, 0.5f };
     uint32_t *r = &a->drng;
-    float m = a->d_mood, x = rndf(r);
+    float m = dev_mood(a), x = rndf(r);
     int any = 0, len = x < 0.25f + 0.2f * m ? 2 : x < 0.75f ? 4 : 8;
     for (int i = 0; i < 4; ++i) {
         a->db_amp[i] = 0.0f;
@@ -510,19 +547,21 @@ NFM_CODE void nacid_feel(nacid *a, float mood, int ps)
             a->dw_hold[i] = 0;
         }
         a->d_mood = mood;
+        a->d_rest = a->d_woke = 0;                 /* (its energy as it was) */
         a->d_live = 1;
     }
     a->d_mood += (mood - a->d_mood) * 0.15f;       /* (about a bar to follow) */
     int pos = ps % NACID_BAR, bar = (ps / NACID_BAR) % 8;
     if (pos == 0) {
+        dev_energy(a, bar);
         for (int i = 0; i < 4; ++i) {
-            if (a->dw_hold[i]) --a->dw_hold[i];
+            if (a->dw_hold[i]) a->dw_hold[i] -= a->dw_hold[i] < 255;
             else dev_way(a, i);
         }
-        if (bar == 0) a->d_arc_on = rndf(&a->drng) < 0.3f + 0.4f * a->d_mood;
+        if (bar == 0) a->d_arc_on = !a->d_rest && rndf(&a->drng) < 0.3f + 0.4f * a->d_mood;
     }
     a->d_arc = a->d_arc_on && bar >= 4 ? (float)(ps % 128 - 64) * (1.0f / 64.0f) : 0.0f;
-    if (pos % 4 == 0 && a->db_ph >= 1.0f) {
+    if (pos % 4 == 0 && a->db_ph >= 1.0f && !a->d_rest) {
         float c = 0.035f + 0.1f * a->d_mood;
         if (bar == 3 || bar == 7) c *= 2.0f;
         if (pos == 12) c *= 1.5f;

@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.2
+
+Firmware identity FM-1_836. The 303's Deviance under ENV, and it gets tired.
+
+- **The acid line's Deviance has moved to ENV**, as the drums' Deviance: press ENV three times on
+  the acid line for its own page, Deviance on KNOB 1. Its Track page (EDIT) has **Level** back on
+  KNOB 4. The drum tracks' ENV still has its two pages.
+- **Deviance needs a rest now and then.** Playing hard spends its energy: with hard drums it keeps
+  going for about three phrases, give or take, then takes a break of mostly eight bars (now and then
+  four or twelve), whatever the drums do: from a bar on a half phrase the knobs go back to their calm
+  place in a bar or two, no twists and no build. Then it comes back hard, all at once, from where the
+  drums are. With calm drums it doesn't tire and gets its energy back.
+
 ## 0.3.1
 
 Firmware identity FM-1_835.

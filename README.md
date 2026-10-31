@@ -1,8 +1,9 @@
-# Wild 0.3.1 - experimental FM-1 firmware
+# Wild 0.3.2 - experimental FM-1 firmware
 
-**0.3.0 / 0.3.1: the 303's own Deviance** (the acid line's Track page, KNOB 4): cutoff, resonance,
-Env Mod and Decay played as by a hand, following how hard the drums sound and how busy they are;
-turn one of them yourself and Deviance rests until 2 s after your last turn. And a
+**0.3.0 - 0.3.2: the 303's own Deviance** (the acid line's own ENV page, KNOB 1): cutoff, resonance,
+Env Mod and Decay played as by a hand, following how hard the drums sound and how busy they are,
+taking a break of about eight bars when it has played hard a while; turn one of them yourself and
+Deviance rests until 2 s after your last turn. And a
 **Major** scale for the acid line. 0.2.1: Drive without the aliasing-like grit, and a cleaner 303
 square. 0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
@@ -68,7 +69,7 @@ command.
   to pure chance. Its **Deviance** plays its cutoff, resonance, Env Mod and Decay by itself, after the
   drums: harder and busier drums take it to high resonance, a middle cutoff and more Env Mod, calm
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
-  now and then a move against the rules.
+  now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round.
