@@ -80,7 +80,9 @@ command.
   the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
   now and then moves a hit when the loop comes round. Any track, the 303 too, can run in
   **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
-  keys 1–12, drawn on the screen where they fall in time.
+  keys 1–12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
+  quarters nearly always, with now and then a soft one; **Dynamics** (Rhythm page) sets how soft
+  they may get.
 - **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
   filter, a warm drive with even harmonics that does not raise the volume (anti-aliased), and a **modulation effect**
   per sound: phaser, flanger, chorus, ring modulator or tremolo, on the share of hits you choose.

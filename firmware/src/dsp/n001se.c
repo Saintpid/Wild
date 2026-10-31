@@ -85,6 +85,7 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_MODCHANCE] = {"Chance", 0, 100, 60},
     [T_GRID] = {"Grid", 0, 1, 0},
     [T_DRIFT] = {"Drift", 0, 1, 1},
+    [T_DYN] = {"Dynamics", 0, 100, 50},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -120,10 +121,10 @@ const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1},
+    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
+    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
+    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
@@ -796,6 +797,7 @@ static void tset(int t, int p, int v)
     case T_DRIFT: fm.direct = (uint8_t)(v ? fm.direct & ~(1u << t) : fm.direct | 1u << t); break;
     case T_KIND: break;                /* takes effect with the next new sound */
     case T_GRID: nseq_set_flag(&seq, t, NSEQ_FLAG_TRIPLET, v); break;
+    case T_DYN: nseq_set_flag(&seq, t, NSEQ_FLAG_DYN, v); break;
     }
     (void)tr;
 }
@@ -930,7 +932,7 @@ static float drum_mood(void)
     }
     if (w <= 0.0f)
         return 0.0f;
-    hits = (hits - 3.0f) * (1.0f / 18.0f);
+    hits = (hits * 0.85f - 3.0f) * (1.0f / 18.0f);   /* (0.85: velocities lean high since 0.3.7, read as before) */
     snd /= w;
     m = 0.55f * (hits < 0.0f ? 0.0f : hits > 1.0f ? 1.0f : hits) + 0.45f * (snd > 1.0f ? 1.0f : snd) +
         0.15f * pct(gpar[G_CHAOS]);

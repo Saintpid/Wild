@@ -173,6 +173,11 @@ RHYTHM (HOME, page 2)
              on the first three sixteenths of each beat. New patterns in triplets are drawn for
              triplets (kicks on the beats, hats on the late third). Swing does not move triplets.
              The acid line has the same knob on its Rhythm page.
+  Dynamics   How soft a new pattern's hits may be, 0-100 (50 to start). Hits lean towards the top of
+             MIDI's 1-127: the quarters nearly always hard, now and then a soft one (about one in
+             seven), the steps between them spread wider but still mostly strong. 0: every hit full
+             (127); 100: down to about 17. It acts on new patterns (black 10, REC), not on the hits
+             already there; hold a step and turn KNOB 1 to set one by hand.
 
 TRACK (EDIT)
   Rnd len    Random length: Fixed, or 1â€“N bars. Sometimes the last bar is shorter, for odd lengths.

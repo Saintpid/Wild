@@ -103,6 +103,23 @@ NFM_CODE static int pick_step(nseq *q, const float *w, int len)
     return -1;
 }
 
+/* A new hit's velocity, 1..127, as a hand plays: most near the top. On the quarter nearly always
+ * hard, a soft one now and then (15 %); between them spread wider, still leaning up. dyn: how far
+ * below full it may go (100: down to about 17). */
+NFM_CODE static int velocity(nseq *q, const nseq_track *tr, int s)
+{
+    float x, u = rndf(&q->vrng);
+    int beat = tr->triplet ? s % 3 == 0 : s % 4 == 0;
+    if (!beat)
+        x = u * u * (0.4f + 0.6f * u);            /* (a mean of about 0.3 of the way down) */
+    else if (rndf(&q->vrng) < 0.15f)
+        x = 0.35f + 0.65f * u;                    /* the soft one */
+    else
+        x = 0.35f * u * u * u;
+    int v = 127 - (int)(x * (float)tr->dyn * 1.1f + 0.5f);
+    return v < 1 ? 1 : v > 127 ? 127 : v;
+}
+
 NFM_CODE void nseq_generate(nseq *q, int t)
 {
     if (!track_ok(t)) return;
@@ -123,9 +140,7 @@ NFM_CODE void nseq_generate(nseq *q, int t)
     for (int k = 0; k < count; ++k) {
         int s = k == 0 && anchor ? 0 : pick_step(q, w, len);
         if (s < 0) break;
-        float strength = (float)prof[s % bar] / 10.0f;
-        int vel = 64 + (int)(strength * 45.0f) + (int)(rndf(&q->rng) * 18.0f);
-        tr->step[s] = (nseq_step){ 1, (uint8_t)(vel > 127 ? 127 : vel), pick_note(q, tr->pitch_range), 0 };
+        tr->step[s] = (nseq_step){ 1, (uint8_t)velocity(q, tr, s), pick_note(q, tr->pitch_range), 0 };
         w[s] = 0.0f;
         /* Space hits out, which keeps sparse patterns from clumping... */
         if (len > 2) {
@@ -168,6 +183,7 @@ NFM_CODE void nseq_init(nseq *q, nfm_engine *engine, uint32_t seed)
     nfm_zero(q, sizeof *q);
     q->engine = engine;
     q->rng = seed ? seed : 0x9e3779b9u;
+    q->vrng = q->rng ^ 0x5bd1e995u;
     q->bpm = 112.0f;
     q->swing = 0.0f;
     q->loose = 0.15f;
@@ -195,6 +211,7 @@ NFM_CODE void nseq_init(nseq *q, nfm_engine *engine, uint32_t seed)
         tr->evolve = start[i].evolve;
         tr->mute = start[i].mute;
         tr->len_random = start[i].rnd;
+        tr->dyn = 50;
         tr->last = -1;
         nseq_generate(q, t);
     }
@@ -257,6 +274,7 @@ NFM_CODE void nseq_set_flag(nseq *q, int t, int which, int v)
     case NSEQ_FLAG_EVOLVE: tr->evolve = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_PITCH_RANGE: tr->pitch_range = (uint8_t)(v < 0 ? 0 : v > 24 ? 24 : v); break;
     case NSEQ_FLAG_LEN_RANDOM: tr->len_random = (uint8_t)(v < 0 ? 0 : v > NSEQ_MAX_BARS ? NSEQ_MAX_BARS : v); break;
+    case NSEQ_FLAG_DYN: tr->dyn = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_TRIPLET:
         tr->triplet = v ? 1 : 0;
         if (tr->length > max_steps(tr)) tr->length = (uint8_t)max_steps(tr);

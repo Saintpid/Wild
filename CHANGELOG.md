@@ -5,6 +5,21 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.8
+
+Firmware identity FM-1_842. Drums that play like hands.
+
+- **New drum hits lean strong.** A new pattern's velocities now sit mostly in the upper part of
+  MIDI's 1-127: the quarters nearly always hard, but about one in seven a softer one; the steps
+  between them spread wider, still mostly strong. Before, they were spread evenly between about
+  half and full by where they fell.
+- **Dynamics**, a new knob per drum track on the Rhythm page (HOME twice, KNOB 2): how soft the hits
+  may get, 0-100, 50 to start. At 0 every hit is full, at 100 down to about 17. It shapes new
+  patterns (black 10, REC); the hits already there stay, and a held step's KNOB 1 still sets one
+  by hand. Saved with the project; older projects get 50.
+- The 303's Deviance reads the drums as calm or hard as before, with the louder hits taken into
+  account.
+
 ## 0.3.7
 
 Firmware identity FM-1_841. Tracks that stay out of the Drift.

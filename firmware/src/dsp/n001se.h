@@ -70,6 +70,7 @@ enum {
     T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE,         /* its modulation effect (NFM_MOD_*), on a share of hits */
     T_GRID,                                          /* its steps: 0 sixteenths, 1 eighth triplets (12 a bar) */
     T_DRIFT,                                         /* 1 in the Drift page's effects, 0 past them (Space stays) */
+    T_DYN,                                           /* Dynamics: how soft a new pattern's hits may be (0: all full) */
     T_NPARAMS
 };
 /* the acid line's parameters */

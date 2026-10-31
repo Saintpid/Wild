@@ -322,6 +322,49 @@ int main(int argc, char **argv)
         CHECK(tr->length == 36 && n == 6 && asteps == 0, "triplets: a new pattern %d steps, %d hits; acid notes past four bars %d",
               tr->length, n, asteps);
     }
+    /* Dynamics: new hits lean to the top, the quarters most, a soft quarter now and then; at 0 all full,
+     * at 100 down to about 17 */
+    {
+        int nb = 0, no = 0, soft = 0, lo = 127, flat = 1, d;
+        float sb = 0.0f, so = 0.0f;
+        const nseq_track *tr = &ne_seq()->track[1];
+        ne_init();
+        ne_tset(1, T_RANDLEN, 0);
+        ne_tset(1, T_BARS, 8);
+        ne_tset(1, T_HITHI, 64);
+        ne_tset(1, T_HITLO, 64);
+        for (d = 0; d < 2; d++) {
+            ne_tset(1, T_DYN, d ? 100 : 0);
+            for (i = 0; i < 60; i++) {
+                int s2;
+                ne_generate(1);
+                render(1, 0);
+                for (s2 = 0; s2 < tr->length; s2++) {
+                    int v = tr->step[s2].vel;
+                    if (!tr->step[s2].on)
+                        continue;
+                    if (!d) {
+                        flat &= v == 127;
+                        continue;
+                    }
+                    lo = v < lo ? v : lo;
+                    if (s2 % 4 == 0) {
+                        sb += (float)v, nb++;
+                        soft += v < 90;
+                    } else {
+                        so += (float)v, no++;
+                    }
+                }
+            }
+        }
+        sb /= (float)(nb ? nb : 1);
+        so /= (float)(no ? no : 1);
+        printf("Dynamics 100: quarters %.0f on average (%.0f%% soft), the rest %.0f, the softest %d; at 0 all full: %s\n",
+               (double)sb, 100.0 * soft / (nb ? nb : 1), (double)so, lo, flat ? "yes" : "no");
+        CHECK(flat && sb > 104.0f && so > 85.0f && so < sb - 8.0f && soft > nb / 14 && soft < nb / 4 && lo < 35 && lo >= 15,
+              "Dynamics: quarters %f, rest %f, %d of %d soft, softest %d, flat at 0 %d", (double)sb, (double)so, soft, nb, lo,
+              flat);
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();
