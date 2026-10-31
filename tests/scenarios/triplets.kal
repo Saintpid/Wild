@@ -60,3 +60,16 @@ expect tpar23 0
 expect len 32
 expect step17 1
 expect dropped 0
+# Dynamics (KNOB 2 on the same page): 50 by default; at 0 a new pattern's hits are all full
+expect tpar25 50
+spin K2 -60
+expect tpar25 0
+tapkey b9
+wait 20
+expect hits >0
+expect velmin 127
+spin K2 100
+expect tpar25 100
+tapkey b9
+wait 20
+expect velmin <120

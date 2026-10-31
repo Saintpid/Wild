@@ -155,8 +155,10 @@ int main(int argc, char **argv)
     CHECK(loud_off.pk <= 0.966f + 0.002f, "hot without the Glue, a peak of %.4f", (double)loud_off.pk);
     CHECK(off.pk <= 0.966f + 0.002f, "a peak of %.4f over the ceiling without the Glue (-0.3 dBFS)", (double)off.pk);
     CHECK(mono.ediff == 0.0f, "Width 0 not mono");
-    CHECK(off.eside > 0.0f && wide.eside > off.eside * 1.5f, "Width 100 not wider (%.3g, %.3g)", (double)wide.eside,
-          (double)off.eside);
+    /* (wider above the lows: under 60 Hz the sides go to the middle, by design, whatever the width) */
+    CHECK(off.eside > off.eside_lo && wide.eside - wide.eside_lo > (off.eside - off.eside_lo) * 1.5f,
+          "Width 100 not wider above 60 Hz (%.3g, %.3g)", (double)(wide.eside - wide.eside_lo),
+          (double)(off.eside - off.eside_lo));
     CHECK(nbb.eside_lo < off.eside_lo * 0.25f || off.eside_lo < 1e-6f, "the sides' lows not out (%.3g, %.3g)",
           (double)nbb.eside_lo, (double)off.eside_lo);
     printf("sides under 60 Hz, Color 0: %.2e\n", (double)clean.eside_lo);

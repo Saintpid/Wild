@@ -21,7 +21,7 @@
  *   leds                         print the lit buttons and keys
  *   expect WHAT VALUE            check state: exit 1 on mismatch; VALUE "<N" / ">N" is a bound
  *                                (WHAT: view dirty store_writes midi_out playing track bar lock live list slot preset
- *                                 stepN velN noteN (step N of the selected track) hits len mute
+ *                                 stepN velN noteN (step N of the selected track) hits velmin len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches)
@@ -465,7 +465,12 @@ static int expect(const char *what, const char *val)
         got = proj.preset;
     else if (!strncmp(what, "step", 4))
         got = tr->step[atoi(what + 4) % NE_STEPS].on;
-    else if (!strncmp(what, "vel", 3))
+    else if (!strcmp(what, "velmin")) {          /* the softest of the selected track's hits (127: none) */
+        int s;
+        for (got = 127, s = 0; s < tr->length; s++)
+            if (tr->step[s].on && tr->step[s].vel < got)
+                got = tr->step[s].vel;
+    } else if (!strncmp(what, "vel", 3))
         got = tr->step[atoi(what + 3) % NE_STEPS].vel;
     else if (!strncmp(what, "note", 4))
         got = tr->step[atoi(what + 4) % NE_STEPS].note;

@@ -7,7 +7,8 @@
  * second and third sixteenth of each quarter, the second and third played a
  * third and two thirds of a sixteenth late (the fourth plays none). A generator places a random number of hits,
  * drawn from a min..max range for the whole track, weighted towards the
- * positions that suit the slot's kind of sound. Swing and loose timing
+ * positions that suit the slot's kind of sound. Their velocities lean to the
+ * top, the quarters most, with now and then a soft one (dyn: how far down). Swing and loose timing
  * delay hits within their step.
  *
  * Portable C99 like nfm. All calls belong to the audio thread or happen
@@ -53,6 +54,7 @@ typedef struct {
     uint16_t loops;
     uint8_t len_random;  /* 0: fixed length; 1..8: generate picks 1..N bars */
     uint8_t triplet;     /* its steps are eighth triplets (12 a bar), not sixteenths */
+    uint8_t dyn;         /* 0..100: how far below full a new hit's velocity may fall (0: all full) */
 } nseq_track;
 
 typedef struct {
@@ -76,6 +78,7 @@ typedef struct {
     float to_next;       /* samples until the next global step */
     uint32_t steps;      /* global steps since start */
     uint32_t rng;
+    uint32_t vrng;       /* velocities' own: where the hits fall does not depend on them */
     nseq_event queue[NSEQ_QUEUE];
     /* told of each global step (another line clocked by this one): its number, the swing's delay
      * in samples, the step's length */
@@ -100,7 +103,7 @@ void nseq_set_hits(nseq *q, int track, int lo, int hi);
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
 enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM,
-       NSEQ_FLAG_TRIPLET };  /* (the flag alone: the steps are taken as they are) */
+       NSEQ_FLAG_TRIPLET, NSEQ_FLAG_DYN };  /* (the flag alone: the steps are taken as they are) */
 
 /* A track into triplets (1) or sixteenths (0), its pattern moved along: each hit to the nearest step of
  * the other grid in time (the offbeat eighth to the third triplet, a shuffle; two on one step: the

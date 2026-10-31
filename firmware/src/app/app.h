@@ -12,7 +12,7 @@
 #define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
 /* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value
  * at the end of G_* / T_*, bump the format and say here how many the older one had. */
-#define PROJ_FORMAT 15u                    /* 2: master filter, PRESETS knob, Tune, the preset number;
+#define PROJ_FORMAT 16u                    /* 2: master filter, PRESETS knob, Tune, the preset number;
                                             3: the acid line (appended);
                                             4: effects per track (T_ and A_ REVERB..DRIVE);
                                             5: USB audio on / off (G_USBAUDIO);
@@ -25,9 +25,10 @@
                                             12: a new 303 sound's waves (G_ACIDWAVES);
                                             13: the acid line's Deviance (A_DEV);
                                             14: triplets per track (T_GRID, A_GRID);
-                                            15: Drift in / past, per track (T_DRIFT, A_DRIFT) */
+                                            15: Drift in / past, per track (T_DRIFT, A_DRIFT);
+                                            16: Dynamics per drum track (T_DYN) */
 #define PROJ_G_OF(f) ((f) == 1u ? 12 : (f) <= 4u ? 17 : (f) <= 6u ? 18 : (f) <= 7u ? 19 : (f) <= 9u ? 20 : (f) <= 10u ? 21 : (f) <= 11u ? 25 : G_NPARAMS)   /* the values each format holds */
-#define PROJ_T_OF(f) ((f) == 1u ? 14 : (f) <= 3u ? 15 : (f) <= 5u ? 19 : (f) <= 13u ? 23 : (f) <= 14u ? 24 : T_NPARAMS)
+#define PROJ_T_OF(f) ((f) == 1u ? 14 : (f) <= 3u ? 15 : (f) <= 5u ? 19 : (f) <= 13u ? 23 : (f) <= 14u ? 24 : (f) <= 15u ? 25 : T_NPARAMS)
 #define PROJ_A_OF(f) ((f) <= 2u ? 0 : (f) == 3u ? 16 : (f) <= 5u ? 20 : (f) <= 8u ? 24 : (f) <= 12u ? 25 : (f) <= 13u ? 26 : (f) <= 14u ? 27 : A_NPARAMS)
 
 typedef struct {

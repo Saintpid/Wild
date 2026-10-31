@@ -55,7 +55,7 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
-    {KT | T_GRID, K_NONE, K_NONE, K_NONE},           /* HOME again: the steps, sixteenths or triplets */
+    {KT | T_GRID, KT | T_DYN, K_NONE, K_NONE},       /* HOME again: the steps, sixteenths or triplets; how soft */
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},

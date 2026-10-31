@@ -114,3 +114,11 @@
 - Turning Grid = ne_regrid: hits to nearest step in time (16th 1234 -> T 1233, louder wins; back T 123
   -> 16th 123), bars kept. ne_tset/ne_aset(GRID) = flag only (restores already hold the layout).
 - All scenario "expect view N" for N>=1 shifted by one (new view V_RHYTHM).
+
+## 0.3.8 / 842 - drum velocities lean strong, Dynamics
+- User: hits likelier strong, especially quarters, but a quarter can be weaker; 1..127; per-step
+  velocity editing later (user still designing it).
+- nseq velocity(): beat 85% x=0.35u^3, 15% x=0.35+0.65u; off-beat x=u^2(0.4+0.6u); vel=127-x*dyn*1.1.
+  Own RNG (vrng) so hit placement keeps its stream. T_DYN (Rhythm page KNOB 2, default 50, format 16).
+- drum_mood scales hits by 0.85 so the 303 Deviance reads the starting set as before.
+- glue_test Width check now compares sides above 60 Hz (the lows go mono by design).
