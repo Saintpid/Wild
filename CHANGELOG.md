@@ -5,9 +5,9 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.3
+## 0.3.4
 
-Firmware identity FM-1_837. Drums that wander off.
+Firmware identity FM-1_838. Drums that wander off.
 
 - **Deviance 90 to 100 on a drum track lets the sound itself wander.** Up to 89 nothing changes:
   every hit varies around the sound as before. From 90 the sound moves a little at every sixteenth

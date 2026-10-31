@@ -1,6 +1,6 @@
-# Wild 0.3.3 - experimental FM-1 firmware
+# Wild 0.3.4 - experimental FM-1 firmware
 
-**0.3.3: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
+**0.3.4: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
 sound itself a little at every sixteenth, never back: out of its kind in about 128 bars at 90, 8 at
 100. Up to 89 Deviance is as before.
 **0.3.0 - 0.3.2: the 303's own Deviance** (the acid line's own ENV page, KNOB 1): cutoff, resonance,
