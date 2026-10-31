@@ -74,6 +74,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->rng = seed ? seed : 0x2c1b3c6du;
     for (int i = 0; i < NACID_PARAMS; ++i) a->p[i] = def[i];
     a->length = NACID_BAR;
+    a->bar = NACID_BAR;
     a->last = -1;
     a->glide = 1.0f - exp2f_(-1.4427f / (0.06f * sr));    /* the slide: an RC of 60 ms on the pitch, a 303's */
     a->freq = 65.406f;
@@ -95,8 +96,8 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
 /* where in the bar a note is likely: the one, the offbeat eighths, the beats, then the sixteenths */
 NFM_CODE static float pos_w(const nacid *a, int s)
 {
-    int p = s % NACID_BAR;
-    float w = p == 0 ? 1.4f : p % 4 == 2 ? 1.2f : p % 4 == 0 ? 1.05f : 0.8f;
+    int b = a->bar / 4, p = s % a->bar;
+    float w = p == 0 ? 1.4f : p % b == 2 ? 1.2f : p % b == 0 ? 1.05f : 0.8f;
     return lerp(w, 1.0f, a->p[NACID_P_CHAOS]);
 }
 
@@ -104,7 +105,7 @@ NFM_CODE static float pos_w(const nacid *a, int s)
 NFM_CODE static int roll_on(nacid *a, int s)
 {
     float p = a->p[NACID_P_DENSITY] * pos_w(a, s), c = a->p[NACID_P_CHAOS];
-    if (s % NACID_BAR == 0) p = lerp(0.95f, p, c);            /* the one, nearly always */
+    if (s % a->bar == 0) p = lerp(0.95f, p, c);            /* the one, nearly always */
     if (s >= 3 && (a->step[s - 1].flags & a->step[s - 2].flags & a->step[s - 3].flags & NACID_ON))
         p *= lerp(0.6f, 1.0f, c);                             /* a rest makes the groove */
     return rndf(&a->rng) < clamp1(p);
@@ -113,7 +114,7 @@ NFM_CODE static int roll_on(nacid *a, int s)
 /* the note before step s (in the bar or the one before), -1 none */
 NFM_CODE static int note_before(const nacid *a, int s)
 {
-    for (int i = s - 1; i >= 0 && i > s - NACID_BAR; --i)
+    for (int i = s - 1; i >= 0 && i > s - a->bar; --i)
         if (a->step[i].flags & NACID_ON) return a->step[i].note;
     return -100;
 }
@@ -131,7 +132,7 @@ NFM_CODE static int pick_pitch(nacid *a, int s)
     for (int n = 0; n < 12; ++n) {
         float d = n == 0 ? 4.0f : n == 7 ? 2.5f : (n == 3 || n == 4) ? 1.6f : (n == 10 || n == 11) ? 1.4f : 1.0f;
         if (!in[n]) d = 0.12f;
-        if (n == 0 && s % 4 == 0) d *= s % NACID_BAR == 0 ? 2.0f : 1.4f;
+        if (n == 0 && s % (a->bar / 4) == 0) d *= s % a->bar == 0 ? 2.0f : 1.4f;
         if (prev > -100) {
             int iv = n > prev ? n - prev : prev - n;
             d *= iv == 0 ? 1.3f : iv <= 2 ? 1.0f : iv <= 4 ? 0.7f : (iv == 5 || iv == 7) ? 0.55f : 0.3f;
@@ -151,9 +152,9 @@ NFM_CODE static int pick_pitch(nacid *a, int s)
  * Chaos two up too, and the neighbour counts less. */
 NFM_CODE static int8_t octave(nacid *a, int s, int pitch)
 {
-    int p = s % NACID_BAR, n = pitch;
+    int p = s % a->bar, n = pitch, b = a->bar / 4;
     float c = a->p[NACID_P_CHAOS], o = a->p[NACID_P_OCTAVES], r = rndf(&a->rng);
-    float w = p == 0 ? 0.3f : p % 4 == 0 ? 0.7f : p % 2 ? 1.25f : 1.35f;
+    float w = p == 0 ? 0.3f : p % b == 0 ? 0.7f : p % b == 2 ? 1.35f : 1.25f;
     float up = o * 1.0f * lerp(w, 1.0f, c), down = o * 0.3f;
     if (s > 0 && (a->step[s - 1].flags & NACID_ON)) {
         if (a->step[s - 1].note >= 12) {                       /* after one up: down again */
@@ -178,8 +179,8 @@ NFM_CODE static int8_t octave(nacid *a, int s, int pitch)
 /* an accent where it pushes the rhythm: off the beat, after a rest; less on one in a row */
 NFM_CODE static int roll_accent(nacid *a, int s)
 {
-    int p = s % NACID_BAR;
-    float w = p % 4 == 2 ? 1.5f : p % 4 == 0 ? 0.8f : 0.9f;
+    int b = a->bar / 4, p = s % a->bar;
+    float w = p % b == 2 ? 1.5f : p % b == 0 ? 0.8f : 0.9f;
     if (s > 0 && !(a->step[s - 1].flags & NACID_ON)) w *= 1.3f;
     if (s > 0 && (a->step[s - 1].flags & NACID_ACCENT)) w *= 0.6f;
     return rndf(&a->rng) < clamp1(a->p[NACID_P_ACCENTS] * lerp(w, 1.0f, a->p[NACID_P_CHAOS]));
@@ -188,7 +189,7 @@ NFM_CODE static int roll_accent(nacid *a, int s)
 /* a slide where it moves: most into another note, an octave above all; into a rest (a long note) seldom */
 NFM_CODE static int roll_slide(nacid *a, int s)
 {
-    const nacid_note *nx = &a->step[(s + 1) % NACID_STEPS];
+    const nacid_note *nx = &a->step[(s + 1) % (a->bar * NACID_MAX_BARS)];
     float w = 0.35f;
     if (nx->flags & NACID_ON) {
         int iv = nx->note - a->step[s].note;
@@ -227,33 +228,34 @@ NFM_CODE void nacid_generate(nacid *a)
     NFM_DATA static const float var[NACID_MAX_BARS] = { 0.12f, 0.12f, 0.04f, 0.15f };
     NFM_DATA static const float turn[NACID_MAX_BARS] = { 0.0f, 0.3f, 0.0f, 0.45f };
     float c = a->p[NACID_P_CHAOS];
-    int half = rndf(&a->rng) < lerp(0.4f, 0.0f, c), s;
+    int half = rndf(&a->rng) < lerp(0.4f, 0.0f, c), s, bar = a->bar, steps = bar * NACID_MAX_BARS;
     uint8_t anew[NACID_STEPS] = { 0 };
-    for (s = 0; s < NACID_BAR; ++s) draw_rhythm(a, s);
-    for (s = 0; s < NACID_BAR; ++s) draw_note(a, s);
-    for (s = NACID_BAR / 2; s < NACID_BAR && half; ++s) {
-        a->step[s] = a->step[s - NACID_BAR / 2];
+    for (s = 0; s < NACID_STEPS; ++s) a->step[s].flags = 0;   /* (triplets: none past their 48) */
+    for (s = 0; s < bar; ++s) draw_rhythm(a, s);
+    for (s = 0; s < bar; ++s) draw_note(a, s);
+    for (s = bar / 2; s < bar && half; ++s) {
+        a->step[s] = a->step[s - bar / 2];
         if (rndf(&a->rng) < lerp(var[0], 1.0f, c * c)) {
             anew[s] = 1;
             draw_rhythm(a, s);
         }
     }
-    for (s = NACID_BAR / 2; s < NACID_BAR; ++s)
+    for (s = bar / 2; s < bar; ++s)
         if (anew[s]) draw_note(a, s);
-    a->step[NACID_BAR] = a->step[0];                          /* (the last step's slide looks there) */
-    for (s = 0; s < NACID_BAR; ++s) draw_slide(a, s);
-    for (s = NACID_BAR; s < NACID_STEPS; ++s) {
-        int b = s / NACID_BAR;
-        a->step[s] = a->step[s % NACID_BAR];
-        float v = (s % NACID_BAR >= 12 ? turn[b] : 0.0f) + var[b];
+    a->step[bar] = a->step[0];                                /* (the last step's slide looks there) */
+    for (s = 0; s < bar; ++s) draw_slide(a, s);
+    for (s = bar; s < steps; ++s) {
+        int b = s / bar;
+        a->step[s] = a->step[s % bar];
+        float v = (s % bar >= bar - bar / 4 ? turn[b] : 0.0f) + var[b];
         if (rndf(&a->rng) < lerp(v, 1.0f, c * c) + c * 0.3f) {
             anew[s] = 1;
             draw_rhythm(a, s);
         }
     }
-    for (s = NACID_BAR; s < NACID_STEPS; ++s)
+    for (s = bar; s < steps; ++s)
         if (anew[s]) draw_note(a, s);
-    for (s = NACID_BAR; s < NACID_STEPS; ++s)
+    for (s = bar; s < steps; ++s)
         if (anew[s]) {
             draw_slide(a, s - 1);
             draw_slide(a, s);
@@ -291,7 +293,45 @@ NFM_CODE static void evolve(nacid *a)
 
 NFM_CODE void nacid_set_length(nacid *a, int n)
 {
-    a->length = (uint8_t)(n < 1 ? 1 : n > NACID_STEPS ? NACID_STEPS : n);
+    int max = a->bar * NACID_MAX_BARS;
+    a->length = (uint8_t)(n < 1 ? 1 : n > max ? max : n);
+    if (a->pos >= a->length) a->pos = 0;
+}
+
+NFM_CODE void nacid_set_grid(nacid *a, int triplet)
+{
+    a->bar = triplet ? NACID_TBAR : NACID_BAR;
+    nacid_set_length(a, a->length);
+}
+
+/* (the quarter's sixteenths 1 2 3 4 to triplets 1 2 3 3, a shuffle; back 1 2 3; two on one: the
+ * first, as nseq's grid counts for the length and the playhead) */
+NFM_CODE void nacid_regrid(nacid *a, int triplet)
+{
+    nacid_note *st = a->step, old;
+    int s;
+    if ((a->bar == NACID_TBAR) == !!triplet) return;
+    if (triplet) {
+        for (s = 0; s < NACID_STEPS; ++s) {
+            int d = s / 4 * 3 + (s % 4 < 2 ? s % 4 : 2);
+            old = st[s];
+            st[s].flags = 0;
+            if ((old.flags & NACID_ON) && !(st[d].flags & NACID_ON)) st[d] = old;
+        }
+        a->length = (uint8_t)(a->length / 4 * 3 + (a->length % 4 < 3 ? a->length % 4 : 3));
+        a->pos = (uint8_t)(a->pos / 4 * 3 + (a->pos % 4 < 3 ? a->pos % 4 : 3));
+    } else {
+        for (s = NACID_TBAR * NACID_MAX_BARS - 1; s >= 0; --s) {
+            int d = s / 3 * 4 + s % 3;
+            old = st[s];
+            st[s].flags = 0;
+            if (old.flags & NACID_ON) st[d] = old;
+        }
+        a->length = (uint8_t)(a->length / 3 * 4 + a->length % 3);
+        a->pos = (uint8_t)(a->pos / 3 * 4 + a->pos % 3);
+    }
+    a->bar = triplet ? NACID_TBAR : NACID_BAR;
+    if (a->length < 1) a->length = 1;
     if (a->pos >= a->length) a->pos = 0;
 }
 
@@ -473,7 +513,7 @@ NFM_CODE static void dev_way(nacid *a, int i)
                  : rndf(r) < 0.3f ? 0.5f + 0.5f * rndf(r) : 2.0f + 6.0f * rndf(r);
     float d = t - a->dw[i];
     a->dw_to[i] = t;
-    a->dw_v[i] = (d < 0.0f ? -d : d) * 32.0f / (bars * (float)NACID_BAR * step_samples(a));
+    a->dw_v[i] = (d < 0.0f ? -d : d) * 32.0f / (bars * (float)a->bar * step_samples(a));
     a->dw_hold[i] = a->d_rest ? 255 : (uint8_t)((int)bars + 1 + (int)(rnd(r) % 4u));
 }
 

@@ -4,9 +4,9 @@
 wait 200
 # the Master page and back
 tap FX
-expect view 5
+expect view 6
 tap GLO
-expect view 9
+expect view 10
 spin K1 -40
 expect gpar12 60
 spin K4 70
@@ -14,7 +14,7 @@ expect gpar15 100
 shot master.png
 # the Glue page, GLOBAL's second: its mix, EQ, color, width
 tap GLO
-expect view 10
+expect view 11
 spin K1 50
 expect gpar21 100
 spin K3 50
@@ -26,7 +26,7 @@ shot glue_page.png
 spin K4 65
 expect gpar24 65
 tap FX
-expect view 5
+expect view 6
 # play with the glue at 100, all of it in, the inflator at 100: no louder for it (matched), never over its
 # ceiling (-1 dBFS)
 tap PLAY
@@ -85,7 +85,7 @@ tap SAVE
 expect list 1
 tap HOME
 expect list 0
-expect view 3
+expect view 4
 # Program Change 3 (slot 003 is 2), on channel 1, while playing
 tap ENV
 tap ENV
@@ -103,7 +103,7 @@ expect dropped 0
 tap GLO
 tap GLO
 tap GLO
-expect view 11
+expect view 12
 spin K2 10
 expect gpar1 10
 wait 2000

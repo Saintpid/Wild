@@ -95,7 +95,7 @@ expect kind0 0
 # the Tone page: KIND, then a new sound of that kind
 tap ENV
 tap ENV
-expect view 3
+expect view 4
 spin K1 5
 expect tpar6 5
 tapkey b10
@@ -115,30 +115,30 @@ expect peak_db_min -30
 tap HOME
 expect view 0
 tap EDIT
-expect view 1
-tap ENV
 expect view 2
+tap ENV
+expect view 3
 tap FX
-expect view 5
+expect view 6
 shot fx.png
 tap LFO
-expect view 8
-tap GLO
 expect view 9
 tap GLO
 expect view 10
-shot glue.png
 tap GLO
 expect view 11
-shot groove.png
+shot glue.png
 tap GLO
 expect view 12
+shot groove.png
 tap GLO
 expect view 13
+tap GLO
+expect view 14
 turn ALGO 1
 expect view 0
 turn ALGO -1
-expect view 13
+expect view 14
 # PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
 turn PRESET 5
 expect gpar15 35
@@ -146,7 +146,7 @@ tap GLO
 tap GLO
 tap GLO
 tap GLO
-expect view 12
+expect view 13
 spin K3 1
 expect gpar16 1
 turn PRESET 8

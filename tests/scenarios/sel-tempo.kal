@@ -2,7 +2,7 @@ wait 200
 tap GLO
 tap GLO
 tap GLO
-expect view 11
+expect view 12
 spin K1 8
 expect gpar0 120
 tap GLO
@@ -13,7 +13,7 @@ tap SEL
 tap GLO
 tap GLO
 tap GLO
-expect view 11
+expect view 12
 spin K1 17
 expect gpar0 137
 tap SEL

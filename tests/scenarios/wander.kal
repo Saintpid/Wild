@@ -2,7 +2,7 @@
 # as drawn (the hits vary around it as ever); a muted track waits
 wait 200
 tap ENV
-expect view 2
+expect view 3
 expect tpar8 40
 spin K1 49
 expect tpar8 89

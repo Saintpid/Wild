@@ -1,0 +1,62 @@
+# triplets per track: HOME again, the Rhythm page, KNOB 1 Grid: 16ths or triplets, three steps to a
+# quarter, 12 to a bar on white keys 1-12 (13-16 none); the pattern moves along, bars stay bars; saved
+wait 200
+expect track 0
+expect len 32
+# (Evolve off: the hits stay where they are put)
+spin K4 -20
+expect tpar5 0
+tap HOME
+expect view 1
+spin K1 1
+wait 20
+expect tpar23 1
+expect len 24
+# bar 2 of the kick, its second triplet (step 14: white key 2)
+tapkey b1
+expect bar 1
+expect step13 0
+tapkey w1
+wait 20
+expect step13 1
+# key 13: no step there
+expect hits >0
+tapkey w12
+wait 20
+expect step13 1
+expect step24 0
+# the acid line too (it keeps the page)
+tap OCT-
+expect track 4
+expect view 1
+spin K1 1
+wait 20
+expect apar26 1
+expect alen 12
+tap PLAY
+wait 1500
+shot triplets.png
+tap PLAY
+# saved with the project: after a power cycle still in triplets
+wait 6000
+expect dirty 0
+expect step13 1
+expect tpar5 0
+reboot
+wait 200
+expect apar26 1
+expect alen 12
+expect track 0
+expect tpar23 1
+expect len 24
+expect step13 1
+# back to 16ths: bar 2's second triplet is on its second sixteenth (step 18)
+expect view 0
+tap HOME
+expect view 1
+spin K1 -1
+wait 20
+expect tpar23 0
+expect len 32
+expect step17 1
+expect dropped 0

@@ -66,6 +66,7 @@ enum {
     T_TUNE,                                          /* semitones on the sound (reset by a new sound) */
     T_REVERB, T_DELAY, T_FILTER, T_DRIVE,            /* its effects: sends, the filter's share, drive */
     T_MOD, T_MODAMT, T_MODRATE, T_MODCHANCE,         /* its modulation effect (NFM_MOD_*), on a share of hits */
+    T_GRID,                                          /* its steps: 0 sixteenths, 1 eighth triplets (12 a bar) */
     T_NPARAMS
 };
 /* the acid line's parameters */
@@ -78,6 +79,7 @@ enum {
     A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE,
     A_CHAOS,                                         /* the generator: by the rules (0) .. by chance (100) */
     A_DEV,                                           /* Deviance: cutoff, reso, env mod, decay follow the drums */
+    A_GRID,                                          /* its steps: 0 sixteenths, 1 eighth triplets (12 a bar) */
     A_NPARAMS
 };
 typedef struct {
@@ -115,11 +117,15 @@ void ne_panic(void);
 void ne_space_shift(void);                           /* SPACE moves the room now, by its chance (SEL) */
 void ne_aset(int param, int value);                  /* A_* */
 void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12..24 */
+/* A track (NE_ACID: the acid line) into triplets (1) or sixteenths (0), its pattern moved to the nearest
+ * steps in time, bars staying bars. ne_tset(T_GRID) / ne_aset(A_GRID) set the grid alone (a restored
+ * pattern is in it already). */
+void ne_regrid(int track, int triplet);
 /* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */
 
 /* ---- the whole state, for saving: the patterns, lengths and base patches (normalised x 65535) */
 typedef struct {
-    uint8_t len[NE_TRACKS];                          /* steps, 1..128 */
+    uint8_t len[NE_TRACKS];                          /* steps, 1..128 (in triplets 1..96: T_GRID) */
     uint16_t step[NE_TRACKS][NE_STEPS];              /* 0 off; else vel (1..127) | (note + 32) << 7 */
     uint16_t patch[NE_TRACKS][NFM_PARAMS];
     int8_t kind[NE_TRACKS];
@@ -127,7 +133,7 @@ typedef struct {
 void ne_snapshot(ne_state_t *s);                     /* main loop: what plays now */
 void ne_restore(const ne_state_t *s);                /* main loop: the render is silent meanwhile */
 typedef struct {
-    uint8_t len;                                     /* steps, 1..64 */
+    uint8_t len;                                     /* steps, 1..64 (in triplets 1..48: A_GRID) */
     uint8_t rsv[3];
     uint8_t flags[NE_ASTEPS];                        /* NACID_* */
     int8_t note[NE_ASTEPS];

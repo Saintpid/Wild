@@ -5,7 +5,8 @@
  *   SEQ mode (SEQ lit)  the 16 white keys are the 16 steps of one bar of the selected track: lit = a hit,
  *                  the dim one walking = where it plays. A key sets its step; pressed on a hit, it clears
  *                  it when let go, unless a knob turned meanwhile: held, KNOB 1 is the hit's velocity,
- *                  KNOB 2 its note.
+ *                  KNOB 2 its note. A track in triplets (the Rhythm page, HOME again: Grid): keys 1-12 its
+ *                  12 steps, three to a beat; 13-16 none.
  *   LIVE mode      the white keys play the sounds: four keys a sound, each a step up the scale
  *   black 1 / 2    the bar shown (and edited): one down / up, and it stays; both: follow the playhead
  *   black 3        the Master page (hi cut, lo cut, resonance, glue); again: back
@@ -34,16 +35,17 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
+enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
                                               "Master", "Glue", "Groove", "Setup", "Scene"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
 #define UI_TRACKS (NE_TRACKS + 1)      /* the four drum tracks and the acid line */
 static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the acid line */
     {KA | A_BARS, KA | A_NOTES, KA | A_SLIDES, KA | A_EVOLVE},
+    {KA | A_GRID, K_NONE, K_NONE, K_NONE},
     {KA | A_ACCENTS, KA | A_OCTAVES, KA | A_SCALE, KA | A_LEVEL},
     {KA | A_CUTOFF, KA | A_RESO, KA | A_ENVMOD, KA | A_DECAY},
     {KA | A_WAVE, KA | A_ACCENT, KA | A_TUNE, KA | A_CHAOS},
@@ -53,6 +55,7 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
+    {KT | T_GRID, K_NONE, K_NONE, K_NONE},           /* HOME again: the steps, sixteenths or triplets */
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
@@ -200,7 +203,10 @@ static void tpar_set(int t, int p, int v)
     if (v == proj.t[t][p])
         return;
     proj.t[t][p] = (int16_t)v;
-    ne_tset(t, p, v);
+    if (p == T_GRID)                                 /* the pattern moves along into the grid */
+        ne_regrid(t, v);
+    else
+        ne_tset(t, p, v);
     /* the hit range stays a range: the other end follows */
     if (p == T_HITLO && proj.t[t][T_HITHI] < v)
         tpar_set(t, T_HITHI, v);
@@ -222,7 +228,10 @@ static void knob_set(int k, int v)
         if (v == proj.a[k & ~KA])
             return;
         proj.a[k & ~KA] = (int16_t)v;
-        ne_aset(k & ~KA, v);
+        if ((k & ~KA) == A_GRID)
+            ne_regrid(NE_ACID, v);
+        else
+            ne_aset(k & ~KA, v);
     } else {
         if (v == proj.g[k])
             return;
@@ -364,9 +373,11 @@ static int tsend(int t, int dly)              /* the track sends to the reverb (
     return v > 0 && proj.g[dly ? G_DELAY : G_REVERB] > 0;
 }
 static const char *tname(int t) { return t == NE_ACID ? "Acid" : ne_kind_name(ne_fm()->slot[t].kind); }
-static int track_bars(int t) { return (tlen(t) + NE_BAR - 1) / NE_BAR; }
+/* the steps in a bar: 16, or 12 in triplets (keys 13-16 none) */
+static int tbar(int t) { return t == NE_ACID ? ne_acid()->bar : nseq_bar(trk(t)); }
+static int track_bars(int t) { return (tlen(t) + tbar(t) - 1) / tbar(t); }
 static int play_step(int t) { return playing() && tlast(t) >= 0 ? tlast(t) : -1; }
-static int play_bar(int t) { int s = play_step(t); return s < 0 ? -1 : s / NE_BAR; }
+static int play_bar(int t) { int s = play_step(t); return s < 0 ? -1 : s / tbar(t); }
 static int shown_bar(void)
 {
     int b;
@@ -406,7 +417,11 @@ static void white_down(int w)
         ne_hit(w >> 2, 112, LIVE_NOTE[w & 3]);
         return;
     }
-    s = shown_bar() * NE_BAR + w;
+    if (w >= tbar(t)) {
+        say("TRIPLETS", "12 STEPS A BAR");
+        return;
+    }
+    s = shown_bar() * tbar(t) + w;
     if (s >= tlen(t)) {
         char b[16];
         itoa_u((uint32_t)tlen(t), b);
@@ -438,7 +453,7 @@ static void white_down(int w)
 static void white_up(int w)
 {
     int t = ui.track;
-    if (ui.live || ui.list || ui.held_step < 0 || ui.held_step % NE_BAR != w)
+    if (ui.live || ui.list || ui.held_step < 0 || ui.held_step % tbar(t) != w)
         return;
     if (ui.held_was_on && !ui.held_edited) {
         if (t == NE_ACID)
@@ -1186,13 +1201,20 @@ static void draw_header(void)
     cv_blit(0, 0);
 }
 
-/* one track: its name, its bar of 16 steps (the bar shown, for the selected track; the bar it plays,
- * for the others), the playhead */
+/* a step's cell in its row: sixteenths 9 wide, a pixel between quarters; triplets 12 wide, where they
+ * fall in time (three over the four sixteenths of a quarter) */
+static int32_t cell_x(int bar, int s)
+{
+    return bar == NE_BAR ? GRID_X + s * CELL_W + s / 4 : GRID_X + s / 3 * (4 * CELL_W + 1) + s % 3 * 4 * CELL_W / 3;
+}
+
+/* one track: its name, its bar of 16 steps (12 in triplets; the bar shown, for the selected track; the
+ * bar it plays, for the others), the playhead */
 static void draw_track(int t, int32_t y)
 {
     const nseq_track *tr = trk(t);
     const nacid *ac = ne_acid();
-    int acid = t == NE_ACID, len = tlen(t);
+    int acid = t == NE_ACID, len = tlen(t), nb = tbar(t), cw = nb == NE_BAR ? 9 : 12;
     int sel = t == ui.track, muted = tmuted(t), bar = sel ? shown_bar() : play_bar(t), ps = play_step(t), s;
     uint16_t col = muted ? K_DIM : TRACK_COL[t];
     char name[16];
@@ -1210,53 +1232,56 @@ static void draw_track(int t, int32_t y)
     name[1] = ' ';
     s_cpy(name + 2, tname(t));
     cv_text(13, y, &FONT_XS, name, muted ? K_DIM : sel ? K_TEXT : mix(K_TEXT, K_DIM, 8));
-    {   /* "2b", or the steps when the length is not whole bars; R / D: it owns the reverb / delay */
+    {   /* "2b", or the steps when the length is not whole bars, "3" after in triplets; R / D: it owns
+         * the reverb / delay */
         char b[12];
         int32_t x;
-        if (len % NE_BAR) {
+        if (len % nb) {
             itoa_u((uint32_t)len, b);
             s_cpy(b + s_len(b), "st");
         } else {
             itoa_u((uint32_t)track_bars(t), b);
             s_cpy(b + s_len(b), "b");
         }
+        if (nb != NE_BAR)
+            s_cpy(b + s_len(b), " 3");
         x = cv_text(13, y + 10, &FONT_XS, b, K_DIM);
         if (tsend(t, 0))
             x = cv_text(x + 4, y + 10, &FONT_XS, "R", K_ACC);
         if (tsend(t, 1))
             cv_text(x + 4, y + 10, &FONT_XS, "D", K_ACC);
     }
-    for (s = 0; s < NE_BAR; s++) {
-        int st = bar * NE_BAR + s;
-        int32_t x = GRID_X + s * CELL_W + (s / 4) * 1;
+    for (s = 0; s < nb; s++) {
+        int st = bar * nb + s;
+        int32_t x = cell_x(nb, s);
         int past = st >= len, on = step_on(t, st), here = st == ps, note;
         uint16_t c;
         /* Quarter-note tick stays visible on rests and sounding steps alike. */
-        if (s % 4 == 0)
-            cv_rect(x + 3, y, 3, 1, K_TEXT);
+        if (s % (nb / 4) == 0)
+            cv_rect(x + cw / 2 - 1, y, 3, 1, K_TEXT);
         if (past) {
-            cv_rect(x + 3, y + 9, 3, 2, K_LINE);
+            cv_rect(x + cw / 2 - 1, y + 9, 3, 2, K_LINE);
             continue;
         }
         if (!on) {
-            cv_round(x, y + 2, 9, 15, 3, here ? K_DIM : sel ? mix(K_LINE, K_DIM, 4) : mix(K_BG, K_LINE, 10));
+            cv_round(x, y + 2, cw, 15, 3, here ? K_DIM : sel ? mix(K_LINE, K_DIM, 4) : mix(K_BG, K_LINE, 10));
             continue;
         }
         if (acid) {     /* a note: brighter with an accent; a slide reaches into the next step */
             uint8_t f = ac->step[st].flags;
             note = ac->step[st].note;
             c = here ? K_TEXT : mix(K_PANEL, col, f & NACID_ACCENT ? 16 : 9);
-            cv_round(x, y + 2, 9, 15, 3, c);
-            if (f & NACID_SLIDE && s < NE_BAR - 1)
-                cv_rect(x + 9, y + 8, 2 + (s % 4 == 3), 3, c);
+            cv_round(x, y + 2, cw, 15, 3, c);
+            if (f & NACID_SLIDE && s < nb - 1)
+                cv_rect(x + cw, y + 8, cell_x(nb, s + 1) - x - cw, 3, c);
         } else {
             int v = tr->step[st].vel;
             note = tr->step[st].note;
             c = here ? K_TEXT : mix(K_PANEL, col, 6 + v * 10 / 127);
-            cv_round(x, y + 2, 9, 15, 3, c);
+            cv_round(x, y + 2, cw, 15, 3, c);
         }
         if (note)                                    /* a pitched one: a notch at its height */
-            cv_rect(x + 2, y + 9 - (note < -18 ? -6 : note > 18 ? 6 : note / 3), 5, 1, K_BG);
+            cv_rect(x + 2, y + 9 - (note < -18 ? -6 : note > 18 ? 6 : note / 3), cw - 4, 1, K_BG);
     }
 }
 
@@ -1402,7 +1427,7 @@ static void draw_grid(void)
     {
         const nacid *ac = ne_acid();
         h = hash(h, (uint32_t)(uint16_t)ac->last | (uint32_t)ac->length << 16 | (uint32_t)proj.a[A_MUTE] << 24 |
-                        (uint32_t)(ui.meter[NE_ACID] * 15.0f) << 25);
+                        (uint32_t)(ui.meter[NE_ACID] * 15.0f) << 25 | (uint32_t)(ac->bar != NE_BAR) << 31);
         for (s = 0; s < ac->length; s++)
             if (ac->step[s].flags)
                 h = hash(h, (uint32_t)s | (uint32_t)ac->step[s].flags << 8 | (uint32_t)(uint8_t)ac->step[s].note << 16);
@@ -1411,7 +1436,8 @@ static void draw_grid(void)
         const nseq_track *tr = trk(t);
         h = hash(h, (uint32_t)tr->last | (uint32_t)tr->length << 16 | (uint32_t)tr->mute << 24 |
                         (uint32_t)(ne_fm()->slot[t].kind & 7) << 25);
-        h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9);
+        h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9 |
+                        (uint32_t)tr->triplet << 10);
         for (s = 0; s < tr->length; s++)
             if (tr->step[s].on)
                 h = hash(h, (uint32_t)s | (uint32_t)tr->step[s].vel << 8 | (uint32_t)(uint8_t)tr->step[s].note << 16);
@@ -1509,8 +1535,8 @@ static void leds(void)
             if (ui.meter[i >> 2] > 0.15f)
                 d |= 1u << WHITE_K[i];
     } else {
-        for (i = 0; i < NWHITE; i++) {
-            int s = sb * NE_BAR + (int)i;
+        for (i = 0; i < NWHITE && (int)i < tbar(t); i++) {   /* (triplets: keys 13-16 dark) */
+            int s = sb * tbar(t) + (int)i;
             if (step_on(t, s))
                 k |= 1u << WHITE_K[i];
             if (s == ps) {

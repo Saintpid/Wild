@@ -104,3 +104,13 @@
 - Not oversampled: FM ops (inherent, all voices = too costly), fold (x11 bandwidth on mostly low
   sounds; hats are noise anyway), crush (aliasing is the point), Glue inflator (cubic, HF low in level).
 
+
+## 0.3.6 / 840 - triplets per track
+- User asked for triplets as a per-track "time signature": 3 steps a quarter, shown on the step keys.
+- T_GRID / A_GRID (project format 14), on a new HOME page 2 "Rhythm" (KNOB 1 Grid: 16ths/Triplets),
+  for drums and the 303 alike; nothing moved off other pages (acid Level stays on its Track page).
+- Triplet track: 12 steps a bar (max 96 drums, 48 acid), white keys 1-12; plays on global sixteenths
+  0/1/2 of each quarter, delayed 0, 1/3, 2/3 of a sixteenth, unswung. Screen draws them time-aligned.
+- Turning Grid = ne_regrid: hits to nearest step in time (16th 1234 -> T 1233, louder wins; back T 123
+  -> 16th 123), bars kept. ne_tset/ne_aset(GRID) = flag only (restores already hold the layout).
+- All scenario "expect view N" for N>=1 shifted by one (new view V_RHYTHM).

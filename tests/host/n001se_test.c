@@ -192,6 +192,94 @@ int main(int argc, char **argv)
         CHECK(d[0] == 0.0f && d[3] == 0.0f && d[1] > 0.03f && d[1] < 0.12f && d[2] > 0.18f && d[2] > 2.5f * d[1],
               "Deviance wander: %f %f %f %f", (double)d[0], (double)d[1], (double)d[2], (double)d[3]);
     }
+    /* triplets: a track moved into them keeps its hits where they were in time (the offbeat eighth to
+     * the third triplet), the same bars; back again, as it was; they play three to a quarter, evenly,
+     * unswung, the acid line too */
+    {
+        static const int16_t HIT[] = {0, 2, 3, 4, 6, 17};    /* sixteenths: 3 joins 2 (the louder stays) */
+        const nseq_track *tr = &ne_seq()->track[0];
+        int on[NE_STEPS], n = 0, ok = 1;
+        uint32_t f, first = 0, prev = 0, clk;
+        int hits = 0, bad = 0, alast, asteps = 0, abad = 0;
+        uint32_t aprev = 0;
+        ne_init();
+        ne_tset(0, T_RANDLEN, 0);
+        ne_tset(0, T_BARS, 2);
+        render(1, 0);
+        for (i = 0; i < NE_STEPS; i++)
+            ne_step(0, i, 0, 100, 0);
+        for (i = 0; i < (int)(sizeof HIT / sizeof HIT[0]); i++)
+            ne_step(0, HIT[i], 1, HIT[i] == 3 ? 120 : 90, 0);
+        ne_regrid(0, 1);
+        render(1, 0);
+        for (i = 0; i < NE_STEPS; i++)
+            if (tr->step[i].on)
+                on[n++] = i;
+        CHECK(tr->triplet && tr->length == 24 && n == 5 && on[0] == 0 && on[1] == 2 && on[2] == 3 && on[3] == 5 &&
+                  on[4] == 13 && tr->step[2].vel == 120,
+              "triplets: length %d, %d hits (%d %d %d %d %d)", tr->length, n, on[0], on[1], on[2], on[3], on[4]);
+        ne_regrid(0, 0);
+        render(1, 0);
+        for (i = 0; i < NE_STEPS; i++)
+            if (tr->step[i].on != (i == 0 || i == 2 || i == 4 || i == 6 || i == 17))
+                ok = 0;
+        CHECK(!tr->triplet && tr->length == 32 && ok, "triplets and back: length %d, hits %s", tr->length, ok ? "ok" : "moved");
+        /* every step of a bar of triplets, alone; Loose 0, Swing at full (not for them) */
+        ne_set(G_TEMPO, 120);
+        ne_set(G_LOOSE, 0);
+        ne_set(G_SWING, 100);
+        ne_set(G_CHAOS, 0);
+        for (t = 1; t < NE_TRACKS; t++)
+            ne_tset(t, T_MUTE, 1);
+        ne_regrid(0, 1);
+        ne_tset(0, T_BARS, 1);
+        ne_regrid(NE_ACID, 1);
+        ne_aset(A_BARS, 1);
+        render(1, 0);
+        CHECK(tr->length == 12 && ne_acid()->length == 12 && ne_acid()->bar == 12, "triplets: a bar is %d steps, the acid's %d",
+              tr->length, ne_acid()->length);
+        for (i = 0; i < 12; i++)
+            ne_step(0, i, 1, 100, 0);
+        ne_play(1);
+        clk = ne_fm()->clock;
+        alast = ne_acid()->last;
+        for (f = 0; f < 176400u; f++) {            /* two bars at 120: a triplet every 7350 frames */
+            ne_render(blk, 1, 4096);
+            if (ne_fm()->clock != clk) {
+                clk = ne_fm()->clock;
+                if (!hits)
+                    first = f;
+                else if (f - prev < 7348u || f - prev > 7352u)
+                    bad++;
+                prev = f;
+                hits++;
+            }
+            if (ne_acid()->last != alast) {         /* the acid line's step: when it plays (a note or a rest) */
+                alast = ne_acid()->last;
+                if (asteps && (ne_acid()->at - aprev < 7348u || ne_acid()->at - aprev > 7352u))
+                    abad++;
+                aprev = ne_acid()->at;
+                asteps++;
+            }
+        }
+        printf("triplets: %d hits in two bars, %d off the grid; the acid line %d steps, %d off\n", hits, bad, asteps, abad);
+        CHECK(hits == 24 && bad == 0 && first < 2u, "triplets: %d hits, %d off the grid, the first at %u", hits, bad,
+              (unsigned)first);
+        CHECK(asteps == 24 && abad == 0, "acid triplets: %d steps, %d off the grid", asteps, abad);
+        /* a new pattern in triplets: its hits within its length, on the grid's steps */
+        ne_tset(0, T_HITLO, 6);
+        ne_tset(0, T_HITHI, 6);
+        ne_tset(0, T_BARS, 3);
+        ne_generate(0);
+        ne_generate(NE_ACID);
+        render(1, 0);
+        for (i = n = 0; i < NE_STEPS; i++)
+            n += tr->step[i].on && i < tr->length;
+        for (i = asteps = 0; i < NE_ASTEPS; i++)
+            asteps += (ne_acid()->step[i].flags & NACID_ON) && i >= 4 * 12;   /* (four bars drawn, as in 16ths) */
+        CHECK(tr->length == 36 && n == 6 && asteps == 0, "triplets: a new pattern %d steps, %d hits; acid notes past four bars %d",
+              tr->length, n, asteps);
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();
