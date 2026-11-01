@@ -6,7 +6,7 @@
  * its sweep building up (weak on a slid note), a soft attack against an accent's sharp one, Env Mod
  * lowering the sweep's start, the square made from the saw, the drive, the square and the resonance
  * without aliasing (oversampled),
- * the filter's slope and its stability, and
+ * the filter's slope and its stability, the saw's bow, the filter swept every sample, the drift, and
  * the generator by Chaos: by the rules at 0, by chance at 1, and in between step by step; the major
  * scale; Deviance: nothing at 0, the knobs following the drums' intensity, quick turns, no jumps, a rest
  * after a hand on a knob. */
@@ -68,6 +68,13 @@ typedef struct {
     int phase_bad;
 } run_t;
 
+/* how far apart two phases are, round the circle (the drift's few cents move a wrap by a sample) */
+static float wrapd(float x, float y)
+{
+    float d = fabsf(x - y);
+    return d > 0.5f ? 1.0f - d : d;
+}
+
 static void run(int steps, float step_len, run_t *r)
 {
     memset(r, 0, sizeof *r);
@@ -82,7 +89,7 @@ static void run(int steps, float step_len, run_t *r)
             float want = prev_ph + m.dt, want2 = prev_ph + prev_dt;
             if (want >= 1.0f) want -= 1.0f;
             if (want2 >= 1.0f) want2 -= 1.0f;
-            if (fabsf(m.phase - want) > 1e-4f && fabsf(m.phase - want2) > 1e-4f) r->phase_bad++;
+            if (wrapd(m.phase, want) > 1e-4f && wrapd(m.phase, want2) > 1e-4f) r->phase_bad++;
             prev_ph = m.phase;
             prev_dt = m.dt;
             if (m.retrig) r->retrig[s] = 1;
@@ -310,6 +317,82 @@ static void test_square(void)
     }
     CHECK(dn > up * 1.5f, "square: the rise %f, the fall %f a sample", (double)up, (double)dn);
     printf("square: the fall %.2fx as steep as the rise\n", (double)(dn / up));
+}
+
+/* the analogue in it: the saw's ramp bowed (at 440 Hz the filter's and the couplings' own bends about
+ * cancel: a straight ramp measures 1.00 there), the cutoff moving every sample on a sweep (not in steps
+ * of 8), and the drift: a few cents and slow, none with it off */
+static float saw_bow(float f)
+{
+    static float w[4000];
+    fresh(0.0f);
+    ac.wave = NACID_SAW;
+    ac.tune = 12.0f * log2f(f / 65.406f);
+    ac.p[NACID_P_CUTOFF] = 1.0f;
+    ac.p[NACID_P_ENVMOD] = 0.0f;
+    ac.step_len = SR;
+    nacid_hit(&ac, 0, 0);
+    for (int i = 0; i < 4000; ++i) tick();
+    float lo = 9.0f, hi = -9.0f;
+    for (int i = 0; i < 4000; ++i) {
+        w[i] = tick().out;
+        lo = w[i] < lo ? w[i] : lo;
+        hi = w[i] > hi ? w[i] : hi;
+    }
+    float sl = 0.0f, sh = 0.0f;
+    int nl = 0, nh = 0;
+    for (int i = 1; i < 4000; ++i) {
+        float d = w[i] - w[i - 1], x = (0.5f * (w[i] + w[i - 1]) - lo) / (hi - lo);
+        if (d <= 0.0f) continue;
+        if (x > 0.15f && x < 0.4f) sl += d, nl++;
+        if (x > 0.6f && x < 0.85f) sh += d, nh++;
+    }
+    return (sl / (float)nl) / (sh / (float)nh);
+}
+
+static void test_analogue(void)
+{
+    float bow = saw_bow(440.0f);
+    CHECK(bow > 1.06f, "saw: the ramp %.3f as steep low as high", (double)bow);
+    printf("saw: its ramp %.2fx as steep low as high (a straight one 1.00)\n", (double)bow);
+
+    fresh(0.6f);
+    ac.p[NACID_P_ENVMOD] = 0.8f;
+    ac.step_len = SR;
+    nacid_hit(&ac, 0, 0);
+    int moved = 0;
+    for (int i = 0; i < 2000; ++i) {
+        float q = ac.q[3];
+        tick();
+        moved += ac.q[3] != q;
+    }
+    CHECK(moved > 1900, "sweep: the filter moved on %d samples of 2000", moved);
+    printf("a sweep: the filter moves on %d samples of 2000\n", moved);
+
+    float lo = 0.0f, hi = 0.0f, step = 0.0f;
+    for (int off = 0; off < 2; ++off) {
+        fresh(0.0f);
+        if (off) ac.wander = 0.0f;
+        ac.step_len = 30.0f * SR;
+        nacid_hit(&ac, 0, 0);
+        float prev = 0.0f;
+        for (int i = 0; i < (int)(20.0f * SR); ++i) {
+            tick();
+            float c = 1200.0f * log2f(ac.wmul);
+            if (!off) {
+                lo = c < lo ? c : lo;
+                hi = c > hi ? c : hi;
+                if (i && fabsf(c - prev) > step) step = fabsf(c - prev);
+            } else {
+                CHECK(c == 0.0f, "drift off: %f cents", (double)c);
+                if (c != 0.0f) break;
+            }
+            prev = c;
+        }
+    }
+    CHECK(hi - lo > 1.0f && lo > -2.6f && hi < 2.6f && step < 0.01f, "drift: %.2f..%.2f cents, steps %.4f", (double)lo,
+          (double)hi, (double)step);
+    printf("drift over 20 s: %.2f..%.2f cents, at most %.4f a sample\n", (double)lo, (double)hi, (double)step);
 }
 
 /* a held note 403 1/3 samples a period (109.3 Hz): so what folds back over the Nyquist falls a third of
@@ -763,6 +846,7 @@ int main(void)
     test_envmod();
     test_square();
     test_clean();
+    test_analogue();
     test_filter();
     test_generator();
     test_major();

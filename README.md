@@ -1,5 +1,7 @@
-# Wild 0.3.5 - experimental FM-1 firmware
+# Wild 0.3.12 - experimental FM-1 firmware
 
+**0.3.12: a more analogue 303:** its saw bowed as the 303's, its filter sweeping smoothly every
+sample, a VCA that rounds loud accents, and a slow drift of a few cents and a few per cent of cutoff.
 **0.3.5: the 303 oversampled** (its oscillator and filter at 2x): less grit with the resonance up
 and the cutoff open, about 5 % more Audio Load. **0.3.3:** no click from the Glue.
 **0.3.4: drums that wander off:** a drum track's Deviance from 90 (the knob reads Wander) moves the
@@ -69,7 +71,8 @@ command.
   of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), with the 303's gate, slide (an RC of 60 ms that may not get
   there), accent (a sweep that builds up, a sharp attack against a plain note's soft one, weak on a
   slid note), Env Mod that lowers where the sweep starts, and a square made from the saw as the 303
-  does. Its own sequencer draws musical lines: the rhythm first, a motif
+  does; a saw whose ramp bows a little as the 303's, a VCA that rounds loud accents, and a slow
+  analogue drift (a few cents of pitch, a few per cent of cutoff). Its own sequencer draws musical lines: the rhythm first, a motif
   that repeats, notes from the scale (minor, phrygian, dorian, pentatonic, blues, harmonic minor or
   major), octaves, accents and slides where they move the line. Its Chaos takes it from those rules
   to pure chance. Its **Deviance** plays its cutoff, resonance, Env Mod and Decay by itself, after the
