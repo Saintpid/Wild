@@ -283,10 +283,11 @@ def against_js():
     ok(I.LOADER_MARK in raw, f"{clean.name} carries the Felucca loader marker")
 
 
-wire()
-installs()
-errors()
-against_js()
-shutil.rmtree(TMP, ignore_errors=True)
-print(f"INSTALL TESTS FAILED ({failed})" if failed else "install tests passed")
-sys.exit(1 if failed else 0)
+if __name__ == "__main__":
+    wire()
+    installs()
+    errors()
+    against_js()
+    shutil.rmtree(TMP, ignore_errors=True)
+    print(f"INSTALL TESTS FAILED ({failed})" if failed else "install tests passed")
+    sys.exit(1 if failed else 0)

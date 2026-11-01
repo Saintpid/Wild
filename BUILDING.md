@@ -108,6 +108,22 @@ mode. If the FM-1 no longer starts but reaches the chip's update mode (4C4A:8057
 `tools/fm1_rescue.sh` puts stock firmware back from a Mac; otherwise recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
+## FM-1 Switch (installer app)
+
+`tools/fm1_switch.pyw` is a small window around `fm1_install.py`. It lists the `.fwsc` files in its
+folder, in "Firmware Wild" and "Firmware NB303" beside it, and in Downloads, then installs the one
+you pick in either direction. M-UPGRADE only takes a higher number. `tests/switch_test.py` tests its
+core against the simulated FM-1.
+
+- Windows: `tools/build_switch_exe.bat` (Python 3 from python.org) makes `tools/dist/FM1-Switch.exe`.
+- Mac, the same way as the Noisebud apps: `tools/export_switch_mac.cmd` on the PC puts
+  `FM1Switch_mac_ready_vX.zip` and `Build_FM1Switch_Mac.command` in the Mac Export folder that syncs
+  to the Mac. Double-click the `.command` there. It unpacks the newest zip and runs
+  `tools/build_switch_mac.sh`, which makes a universal `FM1-Switch.app` (when Python is python.org's
+  universal2 build) and `FM1Switch_macOS_vX.dmg`, then copies the DMG back to that folder.
+  `NOISEBUD_APPLE_SIGN_IDENTITY` and `NOISEBUD_APPLE_NOTARY_PROFILE` sign and notarize it. Without
+  them the app is unsigned: the first time, right-click it and choose Open.
+
 ## Before installing
 
 How the FM-1 is protected, from the outermost layer in:

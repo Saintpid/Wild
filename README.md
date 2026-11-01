@@ -135,6 +135,15 @@ Install the file with M-VAVE's **M-UPGRADE**. First download M-VAVE's original f
 FiMba-1's web page <https://jadamsowers.github.io/fm1-fimba/#install> in Chrome or Edge ("Or a
 firmware file"), or from the command line: `python3 tools/fm1_install.py n001se.fwsc`.
 
+To switch between Wild and NB303 (or any FM-1 firmware file) in either direction, whatever the
+version number, use **FM-1 Switch** (`tools/fm1_switch.pyw`): a small window that lists the `.fwsc`
+files beside it, shows what the FM-1 runs and installs the one you pick. M-UPGRADE only takes a
+higher number than the one installed. `tools/build_switch_exe.bat` makes `FM1-Switch.exe` on
+Windows. For the Mac, `tools/export_switch_mac.cmd` sends the sources to the synced Mac Export
+folder, and on the Mac `Build_FM1Switch_Mac.command` (double-click) builds `FM1-Switch.app` and its
+DMG with `tools/build_switch_mac.sh`. Without a signing identity the app is unsigned: the first
+time, right-click it and choose Open.
+
 ## Build and test
 
 The details are in [BUILDING.md](BUILDING.md) (JieLi's Linux toolchain and three files from the AC79
