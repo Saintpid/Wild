@@ -23,7 +23,7 @@ echo Destination: "%EXPORT_ROOT%"
 
 if exist "%STAGE_ROOT%" rmdir /S /Q "%STAGE_ROOT%"
 mkdir "%STAGE_DIR%\tools" || exit /b 1
-for %%F in (fm1_switch.pyw fm1_install.py build_switch_mac.sh) do (
+for %%F in (fm1_switch.pyw fm1_install.py fm1_rescue.py build_switch_mac.sh) do (
   copy /Y "%TOOLS_DIR%\%%F" "%STAGE_DIR%\tools\%%F" >nul || (echo ERROR: Could not copy %%F. & exit /b 1)
 )
 copy /Y "%PROJECT_DIR%\VERSION" "%STAGE_DIR%\VERSION" >nul || exit /b 1
