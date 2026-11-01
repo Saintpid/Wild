@@ -135,3 +135,14 @@
 
 ## 0.3.11 / 845 - soft strength 64
 - User: soft 80 was too close to strong 100; soft is now 64, SPLIT 82 (midway). Generator soft range 64..20.
+
+## 0.3.12 / 846 - a more analogue 303
+- Ladder: P, q, k and comp stepped per 2x tick towards the next solve (every 8 samples) instead of set
+  there at once; numbers (slope, peak, aliasing) as before within 0.4 dB.
+- Saw bowed (SAW_BOW 0.12 on the naive ramp: continuous at the wrap); the square takes it.
+- VCA: VCA_ROOM 3 * soft(x / 3) before the level; peaks about -0.7 dB on squelchy lines.
+- Drift (wander, wd, wrng): pitch +-2.5 cents, cutoff +-0.04 oct, new place ~every 0.7 s, 0.5 s glide.
+  Own rng, so patterns and Deviance unchanged. ac.wander = 0 turns it off (tests).
+- Host: acid voice about +15 %. Square coupling high-pass tried and dropped: the output's 40 Hz
+  coupling already droops it, and no reference to tune more against.
+- A/B: /mnt/project-files/wild-firmware/analog-303-demo/ (project files, not in the repo).

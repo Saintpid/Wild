@@ -25,6 +25,8 @@
  * three.
  * Its sound goes through the drums' effects: nacid_render adds to the dry bus and to the reverb and
  * delay sends, with its own drive and the moving filter (by chance, a bar at a time: nacid_route).
+ * The analogue in it: the saw's ramp bowed (a capacitor charging), the VCA rounding what goes through
+ * it loud, and a slow drift of the pitch and the cutoff.
  * Besides a 303's saw and square (the saw clipped, as the 303 makes it): a narrow pulse, a triangle, a sine and two detuned saws.
  *
  * DEVIANCE plays the cutoff, the resonance, Env Mod and Decay as a hand on a 303 would, following the
@@ -129,6 +131,11 @@ typedef struct {
     float d_energy;                /* the hand's energy (1 rested .. 0 spent) */
     uint8_t d_rest, d_woke;        /* bars of rest left (0: playing); a rest just ended */
     uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
+    /* the ladder between two solves: each tick a step towards the next one (P, q), and k's */
+    float dP[16], dq[4], dk, dcomp;
+    float wander;                  /* the analogue drift's depth (1 as a 303's, 0 none: tests) */
+    float wd[2], wd_c[2], wmul;    /* its pitch and cutoff (two slow noises), the pitch as a ratio */
+    uint32_t wrng;
 } nacid;
 
 void nacid_apply_event(nacid *a, const nacid_event *event);

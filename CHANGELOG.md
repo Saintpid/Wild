@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.12
+
+Firmware identity FM-1_846. A more analogue 303.
+
+- **The 303's filter sweeps smoothly.** The cutoff, the resonance and their make-up gain now move
+  every sample instead of in steps of eight, so fast Env Mod and accent sweeps are cleaner.
+- **The saw bows a little**, as the 303's does (its ramp is a capacitor charging): steeper at the
+  bottom, rounder at the top. The square, made from the saw, follows.
+- **The VCA rounds loud notes**, as the 303's transistor VCA does: accents with the resonance up get
+  a little bite instead of only getting louder.
+- **A slow analogue drift:** the pitch wanders a few cents and the cutoff a few per cent, each on a
+  slow way of its own.
+- About 15 % more time for the 303 voice (around 2 % of the whole render).
+
 ## 0.3.11
 
 Firmware identity FM-1_845. A softer soft hit.
