@@ -138,7 +138,10 @@ firmware file"), or from the command line: `python3 tools/fm1_install.py n001se.
 To switch between Wild and NB303 (or any FM-1 firmware file) in either direction, whatever the
 version number, use **FM-1 Switch** (`tools/fm1_switch.pyw`): a small window that lists the `.fwsc`
 files beside it, shows what the FM-1 runs and installs the one you pick. M-UPGRADE only takes a
-higher number than the one installed. `tools/build_switch_exe.bat` makes `FM1-Switch.exe` on
+higher number than the one installed. If the FM-1 seems bricked, **Check FM-1** tells which state it
+is in and what to do. **Rescue…** puts M-VAVE's stock firmware back on an FM-1 whose firmware no
+longer starts, through the chip's own update mode (Windows and Mac, no extra hardware, a backup of
+the whole flash first; see [BUILDING.md](BUILDING.md#fm-1-switch-installer-app)). `tools/build_switch_exe.bat` makes `FM1-Switch.exe` on
 Windows. For the Mac, `tools/export_switch_mac.cmd` sends the sources to the synced Mac Export
 folder, and on the Mac `Build_FM1Switch_Mac.command` (double-click) builds `FM1-Switch.app` and its
 DMG with `tools/build_switch_mac.sh`. Without a signing identity the app is unsigned: the first

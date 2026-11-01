@@ -104,8 +104,9 @@ python3 tools/fm1_install.py --info          # identity of the connected FM-1
 ```
 
 Installing firmware is at your own risk. Hold OCT− and OCT+ for 5 seconds for Felucca's update
-mode. If the FM-1 no longer starts but reaches the chip's update mode (4C4A:8057 on USB),
-`tools/fm1_rescue.sh` puts stock firmware back from a Mac; otherwise recovery needs
+mode. If the FM-1 no longer starts but reaches the chip's update mode (4C4A:8057 on USB), FM-1
+Switch's **Rescue…** (or `tools/fm1_rescue.py`, or `tools/fm1_rescue.sh` on a Mac) puts stock
+firmware back; if it shows nothing at all on USB, recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
 ## FM-1 Switch (installer app)
@@ -114,6 +115,30 @@ mode. If the FM-1 no longer starts but reaches the chip's update mode (4C4A:8057
 folder, in "Firmware Wild" and "Firmware NB303" beside it, and in Downloads, then installs the one
 you pick in either direction. M-UPGRADE only takes a higher number. `tests/switch_test.py` tests its
 core against the simulated FM-1.
+
+**Check FM-1** watches USB for a few seconds and says which state the FM-1 is in, and what to do:
+
+| State | What it means | What to do |
+|---|---|---|
+| runs FM-1_N | the firmware answers over USB-MIDI (also in Wild's safe mode) | Install |
+| in update mode (ota-…) | an install was cut off; the FM-1 waits for it | Install any package to finish it |
+| the chip's own update mode | UBOOT (4C4A:8057): the firmware does not start | Rescue… |
+| not found | nothing answers | the cable and hub, OCT− + OCT+ for 5 s, then Rescue…; nothing at all on USB: FM-1-transporter |
+
+**Rescue…** is `tools/fm1_rescue.py` in the window. It finds M-VAVE's V15 among the `.fwsc` files
+(by its SHA-256, whatever its name), or downloads it from M-VAVE and checks it, and gets JieLi's
+flash loader (checked too). It keeps both in `FM-1 Rescue` beside the program (or in the home folder),
+with the backups. Then it starts itself again with `--rescue`, as administrator (Windows asks) or
+as root (the Mac asks for the password with `osascript`; Linux uses `pkexec`), and follows that run's
+progress file. That run waits up to 5 minutes for UBOOT, saves the whole flash, and writes only the
+sectors in [0x4000, 0x93000) that differ from V15. On Windows it talks to UBOOT through the Windows
+disk driver's SCSI pass-through (`IOCTL_SCSI_PASS_THROUGH_DIRECT` on `\\.\PhysicalDriveN`), with
+no driver to install. Elsewhere it uses pyusb (bundled in the Mac app). **Stop** gives up while it is
+waiting; a write that has begun is finished. `tests/rescue_test.py` runs the rescue against a
+simulated UBOOT, over USB and over a simulated Windows pass-through.
+
+The Windows path has not been tried on an FM-1 yet. The Mac path is FM-1-transporter's protocol, as
+`tools/fm1_rescue.sh` used it.
 
 - Windows: `tools/build_switch_exe.bat` (Python 3 from python.org) makes `tools/dist/FM1-Switch.exe`.
 - Mac, the same way as the Noisebud apps: `tools/export_switch_mac.cmd` on the PC puts
