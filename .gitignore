@@ -4,3 +4,7 @@ __pycache__/
 *.o
 .venv/
 site/
+tools/dist/
+tools/build/
+tools/*.spec
+build-mac-switch/
