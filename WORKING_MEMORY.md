@@ -146,3 +146,19 @@
 - Host: acid voice about +15 %. Square coupling high-pass tried and dropped: the output's 40 Hz
   coupling already droops it, and no reference to tune more against.
 - A/B: /mnt/project-files/wild-firmware/analog-303-demo/ (project files, not in the repo).
+
+## 0.3.13 / 847 - lighter to run, the same sound
+- User: Wild at the edge of the FM-1 (had to go to 2 voices in a heavy patch); optimise without
+  losing any sound-quality work.
+- All DSP ran from XIP flash through the cache (NFM_CODE/NFM_DATA are empty: NFM_FM1_OPEN unset),
+  sine table too. Now NFM_HOT / NFM_HOT_DATA (build.py -DNFM_RAM_HOT) put the per-sample code and
+  tables in .ram_dsp, linked after .ram_text (copied at boot, inside the PC guard's RAM window).
+- Calls reach +-4 MiB (R_PI32V2_LONG_JUMP_23M2), so RAM code at 0x01C0xxxx could not call XIP code
+  past 0x02008000: app.ld now POOL 0x01C00000 (0x54000), RAM 0x01C54000 (88K), RAMTEXT 0x01C6A000
+  (40K: flash driver ~3K + .ram_dsp ~32K), stacks as before. RAM-run debug's 8K went to RAMTEXT.
+  build.py's no-calls check covers .ram_text up to _rt_dsp only.
+- Arithmetic: SVF 1/(1+g(g+k)) and k+g kept per change (resonator, noise, insert, master filter);
+  sin_cyc without wrap1 (masked index); op phase wrap by compare; 303 dh cached (pitch_step);
+  nfm_sat_tick inline in nfm.h. Host heavy patch -17 %; output within -80 dBFS (rounding through
+  high-Q resonators and the crusher), rest bit-exact.
+- Device gain unknown until measured: compare Audio Load (GLO + OCT+) with 0.3.12 on the same patch.
