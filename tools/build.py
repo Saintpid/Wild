@@ -206,7 +206,8 @@ def build_app():
     flags.append(f'-DFELUCCA_ID="{PRODUCT}"')
     if VERSION:
         flags.append(f'-DOM_VERSION="{VERSION}"')
-    o2 = [f if f != "-Os" else "-O2" for f in flags]
+    # the instrument at -O2, its hot loops in RAM (NFM_HOT, .ram_dsp in app.ld)
+    o2 = [f if f != "-Os" else "-O2" for f in flags] + ["-DNFM_RAM_HOT"]
     units = [("cc", "-c", FW / "crt0.S", "-o", OUT / "crt0.o"),
              ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
              ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),

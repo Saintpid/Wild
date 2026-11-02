@@ -7,7 +7,7 @@
 #define NFM_SINE_SIZE (1 << NFM_SINE_BITS)
 /* A table rather than code that builds one: on the FM1 the audio code may
  * not call out to soft-double helpers or Flash. */
-NFM_DATA static const float sine_table[NFM_SINE_SIZE + 1] = {
+NFM_DATA NFM_HOT_DATA static const float sine_table[NFM_SINE_SIZE + 1] = {
 #include "nfm_sine.inc"
 };
 
@@ -30,7 +30,7 @@ NFM_CODE void nfm_zero(void *p, unsigned n)
     }
 }
 
-NFM_CODE static inline float wrap1(float x)
+NFM_CODE NFM_HOT static inline float wrap1(float x)
 {
     int i = (int)x;
     if ((float)i > x) --i;
@@ -38,7 +38,7 @@ NFM_CODE static inline float wrap1(float x)
 }
 
 /* sin(2 pi x), x in cycles, any value. */
-NFM_CODE static inline float sin_cyc(float x)
+NFM_CODE NFM_HOT static inline float sin_cyc(float x)
 {
     float f = x * (float)NFM_SINE_SIZE;   /* (exact: a power of two) the cycles drop out of the index's mask */
     int i = (int)f;
@@ -48,7 +48,7 @@ NFM_CODE static inline float sin_cyc(float x)
     return sine_table[i] + (sine_table[i + 1] - sine_table[i]) * t;
 }
 
-NFM_CODE static float exp2_approx(float x)
+NFM_CODE NFM_HOT static float exp2_approx(float x)
 {
     if (x < -126.0f) return 0.0f;
     if (x > 126.0f) x = 126.0f;
@@ -72,12 +72,12 @@ NFM_CODE static float log2_approx(float x)
     return (float)e + ln * 1.44269504f;
 }
 
-NFM_CODE static inline float clamp01(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
+NFM_CODE NFM_HOT static inline float clamp01(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
 
 /* Gain per sample that falls 60 dB in t seconds. */
 NFM_CODE static float t60_coef(float t, float sr) { return exp2_approx(-9.9657843f / (t * sr)); }
 
-NFM_CODE static inline float soft_clip(float x)
+NFM_CODE NFM_HOT static inline float soft_clip(float x)
 {
     if (x > 3.0f) return 1.0f;
     if (x < -3.0f) return -1.0f;
@@ -85,7 +85,7 @@ NFM_CODE static inline float soft_clip(float x)
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 
-NFM_CODE static inline uint32_t rng_next(uint32_t *s)
+NFM_CODE NFM_HOT static inline uint32_t rng_next(uint32_t *s)
 {
     uint32_t x = *s;
     x ^= x << 13;
@@ -93,7 +93,7 @@ NFM_CODE static inline uint32_t rng_next(uint32_t *s)
     x ^= x << 5;
     return *s = x;
 }
-NFM_CODE static inline float rng_uni(uint32_t *s) { return (float)(rng_next(s) >> 8) * (1.0f / 16777216.0f); }
+NFM_CODE NFM_HOT static inline float rng_uni(uint32_t *s) { return (float)(rng_next(s) >> 8) * (1.0f / 16777216.0f); }
 NFM_CODE static inline float rng_range(uint32_t *s, float lo, float hi) { return lo + (hi - lo) * rng_uni(s); }
 NFM_CODE static inline float rng_gauss(uint32_t *s)
 {
@@ -712,7 +712,7 @@ NFM_CODE void nfm_sat_set(nfm_sat *s, float amount)
 
 /* loud parts come out of the curve quieter than they went in: the levels followed (~6 ms) and the
  * difference made up, within 0.7..3 (sqrt by two Newton steps from the last value) */
-NFM_CODE void nfm_sat_control(nfm_sat *s)
+NFM_CODE NFM_HOT void nfm_sat_control(nfm_sat *s)
 {
     if (s->eout < 1e-9f || s->ein < 1e-9f) return;
     float want = s->ein / s->eout, r = s->adapt;
@@ -727,12 +727,12 @@ NFM_CODE void nfm_sat_control(nfm_sat *s)
 
 /* The LFO is a sine, 0..1. Rate 0..1: 0.05..8 Hz (tremolo 0.5..32 Hz); the ring modulator's carrier
  * 30..1920 Hz. A block's values are worked out at its two ends and slid between. */
-NFM_CODE static float mod_lfo_hz(const nfm_mod *m)
+NFM_CODE NFM_HOT static float mod_lfo_hz(const nfm_mod *m)
 {
     return m->type == NFM_MOD_TREMOLO ? 0.5f * exp2_approx(m->rate * 6.0f) : 0.05f * exp2_approx(m->rate * 7.3219281f);
 }
 /* phaser: the allpasses' corner, 200 Hz up to 200 x 2^(1 + 5 amount), as a coefficient */
-NFM_CODE static float mod_ap(const nfm_mod *m, float u, float sr)
+NFM_CODE NFM_HOT static float mod_ap(const nfm_mod *m, float u, float sr)
 {
     float f = 200.0f * exp2_approx(u * (1.0f + 5.0f * m->amount));
     float x = f / sr * 0.5f;
@@ -741,14 +741,14 @@ NFM_CODE static float mod_ap(const nfm_mod *m, float u, float sr)
     return (t - 1.0f) / (t + 1.0f);
 }
 /* flanger 0.5..(1 + 3 amount) ms, chorus 7..(9 + 5 amount) ms: the delay in frames */
-NFM_CODE static float mod_delay(const nfm_mod *m, float u, float sr)
+NFM_CODE NFM_HOT static float mod_delay(const nfm_mod *m, float u, float sr)
 {
     float ms = m->type == NFM_MOD_FLANGER ? 0.5f + u * (0.5f + 3.0f * m->amount)
                                           : 7.0f + u * (2.0f + 5.0f * m->amount);
     return ms * 0.001f * sr;
 }
 
-NFM_CODE void nfm_mod_block(nfm_mod *m, float sr, int n)
+NFM_CODE NFM_HOT void nfm_mod_block(nfm_mod *m, float sr, int n)
 {
     if (m->type == NFM_MOD_OFF || n <= 0) return;
     float l1, ph1 = m->ph + mod_lfo_hz(m) * (float)n / sr;
@@ -786,7 +786,7 @@ NFM_CODE void nfm_mod_reset(nfm_mod_state *s)
 
 /* the levels in and out followed, every 16th frame the gain that matches them (within 0.5..2: sqrt by
  * two Newton steps from the last value) */
-NFM_CODE static inline float mod_match(nfm_mod_state *s, float x, float y, int i)
+NFM_CODE NFM_HOT static inline float mod_match(nfm_mod_state *s, float x, float y, int i)
 {
     s->ein += 0.001f * (x * x - s->ein);
     s->eout += 0.001f * (y * y - s->eout);
@@ -799,7 +799,7 @@ NFM_CODE static inline float mod_match(nfm_mod_state *s, float x, float y, int i
     return y * s->g;
 }
 
-NFM_CODE float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i)
+NFM_CODE NFM_HOT float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i)
 {
     float fi = (float)i;
     switch (m->type) {
@@ -872,7 +872,7 @@ NFM_CODE uint32_t nfm_voice_age(const nfm_engine *e, int voice)
 
 #define CTL_STEP 8
 
-NFM_CODE static void voice_control(nfm_engine *e, nfm_voice *v)
+NFM_CODE NFM_HOT static void voice_control(nfm_engine *e, nfm_voice *v)
 {
     float pk = v->pitch_k, k8 = pk * pk;
     k8 *= k8;
@@ -903,7 +903,7 @@ NFM_CODE static void voice_control(nfm_engine *e, nfm_voice *v)
 /* One operator: sine of phase plus modulation, times its envelope. */
 #define OP(k, m) (sin_cyc(v->ph[k] + (m)) * v->env[k])
 
-NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint32_t *rng)
+NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint32_t *rng)
 {
     /* Noise first: it is heard, and it can shake op 1's phase. */
     float nz = 0.0f;
@@ -1015,7 +1015,7 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     return x;
 }
 
-NFM_CODE void nfm_render(nfm_engine *e, float *out_l, float *out_r, int n)
+NFM_CODE NFM_HOT void nfm_render(nfm_engine *e, float *out_l, float *out_r, int n)
 {
     nfm_render_bus(e, out_l, out_r, 0, 0, n);
     for (int i = 0; i < n; ++i) {
@@ -1024,7 +1024,7 @@ NFM_CODE void nfm_render(nfm_engine *e, float *out_l, float *out_r, int n)
     }
 }
 
-NFM_CODE void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
+NFM_CODE NFM_HOT void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
     nfm_zero(out_l, (unsigned)n * 4u);
     nfm_zero(out_r, (unsigned)n * 4u);

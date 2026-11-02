@@ -1,7 +1,7 @@
 /* nfx: drifting effects, see nfx.h. */
 #include "nfx.h"
 
-NFM_CODE static inline uint32_t rnd(uint32_t *s)
+NFM_CODE NFM_HOT static inline uint32_t rnd(uint32_t *s)
 {
     uint32_t x = *s;
     x ^= x << 13;
@@ -9,10 +9,10 @@ NFM_CODE static inline uint32_t rnd(uint32_t *s)
     x ^= x << 5;
     return *s = x;
 }
-NFM_CODE static inline float rndf(uint32_t *s) { return (float)(rnd(s) >> 8) * (1.0f / 16777216.0f); }
-NFM_CODE static inline float clamp01(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
+NFM_CODE NFM_HOT static inline float rndf(uint32_t *s) { return (float)(rnd(s) >> 8) * (1.0f / 16777216.0f); }
+NFM_CODE NFM_HOT static inline float clamp01(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
 
-NFM_CODE static float exp2f_(float x)
+NFM_CODE NFM_HOT static float exp2f_(float x)
 {
     if (x < -126.0f) return 0.0f;
     if (x > 126.0f) x = 126.0f;
@@ -25,13 +25,13 @@ NFM_CODE static float exp2f_(float x)
     return v.f * p;
 }
 /* tan(pi x) for 0 < x < 0.5, enough for filter coefficients */
-NFM_CODE static float tan_pi(float x)
+NFM_CODE NFM_HOT static float tan_pi(float x)
 {
     if (x > 0.3f) x = 0.3f;
     float t = x * 3.14159265f, t2 = t * t;
     return t * (1.0f + t2 * (0.33333333f + t2 * (0.13333333f + t2 * (0.05396825f + t2 * 0.02186949f))));
 }
-NFM_CODE static inline float soft(float x)
+NFM_CODE NFM_HOT static inline float soft(float x)
 {
     if (x > 3.0f) return 1.0f;
     if (x < -3.0f) return -1.0f;
@@ -86,7 +86,7 @@ NFM_CODE void nfx_set_on(nfx *fx, int i, int on) { if (i >= 0 && i < NFX_EFFECTS
 NFM_CODE void nfx_set_amount(nfx *fx, int i, float a) { if (i >= 0 && i < NFX_EFFECTS) fx->amount[i] = clamp01(a); }
 NFM_CODE void nfx_set_chaos(nfx *fx, float c) { fx->chaos = clamp01(c); }
 NFM_CODE void nfx_set_motion(nfx *fx, float m) { fx->motion = clamp01(m); }
-NFM_CODE void nfx_set_tempo(nfx *fx, float bpm) { fx->bpm = bpm < 20.0f ? 20.0f : bpm; }
+NFM_CODE NFM_HOT void nfx_set_tempo(nfx *fx, float bpm) { fx->bpm = bpm < 20.0f ? 20.0f : bpm; }
 NFM_CODE void nfx_set_space(nfx *fx, float s) { fx->space = clamp01(s); }
 
 /* a glide to a station over bars bars; from home anywhere else, elsewhere home now and then */
@@ -176,7 +176,7 @@ NFM_CODE void nfx_set_source(nfx *fx, void (*src)(void *, float *, float *, floa
 }
 
 /* Drift: now and then a new target near the base; glide towards it. */
-NFM_CODE static void drift(nfx *fx, float dt)
+NFM_CODE NFM_HOT static void drift(nfx *fx, float dt)
 {
     if (fx->motion <= 0.0f) return;
     float period = 12.0f * exp2f_(-fx->motion * 4.0f); /* 12 s .. 0.75 s */
@@ -189,7 +189,7 @@ NFM_CODE static void drift(nfx *fx, float dt)
     }
 }
 
-NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
+NFM_CODE NFM_HOT static void update(nfx *fx, nfm_engine *e, int n)
 {
     float sr = fx->sr;
     drift(fx, (float)n / sr);
@@ -234,14 +234,14 @@ NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
     }
 }
 
-NFM_CODE static inline float delay_read(const int16_t *buf, uint32_t pos, float t)
+NFM_CODE NFM_HOT static inline float delay_read(const int16_t *buf, uint32_t pos, float t)
 {
     int ti = (int)t;
     float fr = t - (float)ti;
     uint32_t a = (pos - (uint32_t)ti) & (NFX_DELAY_LEN - 1), b = (a - 1u) & (NFX_DELAY_LEN - 1);
     return ((float)buf[a] + ((float)buf[b] - (float)buf[a]) * fr) * (1.0f / 16384.0f);
 }
-NFM_CODE static inline int16_t to16(float x)
+NFM_CODE NFM_HOT static inline int16_t to16(float x)
 {
     x *= 16384.0f;
     return (int16_t)(x > 32767.0f ? 32767.0f : x < -32768.0f ? -32768.0f : x);
@@ -249,7 +249,7 @@ NFM_CODE static inline int16_t to16(float x)
 
 #ifdef NFX_REV16
 #define REV_GET(v) ((float)(v) * (1.0f / 8192.0f))
-NFM_CODE static inline int16_t rev_put(float x)
+NFM_CODE NFM_HOT static inline int16_t rev_put(float x)
 {
     x *= 8192.0f;
     return (int16_t)(x > 32767.0f ? 32767.0f : x < -32768.0f ? -32768.0f : x);
@@ -259,7 +259,7 @@ NFM_CODE static inline int16_t rev_put(float x)
 #define rev_put(x) (x)
 #endif
 
-NFM_CODE void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int n)
+NFM_CODE NFM_HOT void nfx_render(nfx *fx, nfm_engine *e, float *out_l, float *out_r, int n)
 {
     /* Static, not on the stack: on the FM1 this runs in the audio interrupt. */
     static float rev[64], dly[64];

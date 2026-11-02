@@ -1,7 +1,7 @@
 /* nacid: the acid line, see nacid.h. */
 #include "nacid.h"
 
-NFM_CODE static inline uint32_t rnd(uint32_t *s)
+NFM_CODE NFM_HOT static inline uint32_t rnd(uint32_t *s)
 {
     uint32_t x = *s;
     x ^= x << 13;
@@ -9,9 +9,9 @@ NFM_CODE static inline uint32_t rnd(uint32_t *s)
     x ^= x << 5;
     return *s = x;
 }
-NFM_CODE static inline float rndf(uint32_t *s) { return (float)(rnd(s) >> 8) * (1.0f / 16777216.0f); }
+NFM_CODE NFM_HOT static inline float rndf(uint32_t *s) { return (float)(rnd(s) >> 8) * (1.0f / 16777216.0f); }
 
-NFM_CODE static float exp2f_(float x)
+NFM_CODE NFM_HOT static float exp2f_(float x)
 {
     if (x < -126.0f) return 0.0f;
     if (x > 126.0f) x = 126.0f;
@@ -23,13 +23,13 @@ NFM_CODE static float exp2f_(float x)
     v.u = (uint32_t)(i + 127) << 23;
     return v.f * p;
 }
-NFM_CODE static float tan_pi(float x)              /* tan(pi x), up to x 0.3 */
+NFM_CODE NFM_HOT static float tan_pi(float x)              /* tan(pi x), up to x 0.3 */
 {
     if (x > 0.3f) x = 0.3f;
     float t = x * 3.14159265f, t2 = t * t;
     return t * (1.0f + t2 * (0.33333333f + t2 * (0.13333333f + t2 * (0.05396825f + t2 * 0.02186949f))));
 }
-NFM_CODE static inline float soft(float x)
+NFM_CODE NFM_HOT static inline float soft(float x)
 {
     if (x > 3.0f) return 1.0f;
     if (x < -3.0f) return -1.0f;
@@ -37,7 +37,7 @@ NFM_CODE static inline float soft(float x)
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 /* the step a band-limited saw or square takes at a wrap */
-NFM_CODE static inline float blep(float t, float dt)
+NFM_CODE NFM_HOT static inline float blep(float t, float dt)
 {
     if (t < dt) {
         t /= dt;
@@ -51,10 +51,10 @@ NFM_CODE static inline float blep(float t, float dt)
 }
 
 /* the oscillator's step at 2x, worked out when the pitch or its drift moves (not a divide a sample) */
-NFM_CODE static inline void pitch_step(nacid *a) { a->dh = 0.5f * a->freq * a->wmul / a->sr; }
+NFM_CODE NFM_HOT static inline void pitch_step(nacid *a) { a->dh = 0.5f * a->freq * a->wmul / a->sr; }
 
-NFM_CODE static inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
-NFM_CODE static inline float clamp1(float x) { return x < 0.0f ? 0.0f : x > 0.97f ? 0.97f : x; }
+NFM_CODE NFM_HOT static inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
+NFM_CODE NFM_HOT static inline float clamp1(float x) { return x < 0.0f ? 0.0f : x > 0.97f ? 0.97f : x; }
 
 /* minor, phrygian, dorian, minor pentatonic, blues, harmonic minor: what acid lines are made of; and
  * major, for the brighter ones */
@@ -462,9 +462,9 @@ NFM_CODE void nacid_hit(nacid *a, int note, int accent)
  * stages run higher for the same knob; LADDER_K: the resonance, just short of oscillating. */
 #define LADDER_F 0.75f
 #define LADDER_K 19.0f
-NFM_CODE static void ladder(nacid *a, float g)
+NFM_CODE NFM_HOT static void ladder(nacid *a, float g)
 {
-    NFM_DATA static const float dg[4] = { -2.0f, -2.0f, -2.0f, -1.0f };   /* D: -2 on the diagonal (the last -1), 1 beside */
+    NFM_DATA NFM_HOT_DATA static const float dg[4] = { -2.0f, -2.0f, -2.0f, -1.0f };   /* D: -2 on the diagonal (the last -1), 1 beside */
     float G[4] = { 2.0f * g, g, g, g }, lo[4], di[4], up[4], c[4], d[4];
     for (int i = 0; i < 4; ++i) {                  /* I - G D */
         di[i] = 1.0f - G[i] * dg[i];
@@ -502,13 +502,13 @@ NFM_CODE static void ladder(nacid *a, float g)
  * take), and when it is gone it rests, from a bar on a half phrase: the knobs back to the calm place in
  * a bar or two, whatever the drums do, no turns, no build, for eight bars (now and then four or twelve).
  * Then all of it at once again, from where the drums are. Playing calm, it gets its energy back. */
-NFM_DATA static const float dlo[4] = { 0.25f, 0.45f, 0.30f, 0.55f };   /* the rule's place, calm drums */
-NFM_DATA static const float dhi[4] = { 0.45f, 0.90f, 0.80f, 0.30f };   /* ...hard drums */
+NFM_DATA NFM_HOT_DATA static const float dlo[4] = { 0.25f, 0.45f, 0.30f, 0.55f };   /* the rule's place, calm drums */
+NFM_DATA NFM_HOT_DATA static const float dhi[4] = { 0.45f, 0.90f, 0.80f, 0.30f };   /* ...hard drums */
 
 NFM_CODE static float step_samples(const nacid *a) { return a->step_len > 0.0f ? a->step_len : a->sr * 0.134f; }
 
 /* the intensity the hand plays at: the drums', none while it rests */
-NFM_CODE static inline float dev_mood(const nacid *a) { return a->d_rest ? 0.0f : a->d_mood; }
+NFM_CODE NFM_HOT static inline float dev_mood(const nacid *a) { return a->d_rest ? 0.0f : a->d_mood; }
 
 /* knob i: a new way, and how long it takes (resting: to the calm place in a bar or two, and it stays;
  * just rested: back in one to four bars) */
@@ -619,7 +619,7 @@ NFM_CODE void nacid_feel(nacid *a, float mood, int ps)
 }
 
 /* every 32 samples: the ways on, the turn, the build; the offsets over the knobs glide to them */
-NFM_CODE static void dev_control(nacid *a)
+NFM_CODE NFM_HOT static void dev_control(nacid *a)
 {
     if (a->dctl++ & 3) return;
     float D = a->d_live ? a->p[NACID_P_DEVIANCE] : 0.0f, tw = 0.0f;
@@ -638,7 +638,7 @@ NFM_CODE static void dev_control(nacid *a)
         if (!a->d_live && a->dv[i] < 1e-5f && a->dv[i] > -1e-5f) a->dv[i] = 0.0f;
     }
 }
-NFM_CODE static inline float knob(const nacid *a, int i)
+NFM_CODE NFM_HOT static inline float knob(const nacid *a, int i)
 {
     float v = a->p[NACID_P_CUTOFF + i] + a->dv[i];
     return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
@@ -647,14 +647,14 @@ NFM_CODE static inline float knob(const nacid *a, int i)
 /* the cutoff and the envelopes' rates, every 8 samples. The cutoff: the knob, the envelope, the
  * accent's sweep. The filter: the 303's diode ladder (ladder()), the resonance's feedback through a
  * high-pass at 100 Hz; up to just short of oscillating. */
-NFM_CODE static void control(nacid *a)
+NFM_CODE NFM_HOT static void control(nacid *a)
 {
     if (a->d_live || a->dv[0] != 0.0f || a->dv[1] != 0.0f || a->dv[2] != 0.0f || a->dv[3] != 0.0f) dev_control(a);
     float cut = knob(a, 0), reso = knob(a, 1), em = knob(a, 2), dec = knob(a, 3);
     /* the drift of an analogue voice: the pitch (a few cents) and the cutoff (a few per cent) each on a
      * slow way of its own, a new place now and then (about every 0.7 s), a glide of half a second there */
     if (a->wander > 0.0f) {
-        NFM_DATA static const float wdepth[2] = { 0.025f, 0.04f };   /* semitones, octaves */
+        NFM_DATA NFM_HOT_DATA static const float wdepth[2] = { 0.025f, 0.04f };   /* semitones, octaves */
         float wg = 16.0f / a->sr;
         for (int i = 0; i < 2; ++i) {
             if ((rnd(&a->wrng) & 4095u) == 0u) a->wd_c[i] = (2.0f * rndf(&a->wrng) - 1.0f) * wdepth[i];
@@ -695,19 +695,19 @@ NFM_CODE static void control(nacid *a)
  * square's) makes overtones past the top that would fold back between a note's harmonics, most with the
  * resonance up and the cutoff open, and the ladder keeps its shape further up. Back down through a
  * halfband: 27 taps, 7 multiplies a sample, flat to 17 kHz, -57 dB from 27 kHz. */
-NFM_DATA static const float hbc[7] = { 0.31402690f, -0.09586685f, 0.04802163f, -0.02583784f, 0.01338052f, -0.00619374f, 0.00246937f };
+NFM_DATA NFM_HOT_DATA static const float hbc[7] = { 0.31402690f, -0.09586685f, 0.04802163f, -0.02583784f, 0.01338052f, -0.00619374f, 0.00246937f };
 
 /* a 303's saw: its ramp a capacitor charging, so bowed a little (steeper at the bottom, rounder at
  * the top); the bow continuous at the wrap, only its slope turns there */
 #define SAW_BOW 0.12f
-NFM_CODE static inline float saw303(float t, float dt)
+NFM_CODE NFM_HOT static inline float saw303(float t, float dt)
 {
     float r = 2.0f * t - 1.0f;
     return r - blep(t, dt) - SAW_BOW * (r * r - 0.33333333f);
 }
 
 /* the wave at phase t, dt its step */
-NFM_CODE static inline float osc(nacid *a, float t, float dt)
+NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
 {
     float x;
     switch (a->wave) {
@@ -743,7 +743,7 @@ NFM_CODE static inline float osc(nacid *a, float t, float dt)
     return x;
 }
 
-NFM_CODE static inline float ladder_tick(nacid *a, float x, float hf, float Gf)
+NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float hf, float Gf)
 {
     /* the filter: the diode ladder (ladder()), the feedback through its high-pass solved for the
      * sample (y4 = B + q4 u), a soft clip on the way in, where it sings */
@@ -769,7 +769,7 @@ NFM_CODE static inline float ladder_tick(nacid *a, float x, float hf, float Gf)
 }
 
 /* two samples at 2x in (x0 first), one out: x1's on the taps, x0's on the centre (6 samples late) */
-NFM_CODE static inline float halfband(nacid *a, float x0, float x1)
+NFM_CODE NFM_HOT static inline float halfband(nacid *a, float x0, float x1)
 {
     unsigned i = a->hb_i = (uint8_t)((a->hb_i + 1u) & 15u);
     const float *h = a->hb_a;
@@ -781,7 +781,7 @@ NFM_CODE static inline float halfband(nacid *a, float x0, float x1)
 }
 
 #define VCA_ROOM 3.0f
-NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
+NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
     const float rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
     const float vdk = exp2f_(-1.4427f / (3.0f * a->sr));          /* the VCA's decay while the gate is held */

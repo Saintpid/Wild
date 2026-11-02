@@ -306,7 +306,7 @@ static void apply_fx(int p, int v)
 static float mf_g[2], mf_k, mf_s[2][2][2];       /* [lp, hp][channel][state] */
 static float mf_kg[2], mf_h[2];                  /* each one's g + k and 1 / (1 + g (g + k)): no divide a frame */
 static uint8_t mf_on[2];
-static float exp2_(float x)                      /* (nfx.c's) */
+NFM_HOT static float exp2_(float x)                      /* (nfx.c's) */
 {
     union { float f; uint32_t u; } v;
     int i;
@@ -349,7 +349,7 @@ static void master_filter(void)
 }
 /* log2(x), x > 0; to about 1e-4, and continuous where the exponent steps (the polynomial was ln's up to
  * 0.3.2: the Glue's level read up to 1.8 dB low, then jumped back at each power of 2, a click in its gain) */
-static float log2_(float x)
+NFM_HOT static float log2_(float x)
 {
     union { float f; uint32_t u; } v;
     float e, m;
@@ -401,7 +401,7 @@ static float gl_ein, gl_eout, gl_mk = 1.0f, gl_mk_to = 1.0f;   /* the loudness m
 static float gl_fast, gl_slow;
 static nfm_sat gl_sat[2];
 static uint8_t gl_on;
-static const float GQ_C[4] = {0.01274f, 0.09492f, 0.24795f, 0.72260f};   /* 90, 700, 2000, 9000 Hz */
+NFM_HOT_DATA static const float GQ_C[4] = {0.01274f, 0.09492f, 0.24795f, 0.72260f};   /* 90, 700, 2000, 9000 Hz */
 static float gq_lp[2][4], gq_g[5] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f}, gq_dg[5];
 static float gq_set[5], gq_pink, gq_harsh;       /* the static bands (log2), the pinky's and de-harsh's amounts */
 static float gq_elo = 1e-6f, gq_ehi = 0.29e-6f, gq_eh = 1e-9f, gq_e = 1e-8f;   /* followed */
@@ -447,12 +447,12 @@ static void glue_set(void)
     gc_wet = pct(gpar[G_GCOLOR]);
     lim_ceil = gl_on ? 0.891f : 0.966f;          /* -1 / -0.3 dBFS */
 }
-static inline float absf(float x) { return x < 0.0f ? -x : x; }
+NFM_HOT static inline float absf(float x) { return x < 0.0f ? -x : x; }
 /* the compressor's gain for one frame: the levels followed every frame, the gain worked out every 8th
  * (log and exp are dear in the audio interrupt) and slid to between them */
 static float gl_g = 1.0f, gl_dg, gl_x;            /* gl_x: the expander's lift (log2), glided in (~1.5 ms) */
 static uint8_t gl_ctl;
-static inline float glue_gain(float a, float b)
+NFM_HOT static inline float glue_gain(float a, float b)
 {
     float x = absf(a) > absf(b) ? absf(a) : absf(b);
     gl_env += (x > gl_env ? GL_ATT : GL_REL) * (x - gl_env);
@@ -479,7 +479,7 @@ static inline float glue_gain(float a, float b)
     return gl_g;
 }
 /* the EQ's band gains for the next block, from the levels followed (before it: no loop), slid to */
-static void glue_eq_block(float elo, float ehi, float eh, float e, uint32_t k)
+NFM_HOT static void glue_eq_block(float elo, float ehi, float eh, float e, uint32_t k)
 {
     float l[5], r;
     int i;
@@ -507,7 +507,7 @@ static void glue_eq_block(float elo, float ehi, float eh, float e, uint32_t k)
         gq_dg[i] = ((l[i] != 0.0f ? exp2_(l[i]) : 1.0f) - gq_g[i]) / (float)k;
 }
 /* the EQ, one channel: the bands (what lies between the splits) each at its gain */
-static inline float glue_eq(float x, float *s, float *elo, float *ehi, float *eh)
+NFM_HOT static inline float glue_eq(float x, float *s, float *elo, float *ehi, float *eh)
 {
     float b0, b1, b2, b3;
     s[0] += GQ_C[0] * (x - s[0]);
@@ -526,7 +526,7 @@ static inline float glue_eq(float x, float *s, float *elo, float *ehi, float *eh
 /* the inflator (its curve 0: 1.5 s - 0.5 s^3 - (s^2 - 2 s^3 + s^4) / 16 on s = |x| up to 1, flat at 1), its 1
  * at the limiter's ceiling, blended in by Color; as a gain on x, so no sign to carry */
 #define GC_IN 1.122f                             /* 1 / the ceiling with the Glue on (-1 dBFS) */
-static inline float inflate(float x)
+NFM_HOT static inline float inflate(float x)
 {
     float s = absf(x) * GC_IN;
     if (s > 1.0f) {
@@ -536,7 +536,7 @@ static inline float inflate(float x)
     return x * (1.0f + gc_wet * (0.5f - s * (0.0625f + s * (0.375f + s * 0.0625f))));
 }
 /* a block's energy in and out (out as if before the makeup): the makeup that brings it back (-12 .. +12 dB) */
-static void glue_match(float ein, float eout)
+NFM_HOT static void glue_match(float ein, float eout)
 {
     float want, r = gl_mk_to;
     gl_ein += GL_MATCH * (ein - gl_ein);
@@ -567,7 +567,7 @@ static void glue_reset(void)                     /* all of it from rest (a start
     gq_e = 1e-8f;
     gw_lp[0] = gw_lp[1] = 0.0f;
 }
-static inline float lim_gain(float a, float b)   /* the limiter's gain for one frame */
+NFM_HOT static inline float lim_gain(float a, float b)   /* the limiter's gain for one frame */
 {
     float y = absf(a) > absf(b) ? absf(a) : absf(b);
     lim_env = y > lim_env ? y : lim_env * LIM_REL;
@@ -674,7 +674,7 @@ static void glitch_step(uint32_t step, float delay, float step_len)
     gx_at = seq.now + (uint32_t)delay;
     gx_pending = 1;
 }
-static inline void gx_put(float a, float b)
+NFM_HOT static inline void gx_put(float a, float b)
 {
     uint32_t i = gx_w++ & (GX_LEN - 1u);
     float x = a * 16384.0f, y = b * 16384.0f;
@@ -682,7 +682,7 @@ static inline void gx_put(float a, float b)
     gx_buf[i][1] = (int16_t)(y > 32767.0f ? 32767.0f : y < -32768.0f ? -32768.0f : y);
 }
 /* one frame through: recorded, or replaced by the glitch */
-static inline void glitch(float *a, float *b)
+NFM_HOT static inline void glitch(float *a, float *b)
 {
     uint32_t i;
     float w, x, y;
@@ -736,7 +736,7 @@ static inline void glitch(float *a, float *b)
         gx_on = 0;
 }
 
-static inline float svf(float x, int f, float *s, int hp)
+NFM_HOT static inline float svf(float x, int f, float *s, int hp)
 {
     float g = mf_g[f], hpo = (x - mf_kg[f] * s[0] - s[1]) * mf_h[f];
     float bp = g * hpo + s[0], lp;
@@ -984,7 +984,7 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
-static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
+NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
     (void)ctx;
     if (acid.still && fm.dir_l)                  /* Drift at Bypass: the direct bus (this chunk's) */
@@ -1230,7 +1230,7 @@ static void drain(void)
 }
 
 #define BLK 64
-void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
+NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
 {
     static float l[BLK], r[BLK], dl[BLK], dr[BLK];   /* the main bus, the direct one (Drift at Bypass) */
     const float gain = (float)gain_q12 * (1.0f / 4096.0f) * 8388607.0f;
