@@ -1,5 +1,7 @@
-# Wild 0.3.14 - experimental FM-1 firmware
+# Wild 0.3.15 - experimental FM-1 firmware
 
+**0.3.15:** the audio is rendered 6 ms further ahead (17 ms): peaks when many hits land at once no
+longer drop out.
 **0.3.14:** Audio Load (GLO + OCT+) shows the render's split: drums, 303, sequencer and FX, master.
 **0.3.13: lighter to run, the same sound:** the audio's hot loops and their tables run from RAM
 instead of through the flash's cache, and the filters no longer divide every sample. Lower Audio

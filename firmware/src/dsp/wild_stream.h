@@ -5,7 +5,8 @@
 #define WILD_STREAM_H
 #include <stdint.h>
 #define WILD_FRAMES 256u
-#define WILD_SLOTS 2u
+#define WILD_SLOTS 4u    /* (a power of two: the slot index stays in step when the counts wrap) */
+#define WILD_AHEAD 3u    /* blocks rendered ahead at most, 17.4 ms: a render's peaks (several hits at once) are swallowed */
 #define WILD_QUANTUM 64u
 #define WILD_FENCE() __asm__ volatile("" ::: "memory")
 typedef void (*wild_renderer)(int32_t *, uint32_t, uint32_t);
@@ -23,7 +24,7 @@ typedef struct {
 static inline int wild_produce(wild_stream *s, wild_renderer render)
 {
     uint32_t w = s->written;
-    if (w - s->read >= WILD_SLOTS) return 0;
+    if (w - s->read >= WILD_AHEAD) return 0;
     WILD_FENCE();
     render(s->pcm[w % WILD_SLOTS] + 2u * s->partial, WILD_QUANTUM, 4096u);
     s->partial += WILD_QUANTUM;

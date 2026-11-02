@@ -20,7 +20,7 @@ static volatile uint8_t wild_rendering;
 static uint8_t wild_started;
 static uint32_t render_avg_q8, render_peak_pct, render_last_pct;
 static uint32_t render_calls, render_blocks, ui_last_us, ui_peak_us;
-static wild_stream wild_audio __attribute__((section(".pool")));
+static wild_stream wild_audio;                      /* (RAM: the pool keeps its 8 KB spare) */
 
 static int32_t abuf[2u * HALF_WORDS] __attribute__((aligned(4)));
 
@@ -88,8 +88,9 @@ void fm1_render_irq(void)
     fm1_render_ack();
     if (!wild_started || !ne_render_available()) return;
     ++render_blocks;
-    /* At most one DMA half per activation: bounded work, no ISR spin-to-full. */
-    for (i = 0; i < WILD_FRAMES / WILD_QUANTUM; ++i)
+    /* At most two DMA halves per activation: bounded work, no ISR spin-to-full. The second only after
+     * a peak, to win the lead back (one a wake would only keep the deficit). */
+    for (i = 0; i < 2u * WILD_FRAMES / WILD_QUANTUM; ++i)
         if (!audio_service()) break;
 }
 extern void isr_render(void);
@@ -471,7 +472,7 @@ void plat_audio_diag_read(plat_audio_diag *d)
     d->render_peak = render_peak_pct;
     d->irq_us = om_dbg.last_us; d->irq_peak_us = om_dbg.max_us;
     d->ui_us = ui_last_us; d->ui_peak_us = ui_peak_us;
-    d->ready = wild_audio.written - wild_audio.read;
+    d->ready = wild_audio.written - wild_audio.read; d->slots = WILD_AHEAD;
     d->underruns = wild_audio.underruns; d->late = om_dbg.late;
     d->recoveries = wild_audio.recoveries; d->render_blocks = render_blocks;
     d->ram_used = (uint32_t)((uintptr_t)_bss_end - (uintptr_t)_data_start);

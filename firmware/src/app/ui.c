@@ -1669,7 +1669,11 @@ static void draw_diagnostics(void)
         }
         diagnostic_text(4, "Split %", t);
     }
-    diagnostic_row(5, "PCM ready", d.ready, "/2 blocks");
+    {
+        char t[24];
+        diag_put(t, diag_put(t, 0, (int32_t)d.ready, "/"), (int32_t)d.slots, " blocks");
+        diagnostic_text(5, "PCM ready", t);
+    }
     diagnostic_row(6, "Empty buffer", d.underruns, "");
     diagnostic_row(7, "Late output", d.late, "");
     diagnostic_row(8, "RAM free", d.ram_total - d.ram_used, d.hardware ? " B" : " (n/a)");
