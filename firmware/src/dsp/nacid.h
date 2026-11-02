@@ -103,7 +103,8 @@ typedef struct {
     float gate;                    /* samples until the gate closes, < 0 held */
     uint8_t gate_on, accent, acc_gate, attack, sounding;
     float s[4], sf, so;            /* the ladder, the feedback's high-pass, the output's */
-    float hb_a[16], hb_b[8];       /* the halfband back from 2x: the samples on its taps, on its centre */
+    float hb_a[32], hb_b[8];       /* the halfband back from 2x: the samples on its taps (each twice, 16 on:
+                                    * the taps in a row, no wrap), on its centre */
     uint8_t hb_i;
     float P[16], q[4];             /* the ladder solved (every 8 samples) */
     float ga, k, comp;             /* the cutoff as a one-pole's gain (displays, tests), the resonance, its make-up */

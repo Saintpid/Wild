@@ -175,3 +175,16 @@
 - wild_stream: WILD_SLOTS 4 (storage, a power of two so w % SLOTS stays in step at the uint32 wrap;
   3 slots broke the wrap test), WILD_AHEAD 3 (fill limit). wild_audio pool -> .bss (pool keeps 8K).
 - fm1_render_irq renders up to two halves (8 quanta) a wake: one a wake only held a deficit.
+
+## 0.3.16 / 850 - lighter drum voices
+- Device 0.3.15 (full-on patch): now 76 %, avg 86 %, peak 147 %, 25 empty buffers (0.3.14: 85),
+  Split D 50 A 22 F 10 M 9.
+- nfm: OP() and op 4 skip the sine while env <= NFM_GONE (1e-6; level-0 operators are 0 from the
+  trigger, bit-exact). The voice loop renders a voice's run into vb[64], then mod_run (the mod type's
+  switch once a run, mod_phaser/line/ring/trem shared with nfm_mod_tick), then the mix: bit-exact.
+  Resonator loops to v->modes (an off mode in between adds 0), chorus divide -> reciprocal.
+- nacid halfband: hb_a[32], each tap written twice, taps read in a row (no masks): bit-exact.
+- Host heavy patch Ir -4.7 %. Output: the exact parts bit-exact; with NFM_GONE within -82 dBFS
+  (residual -102 dB) until a voice ends a control step earlier or later (peak < 3e-5 test), which
+  changes voice allocation and so the shared noise rng's order from there on: a different take of
+  the noise, not a quality change.

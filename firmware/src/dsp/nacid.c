@@ -772,11 +772,11 @@ NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float hf, fl
 NFM_CODE NFM_HOT static inline float halfband(nacid *a, float x0, float x1)
 {
     unsigned i = a->hb_i = (uint8_t)((a->hb_i + 1u) & 15u);
-    const float *h = a->hb_a;
-    a->hb_a[i] = x1;
+    const float *h = a->hb_a + i + 10u;           /* h[k]: i - 6 + k, h[-1 - k]: i - 7 - k */
+    a->hb_a[i] = a->hb_a[i + 16u] = x1;
     a->hb_b[i & 7u] = x0;
     float y = 0.5f * a->hb_b[(i - 6u) & 7u];
-    for (unsigned k = 0; k < 7u; ++k) y += hbc[k] * (h[(i - 6u + k) & 15u] + h[(i - 7u - k) & 15u]);
+    for (unsigned k = 0; k < 7u; ++k) y += hbc[k] * (h[k] + h[-1 - (int)k]);
     return y;
 }
 
