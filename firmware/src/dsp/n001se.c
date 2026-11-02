@@ -304,6 +304,7 @@ static void apply_fx(int p, int v)
 /* the master filter: a resonant low-pass (Hi cut, 100 Hz..20 kHz) and a high-pass (Lo cut, 20 Hz..
  * 2 kHz), TPT state variable filters, per channel. Both open: not run. */
 static float mf_g[2], mf_k, mf_s[2][2][2];       /* [lp, hp][channel][state] */
+static float mf_kg[2], mf_h[2];                  /* each one's g + k and 1 / (1 + g (g + k)): no divide a frame */
 static uint8_t mf_on[2];
 static float exp2_(float x)                      /* (nfx.c's) */
 {
@@ -333,12 +334,18 @@ static float tan_pi(float x)                     /* tan(pi x), up to x 0.3 (13 k
 }
 static void master_filter(void)
 {
+    int i;
     float hc = 100.0f * exp2_(7.6438562f * pct(gpar[G_HICUT])), lc = 20.0f * exp2_(6.6438562f * pct(gpar[G_LOCUT]));
     mf_on[0] = gpar[G_HICUT] < 100;
     mf_on[1] = gpar[G_LOCUT] > 0;
     mf_g[0] = tan_pi(hc / NE_SR);
     mf_g[1] = tan_pi(lc / NE_SR);
     mf_k = 2.0f - 1.9f * pct(gpar[G_RESO]);       /* 2: no peak .. 0.1: a sharp one */
+    for (i = 0; i < 2; i++) {
+        float k = i ? 2.0f - 0.6f * (2.0f - mf_k) : mf_k;   /* (the high-pass: a gentler peak) */
+        mf_kg[i] = mf_g[i] + k;
+        mf_h[i] = 1.0f / (1.0f + mf_g[i] * (mf_g[i] + k));
+    }
 }
 /* log2(x), x > 0; to about 1e-4, and continuous where the exponent steps (the polynomial was ln's up to
  * 0.3.2: the Glue's level read up to 1.8 dB low, then jumped back at each power of 2, a click in its gain) */
@@ -729,9 +736,9 @@ static inline void glitch(float *a, float *b)
         gx_on = 0;
 }
 
-static inline float svf(float x, float g, float k, float *s, int hp)
+static inline float svf(float x, int f, float *s, int hp)
 {
-    float hpo = (x - (g + k) * s[0] - s[1]) / (1.0f + g * (g + k));
+    float g = mf_g[f], hpo = (x - mf_kg[f] * s[0] - s[1]) * mf_h[f];
     float bp = g * hpo + s[0], lp;
     s[0] = g * hpo + bp;
     lp = g * bp + s[1];
@@ -1267,12 +1274,12 @@ void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
             }
             if (mf_on[0] | mf_on[1]) {           /* the master filter on both */
                 if (mf_on[0]) {
-                    a = svf(a, mf_g[0], mf_k, mf_s[0][0], 0);
-                    b = svf(b, mf_g[0], mf_k, mf_s[0][1], 0);
+                    a = svf(a, 0, mf_s[0][0], 0);
+                    b = svf(b, 0, mf_s[0][1], 0);
                 }
                 if (mf_on[1]) {
-                    a = svf(a, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][0], 1);
-                    b = svf(b, mf_g[1], 2.0f - 0.6f * (2.0f - mf_k), mf_s[1][1], 1);
+                    a = svf(a, 1, mf_s[1][0], 1);
+                    b = svf(b, 1, mf_s[1][1], 1);
                 }
                 a = a < -1.0f ? -1.0f : a > 1.0f ? 1.0f : a;
                 b = b < -1.0f ? -1.0f : b > 1.0f ? 1.0f : b;

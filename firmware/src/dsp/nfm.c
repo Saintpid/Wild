@@ -40,10 +40,11 @@ NFM_CODE static inline float wrap1(float x)
 /* sin(2 pi x), x in cycles, any value. */
 NFM_CODE static inline float sin_cyc(float x)
 {
-    float f = wrap1(x) * (float)NFM_SINE_SIZE;
+    float f = x * (float)NFM_SINE_SIZE;   /* (exact: a power of two) the cycles drop out of the index's mask */
     int i = (int)f;
+    if ((float)i > f) --i;
     float t = f - (float)i;
-    i &= NFM_SINE_SIZE - 1;   /* wrap1 of a tiny negative x rounds to 1.0: the table's end */
+    i &= NFM_SINE_SIZE - 1;
     return sine_table[i] + (sine_table[i + 1] - sine_table[i]) * t;
 }
 
@@ -448,6 +449,7 @@ NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)
     e->master = 0.9f;
     e->ins_g = e->ins_g0 = 0.5f;
     e->ins_k = e->ins_k0 = 1.0f;
+    nfm_ins_set(e);
     e->voice_limit = NFM_VOICES;
     e->priority_slot = -1;
     for (int v = 0; v < NFM_VOICES; ++v) e->voice[v].slot = -1;
@@ -611,6 +613,8 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->ng = svf_g(e, val[NFM_NOISE_COLOR] * tr);
     v->nband = val[NFM_NOISE_BAND];
     v->nk = 2.0f - 1.8f * v->nband;  /* damping: gentle lowpass to a ringing band */
+    v->nkg = v->nk + v->ng;
+    v->nh = 1.0f / (1.0f + v->ng * (v->ng + v->nk));
     v->noise_fm = val[NFM_NOISE_FM] * 0.6f;
     v->bursts = 0;
     if (e->slot[s].kind == NFM_KIND_CLAP) {
@@ -644,9 +648,12 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
                 v->ramp[m] = 0.0f;
                 v->rg[m] = 0.0f;
                 v->rk[m] = 1.0f;
+                v->rkg[m] = v->rh[m] = 1.0f;
                 continue;
             }
             v->rg[m] = res_coef(e, fm, val[NFM_RES_DECAY] * mode_decay[m], &v->rk[m]);
+            v->rkg[m] = v->rk[m] + v->rg[m];
+            v->rh[m] = 1.0f / (1.0f + v->rg[m] * (v->rg[m] + v->rk[m]));
             /* sqrt(k) scaling keeps long and short rings at similar loudness. */
             float k = v->rk[m], sk = k;
             for (int it = 0; it < 6; ++it) sk = 0.5f * (sk + k / sk);
@@ -701,19 +708,6 @@ NFM_CODE void nfm_sat_set(nfm_sat *s, float amount)
     s->dc = 0.0f;
     s->ein = s->eout = 0.0f;
     s->adapt = s->gain = 1.0f;
-}
-
-NFM_CODE float nfm_sat_tick(nfm_sat *s, float x)
-{
-    float u = x * s->pre + s->bias;
-    float y = (sat_adaa(s->u1, u) - s->off) * s->comp;
-    s->u1 = u;
-    s->dc += 0.0015f * (y - s->dc);
-    y -= s->dc;
-    s->ein += 0.004f * (x * x - s->ein);
-    s->eout += 0.004f * (y * y - s->eout);
-    s->gain += (s->adapt - s->gain) * 0.003f;   /* glided (~8 ms): a gain set in steps rang like aliasing */
-    return y * s->gain;
 }
 
 /* loud parts come out of the curve quieter than they went in: the levels followed (~6 ms) and the
@@ -849,6 +843,14 @@ NFM_CODE float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i)
     return x;
 }
 
+NFM_CODE void nfm_ins_set(nfm_engine *e)
+{
+    e->ins_kg = e->ins_k + e->ins_g;
+    e->ins_h = 1.0f / (1.0f + e->ins_g * (e->ins_g + e->ins_k));
+    e->ins_kg0 = e->ins_k0 + e->ins_g0;
+    e->ins_h0 = 1.0f / (1.0f + e->ins_g0 * (e->ins_g0 + e->ins_k0));
+}
+
 NFM_CODE void nfm_set_mod_lines(nfm_engine *e, int16_t *lines)
 {
     for (int v = 0; v < NFM_VOICES; ++v) {
@@ -915,8 +917,8 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     }
     if (v->noise > 1e-5f) {
         float w = (float)(int32_t)rng_next(rng) * (1.0f / 2147483648.0f);
-        float g = v->ng, k = v->nk;
-        float hp = (w - (k + g) * v->ns1 - v->ns2) / (1.0f + g * (g + k));
+        float g = v->ng;
+        float hp = (w - v->nkg * v->ns1 - v->ns2) * v->nh;
         float bp = g * hp + v->ns1;
         v->ns1 = g * hp + bp;
         float lp = g * bp + v->ns2;
@@ -951,7 +953,8 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     case 7: o3 = OP(2, 0.0f); o2 = OP(1, 0.0f); o1 = OP(0, nfm); out = o1 + o2 + o3 + o4; break;
     }
     for (int k = 0; k < NFM_OPS; ++k) {
-        v->ph[k] = wrap1(v->ph[k] + v->inc[k]);
+        float ph = v->ph[k] + v->inc[k];    /* (inc 0..0.45: at most one wrap, wrap1's sum exactly) */
+        v->ph[k] = ph >= 1.0f ? ph - 1.0f : ph;
         v->env[k] *= v->env_k[k];
     }
 
@@ -979,8 +982,8 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
         float r = 0.0f;
         for (int m = 0; m < NFM_MODES; ++m) {
             if (v->ramp[m] == 0.0f) continue;
-            float g = v->rg[m], k = v->rk[m];
-            float hp = (x - (k + g) * v->rs1[m] - v->rs2[m]) / (1.0f + g * (g + k));
+            float g = v->rg[m];
+            float hp = (x - v->rkg[m] * v->rs1[m] - v->rs2[m]) * v->rh[m];
             float bp = g * hp + v->rs1[m];
             v->rs1[m] = g * hp + bp;
             float lp = g * bp + v->rs2[m];
@@ -994,8 +997,8 @@ NFM_CODE static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint3
     if (v->ins & NFM_INS_DRIVE) x = nfm_sat_tick(&v->sat, x);
     if (v->ins & NFM_INS_FILTER) {
         int still = e->direct >> v->slot & 1;
-        float g = still ? e->ins_g0 : e->ins_g, k = still ? e->ins_k0 : e->ins_k;
-        float hp = (x - (k + g) * v->ins_s1 - v->ins_s2) / (1.0f + g * (g + k));
+        float g = still ? e->ins_g0 : e->ins_g;
+        float hp = (x - (still ? e->ins_kg0 : e->ins_kg) * v->ins_s1 - v->ins_s2) * (still ? e->ins_h0 : e->ins_h);
         float bp = g * hp + v->ins_s1;
         v->ins_s1 = g * hp + bp;
         float lp = g * bp + v->ins_s2;
