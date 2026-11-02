@@ -21,7 +21,7 @@ highest elapsed redraw time in ms, including audio preemption.
 Split %: the render's parts as percent of the budget over the last quarter
 second (0.3.14): D the drum voices, A the 303, F the sequencer with its hits
 and the reverb and delay, M the master chain (glitches, filter, Glue, limiter).
-PCM ready: complete software blocks waiting (maximum 2).
+PCM ready: complete software blocks waiting (maximum 3 since 0.3.15, 2 before).
 Empty buffer: software starvation events since startup.
 Late output: DMA half changed before output callback completed.
 RAM free / Pool free: linked static memory headroom in bytes, not heap meters.

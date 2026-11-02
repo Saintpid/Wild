@@ -677,6 +677,7 @@ void plat_audio_diag_read(plat_audio_diag *d)
     memset(d, 0, sizeof *d);
     d->render_now = d->render_avg = cpu_pct;
     d->ready = host_audio.written - host_audio.read;
+    d->slots = WILD_AHEAD;
     d->underruns = host_audio.underruns;
     d->recoveries = host_audio.recoveries;
     /* Hardware-only memory and interrupt timing remain unavailable on host. */

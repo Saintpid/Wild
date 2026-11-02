@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     /* Full queue/backpressure, uint32 wrap, exact ordering for many swaps. */
     memset(&stream,0,sizeof stream); stream.gain=4096;
     stream.written=stream.read=0xfffffffeu;
-    for (q=0; q<8; ++q) assert(wild_produce(&stream,count_render));
+    for (q=0; q<4*WILD_AHEAD; ++q) assert(wild_produce(&stream,count_render));
     assert(!wild_produce(&stream,count_render));
     for (b=0; b<4000; ++b) {
         assert(wild_consume(&stream,out,4096));

@@ -5,6 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.15
+
+Firmware identity FM-1_849. Fewer dropouts when everything plays at once.
+
+- **The sound is rendered a little further ahead:** three blocks (17 ms) instead of two (12 ms). A
+  moment when many hits land together and the render takes longer than the time it has is now
+  swallowed by the queue instead of heard as a dropout, as long as it plays within its budget on
+  average. Knobs, keys and MIDI answer about 6 ms later.
+- After such a moment the render catches up (up to two blocks a turn) and wins its lead back.
+- Audio Load's PCM ready reads out of 3.
+
 ## 0.3.14
 
 Firmware identity FM-1_848. Audio Load shows where the time goes.

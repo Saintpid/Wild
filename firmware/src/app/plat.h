@@ -57,7 +57,7 @@ uint32_t plat_xruns(void);
 typedef struct {
     uint32_t render_now, render_avg, render_peak;
     uint32_t irq_us, irq_peak_us, ui_us, ui_peak_us;
-    uint32_t ready, underruns, late, recoveries, render_blocks;
+    uint32_t ready, slots, underruns, late, recoveries, render_blocks;   /* ready of slots: PCM blocks queued */
     uint32_t ram_used, ram_total, pool_used, pool_total;
     uint32_t hardware;
     uint32_t split[4];                 /* drums, 303, sequencer + FX, master: % of the budget since the last read */

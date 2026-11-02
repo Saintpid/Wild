@@ -169,3 +169,9 @@
   (drums = nfm_render_bus' voice loop, 303 = acid_render, FX = nseq_render minus those, master = the
   rest of ne_render), shown as "Split %" on the diagnostics page (0.25 s windows). NULL clock on host.
 - ram_total 88K (0.3.13's app.ld). No sound change.
+
+## 0.3.15 / 849 - three blocks ahead
+- User chose +6 ms latency to swallow render peaks (0.3.13: avg 96 %, peak 149 %, 263 empty buffers).
+- wild_stream: WILD_SLOTS 4 (storage, a power of two so w % SLOTS stays in step at the uint32 wrap;
+  3 slots broke the wrap test), WILD_AHEAD 3 (fill limit). wild_audio pool -> .bss (pool keeps 8K).
+- fm1_render_irq renders up to two halves (8 quanta) a wake: one a wake only held a deficit.

@@ -61,7 +61,7 @@ storage access or waiting occurs in the stream consumer. Existing DMA, panel
 scan, flash protection and update paths remain. Firmware never writes WAVs;
 the inherited host tests can export recordings for analysis.
 
-Software lookahead is at most 512 frames (11.61 ms), in addition to DMA latency.
+Software lookahead is at most 512 frames (11.61 ms), in addition to DMA latency (0.3.15: 768 frames, 17.4 ms).
 The foreground renderer owns all synth state. USB MIDI polling defers during
 each render quantum; nested USB audio service remains enabled. Commands drain
 at the next quantum and affect future PCM. Stop/Panic wait only for the small
