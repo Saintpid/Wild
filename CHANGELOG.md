@@ -5,6 +5,22 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.13
+
+Firmware identity FM-1_847. Lighter to run, the same sound.
+
+- **Lower Audio Load.** The code that makes the sound every sample (the drum voices, the 303, the
+  reverb and delay, the Glue and the limiter) and the tables it reads now run from the FM-1's RAM
+  instead of from its flash through a cache. Nothing about the sound changes: it is the same code,
+  only where it lies.
+- **Fewer sums per sample.** The drums' resonator, noise and insert filters, the 303's insert filter
+  and the master filter work out their coefficients when their settings change instead of
+  dividing every sample; the sine the FM voices are made of is cheaper to look up. The difference in
+  the output is rounding only (at most -80 dBFS, about 98 dB under the music). On a computer, a heavy
+  patch renders about 17 % faster; on the FM-1 the RAM move should count for more.
+- Everything added for sound quality stays: the 303's 2x oversampling, the anti-aliased drive and
+  clip, the Glue, all of it.
+
 ## 0.3.12
 
 Firmware identity FM-1_846. A more analogue 303.

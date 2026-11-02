@@ -207,7 +207,8 @@ def build_app():
     if VERSION:
         flags.append(f'-DOM_VERSION="{VERSION}"')
     # the instrument at -O2, its hot loops in RAM (NFM_HOT, .ram_dsp in app.ld)
-    o2 = [f if f != "-Os" else "-O2" for f in flags] + ["-DNFM_RAM_HOT"]
+    # the instrument at -O2, its hot loops in RAM (NFM_HOT: .ram_dsp, after .ram_text in app.ld)
+    o2 = [f if f != "-Os" else "-O2" for f in flags] + ["-DNFM_RAM_HOT"] + ["-DNFM_RAM_HOT"]
     units = [("cc", "-c", FW / "crt0.S", "-o", OUT / "crt0.o"),
              ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
              ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),
@@ -259,11 +260,17 @@ def check(img, syms, dis, rt):
         errors.append(f"_start is not at {APP_XIP:#x}")
     if img[:4] != bytes.fromhex("04818000"):
         errors.append(f"image starts with {img[:4].hex()}, not the entry stub")
-    rt_calls = [ln for ln in rt.splitlines() if re.search(r"\bcall\b", ln)]
-    if rt_calls:                    # RAM code runs with the flash off: no calls into XIP
+    # the flash driver (.ram_text up to _rt_dsp) runs with the flash off: no calls into XIP. The DSP
+    # after it (.ram_dsp) runs only with the flash on, and calls what it likes.
+    m = re.search(r"^([0-9a-f]+) .*\s_rt_dsp$", syms, re.M)
+    rt_dsp = int(m.group(1), 16) if m else 1 << 32
+    drv = [ln for ln in rt.splitlines() if LINE.match(ln) and int(LINE.match(ln).group(1), 16) < rt_dsp]
+    rt_calls = [ln for ln in drv if re.search(r"\bcall\b", ln)]
+    if rt_calls:
         errors.append(f".ram_text contains calls: {rt_calls[:3]}")
     else:
-        notes.append(f".ram_text: {len([ln for ln in rt.splitlines() if LINE.match(ln)])} insns, no calls")
+        notes.append(f".ram_text: {len(drv)} insns, no calls; "
+                     f".ram_dsp {len(rt.splitlines()) and sum(1 for ln in rt.splitlines() if LINE.match(ln)) - len(drv)} insns")
     for ln in dis.splitlines():     # nothing may call or load an address in the chip ROM
         mm = LINE.match(ln)
         if not mm:
@@ -284,10 +291,12 @@ def check(img, syms, dis, rt):
     def sym(name):
         mm = re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M)
         return int(mm.group(1), 16) if mm else 0
-    bss = sym("_bss_end") - 0x01C08000
+    bss = sym("_bss_end") - sym("_data_start")
     pool = sym("_pool_end") - sym("_pool_start")
-    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of 98304; pool {pool} B of {0x54000}")
-    if bss > 96 * 1024:
+    rtx = sym("_rt_end") - sym("_rt_start")
+    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of {88 * 1024}; RAM code {rtx} B of {40 * 1024}; "
+                 f"pool {pool} B of {0x54000}")
+    if bss > 88 * 1024 or rtx > 40 * 1024:
         errors.append("RAM region overflow")
     if 0x54000 - pool < 8192:                     # keep >= 8 KiB of the pool spare
         errors.append(f"pool headroom {0x54000 - pool} B < 8192 B")

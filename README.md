@@ -1,5 +1,8 @@
-# Wild 0.3.12 - experimental FM-1 firmware
+# Wild 0.3.13 - experimental FM-1 firmware
 
+**0.3.13: lighter to run, the same sound:** the audio's hot loops and their tables run from RAM
+instead of through the flash's cache, and the filters no longer divide every sample. Lower Audio
+Load, nothing taken away.
 **0.3.12: a more analogue 303:** its saw bowed as the 303's, its filter sweeping smoothly every
 sample, a VCA that rounds loud accents, and a slow drift of a few cents and a few per cent of cutoff.
 **0.3.5: the 303 oversampled** (its oscillator and filter at 2x): less grit with the resonance up
