@@ -22,6 +22,16 @@
 #define NFM_CODE
 #define NFM_DATA
 #endif
+/* The audio's hot loops and the tables they read, in RAM rather than run from the flash through its
+ * cache (Wild: build.py sets NFM_RAM_HOT; app.ld puts .ram_dsp with .data, copied there at boot).
+ * The same code either way: only where it lies. */
+#if defined(NFM_RAM_HOT) && !defined(NFM_FM1_OPEN)
+#define NFM_HOT __attribute__((section(".ram_dsp")))
+#define NFM_HOT_DATA __attribute__((section(".ram_dsp.rodata"), aligned(4)))
+#else
+#define NFM_HOT
+#define NFM_HOT_DATA
+#endif
 
 #ifndef NFM_VOICES
 #define NFM_VOICES 6  /* one per sound, plus two for the short fade of a retrigger */
@@ -147,8 +157,8 @@ void nfm_mod_reset(nfm_mod_state *s);
 float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i);
 
 /* nfm_sat's curve: x - 4x^3/27, flat from +-1.5 (slope 1 at 0, 0 at the ends), and its integral */
-NFM_CODE static inline float sat_curve(float x) { return x > 1.5f ? 1.0f : x < -1.5f ? -1.0f : x - 0.148148f * x * x * x; }
-NFM_CODE static inline float sat_int(float x)
+NFM_CODE NFM_HOT static inline float sat_curve(float x) { return x > 1.5f ? 1.0f : x < -1.5f ? -1.0f : x - 0.148148f * x * x * x; }
+NFM_CODE NFM_HOT static inline float sat_int(float x)
 {
     if (x > 1.5f) return x - 0.5625f;
     if (x < -1.5f) return -x - 0.5625f;
@@ -157,7 +167,7 @@ NFM_CODE static inline float sat_int(float x)
 }
 /* the curve's mean between two samples, (F(u1) - F(u0)) / (u1 - u0): what it makes over the Nyquist
  * mostly gone instead of folded back (as a sample later). On the cubic part in closed form, no divide. */
-NFM_CODE static inline float sat_adaa(float u0, float u1)
+NFM_CODE NFM_HOT static inline float sat_adaa(float u0, float u1)
 {
     if (u0 <= 1.5f && u0 >= -1.5f && u1 <= 1.5f && u1 >= -1.5f) {
         float m = u0 + u1;
@@ -173,7 +183,7 @@ NFM_CODE static inline float sat_adaa(float u0, float u1)
 void nfm_sat_set(nfm_sat *s, float amount);
 /* (here, inline: it runs a sample per voice, the 303 and the Glue's two sides, a call each from
  * other units) */
-NFM_CODE static inline float nfm_sat_tick(nfm_sat *s, float x)
+NFM_CODE NFM_HOT static inline float nfm_sat_tick(nfm_sat *s, float x)
 {
     float u = x * s->pre + s->bias;
     float y = (sat_adaa(s->u1, u) - s->off) * s->comp;

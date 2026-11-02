@@ -395,7 +395,7 @@ NFM_CODE static void global_step(nseq *q, float step_len)
     ++q->steps;
 }
 
-NFM_CODE void nseq_render(nseq *q, float *out_l, float *out_r, int n)
+NFM_CODE NFM_HOT void nseq_render(nseq *q, float *out_l, float *out_r, int n)
 {
     while (n > 0) {
         float step_len = q->engine->sr * 60.0f / (q->bpm < 20.0f ? 20.0f : q->bpm) / 4.0f;
