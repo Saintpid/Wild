@@ -843,6 +843,9 @@ NFM_CODE NFM_HOT float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x,
     return x;
 }
 
+uint32_t (*nfm_clock)(void);
+uint32_t nfm_voice_ticks;
+
 NFM_CODE void nfm_ins_set(nfm_engine *e)
 {
     e->ins_kg = e->ins_k + e->ins_g;
@@ -1035,6 +1038,7 @@ NFM_CODE NFM_HOT void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, 
         nfm_zero(dl, (unsigned)n * 4u);
         nfm_zero(dr, (unsigned)n * 4u);
     }
+    uint32_t t0 = nfm_clock ? nfm_clock() : 0u;
     for (int si = 0; si < NFM_SLOTS; ++si) nfm_mod_block(&e->mod[si], e->sr, n);
     for (int vi = 0; vi < NFM_VOICES; ++vi) {
         nfm_voice *v = &e->voice[vi];
@@ -1058,6 +1062,7 @@ NFM_CODE NFM_HOT void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, 
             if (dly && v->send_dly > 0.0f) dly[i] += mono * v->send_dly;
         }
     }
+    if (nfm_clock) nfm_voice_ticks += nfm_clock() - t0;
     float g = e->master;
     for (int i = 0; i < n; ++i) {
         out_l[i] *= g;

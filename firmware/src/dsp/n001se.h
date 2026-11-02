@@ -151,6 +151,11 @@ void ne_acid_restore(const ne_acid_t *s);
 int ne_render_available(void);
 /* Per-track maxima since the last read; brief ownership hold during read/reset. */
 void ne_take_peaks(float out[NE_TRACKS + 1]);
+/* Audio Load's split: with a tick counter set (the device's), the ticks spent since the last take on
+ * NE_SPLIT_* and the frames rendered meanwhile. Off (NULL) costs nothing. */
+enum { NE_SPLIT_DRUMS, NE_SPLIT_ACID, NE_SPLIT_FX, NE_SPLIT_MASTER, NE_SPLITS };
+void ne_set_clock(uint32_t (*ticks)(void));
+uint32_t ne_take_split(uint32_t ticks[NE_SPLITS]);
 void ne_render(int32_t *out_lr, uint32_t n, uint32_t gain_q12);
 
 /* state for the screen (UI) */

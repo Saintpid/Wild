@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.14
+
+Firmware identity FM-1_848. Audio Load shows where the time goes.
+
+- **Audio Load (GLO + OCT+) splits the render:** a new row, Split %, shows the share of the audio
+  budget the drum voices (D), the 303 (A), the sequencer with the reverb and delay (F) and the master
+  chain with the Glue (M) take, over the last quarter second. The output IRQ's and the screen's peaks
+  now share a row.
+- RAM free reads right again (it still counted the old 96 KB since 0.3.13).
+
 ## 0.3.13
 
 Firmware identity FM-1_847. Lighter to run, the same sound.

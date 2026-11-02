@@ -16,8 +16,11 @@ Hold GLO and OCT+ together to open or close AUDIO LOAD. Playback continues.
 The chord consumes both button releases, so it does not change page or octave.
 Render now/avg/peak: time per 64-sample render quantum as percent of its
 1.451 ms audio budget; avg is smoothed over 32 quanta, peak since startup.
-Output IRQ peak: highest measured PCM output interrupt duration in us.
-Screen peak: highest elapsed redraw time in ms, including audio preemption.
+IRQ / screen: highest measured PCM output interrupt duration in us, and the
+highest elapsed redraw time in ms, including audio preemption.
+Split %: the render's parts as percent of the budget over the last quarter
+second (0.3.14): D the drum voices, A the 303, F the sequencer with its hits
+and the reverb and delay, M the master chain (glitches, filter, Glue, limiter).
 PCM ready: complete software blocks waiting (maximum 2).
 Empty buffer: software starvation events since startup.
 Late output: DMA half changed before output callback completed.
