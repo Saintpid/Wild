@@ -162,3 +162,10 @@
   nfm_sat_tick inline in nfm.h. Host heavy patch -17 %; output within -80 dBFS (rounding through
   high-Q resonators and the crusher), rest bit-exact.
 - Device gain unknown until measured: compare Audio Load (GLO + OCT+) with 0.3.12 on the same patch.
+
+## 0.3.14 / 848 - Audio Load's split
+- On the device 0.3.13 still dropped out on a full-on patch: Render avg 96 %, peak 149 %, 263 empty
+  buffers. To see where the time goes on the chip itself: ne_set_clock(fm1_ticks) and ne_take_split
+  (drums = nfm_render_bus' voice loop, 303 = acid_render, FX = nseq_render minus those, master = the
+  rest of ne_render), shown as "Split %" on the diagnostics page (0.25 s windows). NULL clock on host.
+- ram_total 88K (0.3.13's app.ld). No sound change.

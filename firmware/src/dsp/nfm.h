@@ -259,6 +259,9 @@ typedef struct {
 /* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
  * NFM_MOD_LEN]); without them those two are not played. */
 void nfm_set_mod_lines(nfm_engine *e, int16_t *lines);
+/* Audio Load's split (the device's diagnostics): a tick counter, and the ticks the voices took */
+extern uint32_t (*nfm_clock)(void);
+extern uint32_t nfm_voice_ticks;
 /* after ins_g / ins_k (or their rest's) change: the insert filter's sums and reciprocal */
 void nfm_ins_set(nfm_engine *e);
 

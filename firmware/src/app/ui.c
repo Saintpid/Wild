@@ -1619,6 +1619,28 @@ static void diagnostic_row(int row, const char *label, uint32_t value, const cha
     cv_text(235 - text_w(&FONT_S, text), 1, &FONT_S, text, K_TEXT);
     cv_blit(0, 26 + row * 20);
 }
+/* t[w..]: a number (or none: v < 0), then a text; the new length */
+static int diag_put(char *t, int w, int32_t v, const char *text)
+{
+    char n[12];
+    int i;
+    if (v >= 0) {
+        itoa_u((uint32_t)v, n);
+        for (i = 0; n[i] && w < 38; i++)
+            t[w++] = n[i];
+    }
+    while (*text && w < 38)
+        t[w++] = *text++;
+    t[w] = 0;
+    return w;
+}
+static void diagnostic_text(int row, const char *label, const char *text)
+{
+    cv_begin(240, 20, K_BG);
+    cv_text(5, 1, &FONT_S, label, K_TEXT);
+    cv_text(235 - text_w(&FONT_S, text), 1, &FONT_S, text, K_TEXT);
+    cv_blit(0, 26 + row * 20);
+}
 static void draw_diagnostics(void)
 {
     plat_audio_diag d;
@@ -1631,8 +1653,22 @@ static void draw_diagnostics(void)
     diagnostic_row(0, "Render now", d.render_now, "%");
     diagnostic_row(1, "Render avg", d.render_avg, "%");
     diagnostic_row(2, "Render peak", d.render_peak, "%");
-    diagnostic_row(3, "Output IRQ peak", d.irq_peak_us, " us");
-    diagnostic_row(4, "Screen peak", d.ui_peak_us / 1000u, " ms");
+    {   /* the output's and the screen's peaks on one row; the render's split (% of the budget, since
+         * the last read: the drum voices, the 303, the sequencer with the hits and the reverb and delay,
+         * the master's chain) on the next */
+        static const char *const part[] = {"D ", "  A ", "  F ", "  M "};
+        char t[40];
+        int w = 0, i;
+        w = diag_put(t, w, (int32_t)d.irq_peak_us, " us  ");
+        diag_put(t, w, (int32_t)(d.ui_peak_us / 1000u), " ms");
+        diagnostic_text(3, "IRQ / screen", t);
+        w = 0;
+        for (i = 0; i < 4; i++) {
+            w = diag_put(t, w, -1, part[i]);
+            w = diag_put(t, w, (int32_t)d.split[i], "");
+        }
+        diagnostic_text(4, "Split %", t);
+    }
     diagnostic_row(5, "PCM ready", d.ready, "/2 blocks");
     diagnostic_row(6, "Empty buffer", d.underruns, "");
     diagnostic_row(7, "Late output", d.late, "");

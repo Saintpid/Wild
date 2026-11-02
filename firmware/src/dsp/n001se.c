@@ -984,13 +984,16 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
+static uint32_t sp_acid, sp_seq, sp_all, sp_frames;   /* Audio Load's split (ne_take_split) */
 NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
+    uint32_t t0 = nfm_clock ? nfm_clock() : 0u;
     (void)ctx;
     if (acid.still && fm.dir_l)                  /* Drift at Bypass: the direct bus (this chunk's) */
         nacid_render(&acid, &fm, fm.dir_l, fm.dir_r, rev, dly, n);
     else
         nacid_render(&acid, &fm, l, r, rev, dly, n);
+    if (nfm_clock) sp_acid += nfm_clock() - t0;
 }
 
 static void new_sound(int t, int kind)
@@ -1237,6 +1240,7 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     float pk = 0.0f;
     uint32_t j;
     int t, v;
+    uint32_t t_all = nfm_clock ? nfm_clock() : 0u, t_seq, n0 = n;
     if (hold) {
         for (j = 0; j < 2u * n; j++)
             out[j] = 0;
@@ -1263,7 +1267,9 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         gx_clock = seq.now;
         fm.dir_l = dir ? dl : 0;
         fm.dir_r = dir ? dr : 0;
+        t_seq = nfm_clock ? nfm_clock() : 0u;
         nseq_render(&seq, l, r, (int)k);
+        if (nfm_clock) sp_seq += nfm_clock() - t_seq;
         fm.dir_l = fm.dir_r = 0;
         for (j = 0; j < k; j++) {
             float a = l[j], b = r[j], g, m;
@@ -1350,9 +1356,31 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     }
     ne_acid_level = acid.peak * 1.5f;
     if (ne_acid_level > mixer_peaks[NE_ACID]) mixer_peaks[NE_ACID] = ne_acid_level;
+    if (nfm_clock) {
+        sp_all += nfm_clock() - t_all;
+        sp_frames += n0;
+    }
 }
 
 int ne_render_available(void) { return !hold; }
+
+void ne_set_clock(uint32_t (*ticks)(void)) { nfm_clock = ticks; }
+
+uint32_t ne_take_split(uint32_t ticks[NE_SPLITS])
+{
+    uint32_t f, v = nfm_voice_ticks;
+    hold = 1;
+    __asm__ volatile("" ::: "memory");
+    ticks[NE_SPLIT_DRUMS] = v;
+    ticks[NE_SPLIT_ACID] = sp_acid;
+    ticks[NE_SPLIT_FX] = sp_seq - v - sp_acid;   /* the sequencer, the hits, the reverb and delay */
+    ticks[NE_SPLIT_MASTER] = sp_all - sp_seq;    /* glitches, master filter, Glue, limiter */
+    f = sp_frames;
+    nfm_voice_ticks = sp_acid = sp_seq = sp_all = sp_frames = 0u;
+    __asm__ volatile("" ::: "memory");
+    hold = 0;
+    return f;
+}
 
 void ne_take_peaks(float out[NE_TRACKS + 1])
 {

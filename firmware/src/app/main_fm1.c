@@ -32,6 +32,8 @@ struct om_dbg {
 } om_dbg __attribute__((section(".noinit")));
 static uint8_t safe_mode;                           /* two failed boots: no audio, USB on (safe_main) */
 
+static uint32_t split_ticks(void) { return fm1_ticks(); }   /* Audio Load's split (ne_take_split) */
+
 static void render_block(int32_t *o)                /* ALNK0: one half, measured */
 {
     uint32_t t0 = fm1_ticks(), us, budget = HALF_FRAMES * 1000000u / FS;
@@ -327,6 +329,7 @@ static void fm1_main(void)
     panel_init();
     led_pos_init();
     ne_init();
+    ne_set_clock(split_ticks);
     project_load();                                 /* defaults when nothing (or another format) is saved */
     project_apply();
     usb_start();
@@ -472,7 +475,15 @@ void plat_audio_diag_read(plat_audio_diag *d)
     d->underruns = wild_audio.underruns; d->late = om_dbg.late;
     d->recoveries = wild_audio.recoveries; d->render_blocks = render_blocks;
     d->ram_used = (uint32_t)((uintptr_t)_bss_end - (uintptr_t)_data_start);
-    d->ram_total = 98304u;
+    d->ram_total = 88u * 1024u;                     /* app.ld's RAM (the DSP's code has its own) */
+    {
+        uint32_t t[NE_SPLITS], f = ne_take_split(t), i;
+        uint32_t budget = f / 441u * 10000u + f % 441u * 10000u / 441u;   /* us the frames allow (no 64-bit divide) */
+        for (i = 0; i < NE_SPLITS; ++i) {
+            uint32_t us = t[i] / FM1_TICKS_PER_US;
+            d->split[i] = budget && us < 40000000u ? us * 100u / budget : 0u;   /* (the first read after long: 0) */
+        }
+    }
     d->pool_used = (uint32_t)((uintptr_t)_pool_end - (uintptr_t)_pool_start);
     d->pool_total = 344064u; d->hardware = 1;
     irq_restore(flags);
