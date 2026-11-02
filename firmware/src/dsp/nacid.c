@@ -50,6 +50,9 @@ NFM_CODE static inline float blep(float t, float dt)
     return 0.0f;
 }
 
+/* the oscillator's step at 2x, worked out when the pitch or its drift moves (not a divide a sample) */
+NFM_CODE static inline void pitch_step(nacid *a) { a->dh = 0.5f * a->freq * a->wmul / a->sr; }
+
 NFM_CODE static inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
 NFM_CODE static inline float clamp1(float x) { return x < 0.0f ? 0.0f : x > 0.97f ? 0.97f : x; }
 
@@ -89,6 +92,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->dsm = 1.0f - exp2f_(-32.0f * 1.4427f / (0.02f * sr)); /* Deviance's offsets glide: 20 ms */
     a->wander = 1.0f;
     a->wmul = 1.0f;
+    pitch_step(a);
     a->wrng = a->rng ^ 0x51ed270bu;
     nacid_generate(a);
 }
@@ -393,6 +397,7 @@ NFM_CODE void nacid_apply_event(nacid *a, const nacid_event *event)
     if (!legato) {
         a->cv = a->cv_to;
         a->freq = 65.406f * exp2f_(a->cv * (1.0f / 12.0f));
+        pitch_step(a);
         a->env = 1.0f;
         a->accent = a->acc_gate;                  /* (the cutoff envelope's decay: short on an accent) */
         a->attack = 1;
@@ -656,6 +661,7 @@ NFM_CODE static void control(nacid *a)
             a->wd[i] += (a->wd_c[i] - a->wd[i]) * wg;
         }
         a->wmul = exp2f_(a->wd[0] * a->wander * (1.0f / 12.0f));
+        pitch_step(a);
     }
     float base = 30.0f * exp2f_(cut * 7.6f);                           /* 30 Hz .. 5.8 kHz */
     /* Env Mod as a 303's: the more of it, the lower the sweep starts (1.5 octaves at full), its top
@@ -795,8 +801,9 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             float d = a->cv_to - a->cv;
             a->cv = d < 0.0005f && d > -0.0005f ? a->cv_to : a->cv + d * a->glide;
             a->freq = 65.406f * exp2f_(a->cv * (1.0f / 12.0f));
+            pitch_step(a);
         }
-        float dh = 0.5f * a->freq * a->wmul / a->sr, t0 = a->phase + dh, t = t0 + dh;   /* (dh: a step at 2x) */
+        float dh = a->dh, t0 = a->phase + dh, t = t0 + dh;   /* (dh: a step at 2x) */
         if (t0 >= 1.0f) t0 -= 1.0f;
         if (t >= 1.0f) t -= 1.0f;
         a->phase = t;
@@ -845,8 +852,8 @@ NFM_CODE void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *o
             if (a->ctl == 0) nfm_sat_control(&a->sat);
         }
         if (a->ins_f > 0.001f) {
-            float gg = a->still ? e->ins_g0 : e->ins_g, k = a->still ? e->ins_k0 : e->ins_k;
-            float hp = (o - (k + gg) * a->is1 - a->is2) / (1.0f + gg * (gg + k));
+            float gg = a->still ? e->ins_g0 : e->ins_g;
+            float hp = (o - (a->still ? e->ins_kg0 : e->ins_kg) * a->is1 - a->is2) * (a->still ? e->ins_h0 : e->ins_h);
             float bp = gg * hp + a->is1;
             a->is1 = gg * hp + bp;
             float lp = gg * bp + a->is2;

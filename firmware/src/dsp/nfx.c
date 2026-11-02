@@ -204,6 +204,7 @@ NFM_CODE static void update(nfx *fx, nfm_engine *e, int n)
     e->ins_g0 = tan_pi(fc / sr);
     e->ins_k0 = 2.0f - 1.85f * m[NFX_M_RESO].base;
     e->ins_morph0 = m[NFX_M_MORPH].base;
+    nfm_ins_set(e);
 
     /* Delay: tempo-synced; SPACE glides the time from one station to the next like an analog delay,
      * so the repeats bend in pitch on the way (smoothly at both ends). The render loop follows the

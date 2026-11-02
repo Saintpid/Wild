@@ -171,7 +171,20 @@ NFM_CODE static inline float sat_adaa(float u0, float u1)
 }
 
 void nfm_sat_set(nfm_sat *s, float amount);
-float nfm_sat_tick(nfm_sat *s, float x);
+/* (here, inline: it runs a sample per voice, the 303 and the Glue's two sides, a call each from
+ * other units) */
+NFM_CODE static inline float nfm_sat_tick(nfm_sat *s, float x)
+{
+    float u = x * s->pre + s->bias;
+    float y = (sat_adaa(s->u1, u) - s->off) * s->comp;
+    s->u1 = u;
+    s->dc += 0.0015f * (y - s->dc);
+    y -= s->dc;
+    s->ein += 0.004f * (x * x - s->ein);
+    s->eout += 0.004f * (y * y - s->eout);
+    s->gain += (s->adapt - s->gain) * 0.003f;   /* glided (~8 ms): a gain set in steps rang like aliasing */
+    return y * s->gain;
+}
 void nfm_sat_control(nfm_sat *s);   /* every few samples: the loudness match */
 
 typedef struct {
@@ -186,6 +199,7 @@ typedef struct {
     float f0, pitch_env, pitch_k, pitch_depth, sweep_mods;
     float att, att_inc;
     float noise, noise_k, ns1, ns2, ng, nk, nband, noise_fm;
+    float nkg, nh;            /* the noise filter's k + g and 1 / (1 + g (g + k)), per hit */
     uint8_t bursts;           /* a clap: bursts still to come, each clap_gap apart, then the tail */
     uint16_t clap_t, clap_gap;
     float clap_amp, clap_k;
@@ -193,6 +207,7 @@ typedef struct {
     float fade, fade_k;
     /* resonator: TPT state variable bandpass per mode */
     float rg[NFM_MODES], rk[NFM_MODES], ramp[NFM_MODES];
+    float rkg[NFM_MODES], rh[NFM_MODES];   /* k + g, 1 / (1 + g (g + k)): no divide a sample */
     float rs1[NFM_MODES], rs2[NFM_MODES];
     float res_mix;
     float gain_l, gain_r;
@@ -218,6 +233,7 @@ typedef struct {
      * filter coefficient g, damping k, lowpass->bandpass morph. */
     float ins_g, ins_k, ins_morph;
     float ins_g0, ins_k0, ins_morph0;   /* ...and the same at rest, for the slots in direct */
+    float ins_kg, ins_h, ins_kg0, ins_h0;   /* k + g and 1 / (1 + g (g + k)) of both (nfm_ins_set) */
     /* The DIRECT bus: the slots whose bits are set here play into dir_l / dir_r (n frames from there,
      * overwritten like out_l) instead of the main bus, their insert filter at rest; their sends as
      * ever. NULL: everything on the main bus. */
@@ -233,6 +249,8 @@ typedef struct {
 /* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
  * NFM_MOD_LEN]); without them those two are not played. */
 void nfm_set_mod_lines(nfm_engine *e, int16_t *lines);
+/* after ins_g / ins_k (or their rest's) change: the insert filter's sums and reciprocal */
+void nfm_ins_set(nfm_engine *e);
 
 enum { NFM_INS_FILTER = 1, NFM_INS_DRIVE = 2 };
 
