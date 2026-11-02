@@ -5,6 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.16
+
+Firmware identity FM-1_850. The drums and the 303 a little lighter to run, the same sound.
+
+- **An operator that is off or has died away is no longer worked out:** a sound with operators at
+  level 0 skips them entirely, and in a hit's tail the ones that have decayed below -120 dB stop
+  costing time. What you hear is the same (any difference stays below -80 dBFS).
+- The drum effects (phaser, flanger, chorus, ring, tremolo) run over a voice's whole block at once,
+  and the resonator and the 303's halfband filter skip steps that changed nothing. Bit for bit the
+  same sound.
+
 ## 0.3.15
 
 Firmware identity FM-1_849. Fewer dropouts when everything plays at once.

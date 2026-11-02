@@ -641,6 +641,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
         float ls = log2_approx(spread);
         /* Modes at 1, s, s^1.75, s^2.4: drum-skin-like, never harmonic. */
         float ratio[NFM_MODES] = { 1.0f, spread, exp2_approx(1.75f * ls), exp2_approx(2.4f * ls) };
+        v->modes = 0;
         for (int m = 0; m < NFM_MODES; ++m) {
             float fm = f * ratio[m];
             v->rs1[m] = v->rs2[m] = 0.0f;
@@ -658,6 +659,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
             float k = v->rk[m], sk = k;
             for (int it = 0; it < 6; ++it) sk = 0.5f * (sk + k / sk);
             v->ramp[m] = mode_amp[m] * sk * 1.5f;
+            v->modes = (uint8_t)(m + 1);
         }
     }
     v->res_mix = val[NFM_RES_MIX];
@@ -799,48 +801,75 @@ NFM_CODE NFM_HOT static inline float mod_match(nfm_mod_state *s, float x, float 
     return y * s->g;
 }
 
+NFM_CODE NFM_HOT static inline float mod_phaser(const nfm_mod *m, nfm_mod_state *s, float x, int i)
+{
+    /* four first-order allpasses with feedback, mixed with the dry: notches */
+    float a = m->a0 + m->da * (float)i, y = x + s->fb * (0.2f + 0.5f * m->amount);
+    for (int k = 0; k < 4; ++k) {
+        float o = a * y + s->x1[k] - a * s->y1[k];
+        s->x1[k] = y;
+        s->y1[k] = o;
+        y = o;
+    }
+    s->fb = y;
+    return mod_match(s, x, x + (y - x) * (0.35f + 0.15f * m->amount), i);
+}
+
+NFM_CODE NFM_HOT static inline float mod_line(const nfm_mod *m, nfm_mod_state *s, float x, int i)
+{
+    float d = m->d0 + m->dd * (float)i;
+    int di = (int)d;
+    float t = d - (float)di;
+    uint16_t w = s->w;
+    float a = (float)s->line[(w - di) & (NFM_MOD_LEN - 1)], b = (float)s->line[(w - di - 1) & (NFM_MOD_LEN - 1)];
+    float del = (a + (b - a) * t) * (1.0f / 8192.0f), in, y;
+    if (m->type == NFM_MOD_FLANGER) {
+        in = x + del * (0.3f + 0.55f * m->amount);
+        y = (x + del) * 0.6f;
+    } else {
+        float wet = 0.35f + 0.45f * m->amount;
+        in = x;
+        y = (x + del * wet) * (1.0f / (1.0f + 0.5f * wet));
+    }
+    in *= 8192.0f;
+    s->line[w & (NFM_MOD_LEN - 1)] = (int16_t)(in > 32767.0f ? 32767.0f : in < -32768.0f ? -32768.0f : in);
+    s->w = (uint16_t)(w + 1u);
+    return mod_match(s, x, y, i);
+}
+
+NFM_CODE NFM_HOT static inline float mod_ring(const nfm_mod *m, nfm_mod_state *s, float x, int i)
+{
+    return mod_match(s, x, x + (x * sin_cyc(m->car + m->c_inc * (float)i) - x) * (0.3f + 0.7f * m->amount), i);
+}
+
+NFM_CODE NFM_HOT static inline float mod_trem(const nfm_mod *m, float x, int i)
+{
+    /* its average loudness made up, nearly */
+    return x * (1.0f - m->amount * (m->l0 + m->dl * (float)i)) * (1.0f + 0.5f * m->amount);
+}
+
 NFM_CODE NFM_HOT float nfm_mod_tick(const nfm_mod *m, nfm_mod_state *s, float x, int i)
 {
-    float fi = (float)i;
     switch (m->type) {
-    case NFM_MOD_PHASER: {       /* four first-order allpasses with feedback, mixed with the dry: notches */
-        float a = m->a0 + m->da * fi, y = x + s->fb * (0.2f + 0.5f * m->amount);
-        for (int k = 0; k < 4; ++k) {
-            float o = a * y + s->x1[k] - a * s->y1[k];
-            s->x1[k] = y;
-            s->y1[k] = o;
-            y = o;
-        }
-        s->fb = y;
-        return mod_match(s, x, x + (y - x) * (0.35f + 0.15f * m->amount), i);
-    }
-    case NFM_MOD_FLANGER: case NFM_MOD_CHORUS: {
-        if (!s->line) return x;
-        float d = m->d0 + m->dd * fi;
-        int di = (int)d;
-        float t = d - (float)di;
-        uint16_t w = s->w;
-        float a = (float)s->line[(w - di) & (NFM_MOD_LEN - 1)], b = (float)s->line[(w - di - 1) & (NFM_MOD_LEN - 1)];
-        float del = (a + (b - a) * t) * (1.0f / 8192.0f), in, y;
-        if (m->type == NFM_MOD_FLANGER) {
-            in = x + del * (0.3f + 0.55f * m->amount);
-            y = (x + del) * 0.6f;
-        } else {
-            float wet = 0.35f + 0.45f * m->amount;
-            in = x;
-            y = (x + del * wet) / (1.0f + 0.5f * wet);
-        }
-        in *= 8192.0f;
-        s->line[w & (NFM_MOD_LEN - 1)] = (int16_t)(in > 32767.0f ? 32767.0f : in < -32768.0f ? -32768.0f : in);
-        s->w = (uint16_t)(w + 1u);
-        return mod_match(s, x, y, i);
-    }
-    case NFM_MOD_RING:
-        return mod_match(s, x, x + (x * sin_cyc(m->car + m->c_inc * fi) - x) * (0.3f + 0.7f * m->amount), i);
-    case NFM_MOD_TREMOLO:      /* its average loudness made up, nearly */
-        return x * (1.0f - m->amount * (m->l0 + m->dl * fi)) * (1.0f + 0.5f * m->amount);
+    case NFM_MOD_PHASER: return mod_phaser(m, s, x, i);
+    case NFM_MOD_FLANGER: case NFM_MOD_CHORUS: return s->line ? mod_line(m, s, x, i) : x;
+    case NFM_MOD_RING: return mod_ring(m, s, x, i);
+    case NFM_MOD_TREMOLO: return mod_trem(m, x, i);
     }
     return x;
+}
+
+/* the same over a run of a voice's frames, x[0] being frame i0 of the block: the choice made once */
+NFM_CODE NFM_HOT static void mod_run(const nfm_mod *m, nfm_mod_state *s, float *x, int i0, int n)
+{
+    switch (m->type) {
+    case NFM_MOD_PHASER: for (int j = 0; j < n; ++j) x[j] = mod_phaser(m, s, x[j], i0 + j); break;
+    case NFM_MOD_FLANGER: case NFM_MOD_CHORUS:
+        if (s->line) for (int j = 0; j < n; ++j) x[j] = mod_line(m, s, x[j], i0 + j);
+        break;
+    case NFM_MOD_RING: for (int j = 0; j < n; ++j) x[j] = mod_ring(m, s, x[j], i0 + j); break;
+    case NFM_MOD_TREMOLO: for (int j = 0; j < n; ++j) x[j] = mod_trem(m, x[j], i0 + j); break;
+    }
 }
 
 uint32_t (*nfm_clock)(void);
@@ -903,8 +932,10 @@ NFM_CODE NFM_HOT static void voice_control(nfm_engine *e, nfm_voice *v)
     if (v->ins & NFM_INS_DRIVE) nfm_sat_control(&v->sat);
 }
 
-/* One operator: sine of phase plus modulation, times its envelope. */
-#define OP(k, m) (sin_cyc(v->ph[k] + (m)) * v->env[k])
+#define NFM_GONE 1e-6f   /* -120 dB (as a modulator's index, -104): not worked out */
+
+/* One operator: sine of phase plus modulation, times its envelope (none when that is gone or off). */
+#define OP(k, m) (v->env[k] > NFM_GONE ? sin_cyc(v->ph[k] + (m)) * v->env[k] : 0.0f)
 
 NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *v, uint32_t *rng)
 {
@@ -932,10 +963,13 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
     float nfm = nz * v->noise_fm;
 
     /* Op 4 with averaged self feedback (DX style); in "ring" op 1 feeds it. */
-    float s4 = sin_cyc(v->ph[3] + (v->algo == 5 ? v->feedback * v->ring : v->feedback * (v->fb1 + v->fb2)));
-    v->fb2 = v->fb1;
-    v->fb1 = s4;
-    float o4 = s4 * v->env[3], o3, o2, o1, out;
+    float o4 = 0.0f, o3, o2, o1, out;
+    if (v->env[3] > NFM_GONE) {
+        float s4 = sin_cyc(v->ph[3] + (v->algo == 5 ? v->feedback * v->ring : v->feedback * (v->fb1 + v->fb2)));
+        v->fb2 = v->fb1;
+        v->fb1 = s4;
+        o4 = s4 * v->env[3];
+    }
     switch (v->algo) {
     default: /* stack */
     case 0: o3 = OP(2, o4); o2 = OP(1, o3); o1 = OP(0, o2 + nfm); out = o1; break;
@@ -983,8 +1017,7 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
     /* Resonator: bandpass modes excited by the voice (TPT SVF). */
     if (v->res_mix > 0.001f) {
         float r = 0.0f;
-        for (int m = 0; m < NFM_MODES; ++m) {
-            if (v->ramp[m] == 0.0f) continue;
+        for (int m = 0; m < v->modes; ++m) {   /* (one off among them adds nothing: g 0, k + g 1, h 1) */
             float g = v->rg[m];
             float hp = (x - v->rkg[m] * v->rs1[m] - v->rs2[m]) * v->rh[m];
             float bp = g * hp + v->rs1[m];
@@ -1040,26 +1073,38 @@ NFM_CODE NFM_HOT void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, 
     }
     uint32_t t0 = nfm_clock ? nfm_clock() : 0u;
     for (int si = 0; si < NFM_SLOTS; ++si) nfm_mod_block(&e->mod[si], e->sr, n);
+    /* a voice's frames first, then its effect over them, then into the buses: each loop simple */
+    NFM_DATA static float vb[64];
     for (int vi = 0; vi < NFM_VOICES; ++vi) {
         nfm_voice *v = &e->voice[vi];
+        int slot = v->slot;
+        if (slot < 0) continue;
         float *ol = out_l, *or_ = out_r;
-        if (dl && v->slot >= 0 && e->direct >> v->slot & 1) {
+        if (dl && e->direct >> slot & 1) {
             ol = dl;
             or_ = dr;
         }
-        for (int i = 0; i < n && v->slot >= 0; ++i) {
-            if (v->ctl == 0) {
-                voice_control(e, v);
-                if (v->slot < 0) break;
+        float gl = v->gain_l, gr = v->gain_r, gs = gl + gr, sr_ = v->send_rev, sd = v->send_dly;
+        for (int i0 = 0; i0 < n && v->slot >= 0; i0 += 64) {
+            int c = n - i0 < 64 ? n - i0 : 64, m = 0;
+            for (; m < c; ++m) {
+                if (v->ctl == 0) {
+                    voice_control(e, v);
+                    if (v->slot < 0) break;
+                }
+                --v->ctl;
+                vb[m] = voice_tick(e, v, &e->rng);
             }
-            --v->ctl;
-            float x = voice_tick(e, v, &e->rng);
-            if (v->mod_on) x = nfm_mod_tick(&e->mod[v->slot], &v->ms, x, i);
-            ol[i] += x * v->gain_l;
-            or_[i] += x * v->gain_r;
-            float mono = x * (v->gain_l + v->gain_r) * 0.5f;
-            if (rev && v->send_rev > 0.0f) rev[i] += mono * v->send_rev;
-            if (dly && v->send_dly > 0.0f) dly[i] += mono * v->send_dly;
+            if (v->mod_on) mod_run(&e->mod[slot], &v->ms, vb, i0, m);
+            float *pl = ol + i0, *pr = or_ + i0;
+            for (int i = 0; i < m; ++i) {
+                pl[i] += vb[i] * gl;
+                pr[i] += vb[i] * gr;
+            }
+            if (rev && sr_ > 0.0f)
+                for (int i = 0; i < m; ++i) rev[i0 + i] += vb[i] * gs * 0.5f * sr_;
+            if (dly && sd > 0.0f)
+                for (int i = 0; i < m; ++i) dly[i0 + i] += vb[i] * gs * 0.5f * sd;
         }
     }
     if (nfm_clock) nfm_voice_ticks += nfm_clock() - t0;

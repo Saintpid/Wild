@@ -219,6 +219,7 @@ typedef struct {
     float rg[NFM_MODES], rk[NFM_MODES], ramp[NFM_MODES];
     float rkg[NFM_MODES], rh[NFM_MODES];   /* k + g, 1 / (1 + g (g + k)): no divide a sample */
     float rs1[NFM_MODES], rs2[NFM_MODES];
+    uint8_t modes;            /* the modes worked out: up to the last one on */
     float res_mix;
     float gain_l, gain_r;
     float peak;
