@@ -5,6 +5,22 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.28
+
+Firmware identity FM-1_862. Songs keep their banks; clear all for a clean start.
+
+- **A preset is a song:** saving one saves all its banks and their automation, and loading it brings
+  exactly those banks and starts on bank 1. Another song's banks never come along any more.
+- **Room:** a song's own slot holds banks 1 and 2. Each further two banks, and the automation, take
+  one more slot, from the top of the list down (064, 063 ...). The list shows those as "in 001", and
+  the song's own slot as "used +3". A song with all 12 banks and automation takes 7 slots. If there is
+  no room left, the save says so and nothing is saved.
+- Presets saved before load as songs of one bank.
+- **Clear all, GLO + HOME:** asks "CLEAR ALL?", and GLO + HOME again says yes (SAVE or a key keeps everything).
+  Every bank is emptied and all automation erased, and bank 1 starts from the defaults: a clean
+  starting point. Your saved songs are not touched.
+- **GLO + REC:** erases the selected track's automation in the bank playing, at once.
+
 ## 0.3.27
 
 Firmware identity FM-1_861. SEL alone takes you home to bank 1.

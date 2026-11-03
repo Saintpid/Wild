@@ -229,6 +229,30 @@ static int st_preset_save(uint32_t n, const void *src, uint32_t len)
 {
     return n < ST_PRESETS ? st_slot_save(ST_PRESET_BASE + n * ST_SECTOR, 0x100u + n, src, len) : -1;
 }
+/* a song's parts (Wild): in preset slots no preset holds, type 0x300 + its song's slot * 8 + the part
+ * (0-4: two more banks each, 5: the automation) */
+#define ST_PART(song, part) (0x300u + (song) * 8u + (part))
+static int st_part_of(uint32_t n)               /* song * 8 + part, < 0: not a part */
+{
+    st_hdr_t h;
+    uint32_t off = ST_PRESET_BASE + n * ST_SECTOR;
+    if (n >= ST_PRESETS || st_read(off, &h, sizeof h) || h.magic != ST_MAGIC || h.type < ST_PART(0, 0) ||
+        h.type >= ST_PART(ST_PRESETS, 0) || h.len > ST_PAYLOAD_MAX || h.hcrc != st_crc32(&h, sizeof h - 4u))
+        return -1;
+    return (int)(h.type - ST_PART(0, 0));
+}
+static int st_part_load(uint32_t n, uint32_t code, void *dst, uint32_t max)
+{
+    return n < ST_PRESETS ? st_slot_load(ST_PRESET_BASE + n * ST_SECTOR, ST_PART(0, 0) + code, dst, max) : -1;
+}
+static int st_part_save(uint32_t n, uint32_t code, const void *src, uint32_t len)
+{
+    return n < ST_PRESETS ? st_slot_save(ST_PRESET_BASE + n * ST_SECTOR, ST_PART(0, 0) + code, src, len) : -1;
+}
+static int st_part_free(uint32_t n)             /* (erased: no longer anything) */
+{
+    return n < ST_PRESETS ? st_erase(ST_PRESET_BASE + n * ST_SECTOR) : -1;
+}
 static int st_bank_load(uint32_t n, void *dst, uint32_t max)
 {
     return n < ST_BANK_SECTORS ? st_slot_load(st_bank_off(n), 0x200u + n, dst, max) : -1;

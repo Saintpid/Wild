@@ -24,6 +24,8 @@
  *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
+ *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation; saved songs stay
+ *   GLO + REC      the selected track's automation erased
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
  *   Program Change n    loads preset n + 1
@@ -115,6 +117,7 @@ static struct {
     uint32_t sig[3];
     uint32_t save_t;                   /* when SAVE went down (held: reset to the defaults?) */
     uint32_t reset_ask;                /* until when "RESET?" waits for SAVE (0: not asking) */
+    uint8_t reset_all;                 /* ...asked as "CLEAR ALL?" (GLO + HOME): every bank, all automation */
     int8_t held_step;                  /* a step key held (its step), -1 none */
     uint8_t held_was_on, held_edited;
     uint8_t held_vel;                  /* ...its velocity and note as edited (the engine's lag a block) */
@@ -129,6 +132,8 @@ static struct {
     int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
     uint32_t beat_t;                   /* ...when it came */
     uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
+    int8_t part_of[PLAT_PRESETS];      /* ...and the song whose part a slot holds (-1: none) */
+    uint8_t parts[PLAT_PRESETS];       /* ...and how many a song has */
     float meter[UI_TRACKS];
     int8_t batt;                       /* the battery's % in the header (batt_shown), -1 none, 101 USB power */
 } ui;
@@ -384,6 +389,7 @@ static void rec_press(void);
 static void auto_finish_all(void);
 static void auto_erase_bank(int b);
 static void auto_new_pattern(int t);
+static void auto_rec_track(void);
 /* a knob turned: its change, and its name and value big over the tracks a moment (REC held: its
  * automation erased instead) */
 static void turn(int role, int k, int32_t e)
@@ -865,7 +871,7 @@ static void black_down(int b)
 
 /* ------------------------------------------------------------ presets --- */
 /* SAVE or ARP opens the list on the last slot used; the same key again saves / loads the slot on it,
- * any other button closes it. A save erases a flash sector: the sound stops a moment. */
+ * any other button closes it. A save erases a flash sector for each slot of the song: the sound stops a moment. */
 static int slot_used(int n) { return (int)(ui.used[n >> 5] >> (n & 31) & 1u); }
 static void slot_name(int n, char *b)               /* "005" */
 {
@@ -880,6 +886,13 @@ static void list_open(int which)
     for (n = 0; n < PLAT_PRESETS; n++) {
         uint32_t m = 1u << (n & 31);
         ui.used[n >> 5] = plat_preset_used(n) ? ui.used[n >> 5] | m : ui.used[n >> 5] & ~m;
+        ui.parts[n] = 0;
+    }
+    for (n = 0; n < PLAT_PRESETS; n++) {
+        int c = plat_part_of(n);
+        ui.part_of[n] = (int8_t)(c < 0 ? -1 : c / 8);
+        if (c >= 0)
+            ui.parts[c / 8]++;
     }
     ui.list = (uint8_t)which;
     ui.list_slot = proj.preset < PLAT_PRESETS ? proj.preset : 0;
@@ -898,11 +911,14 @@ static int preset_load(int n)
         say("PRESET", "EMPTY");
         return -1;
     }
-    undo_mark(0);
+    auto_finish_all();                               /* (a recording ends with its song) */
     if (project_preset_load(n) != 0) {
         say("PRESET", "EMPTY");
         return -1;
     }
+    undo_c = undo_n = 0;                             /* (undo stays in its song: another's banks are gone) */
+    undo_key = 0;
+    ui.held_step = -1;
     ui.bar_lock = 0;
     sel_forget();
     if (ui.view_bar >= track_bars(ui.track))
@@ -917,9 +933,16 @@ static void list_go(void)
     int n = ui.list_slot;
     slot_name(n, b);
     if (ui.list == L_SAVE) {
-        if (project_preset_save(n) == 0) {
+        int rc;
+        auto_finish_all();
+        rc = project_preset_save(n);
+        if (rc == 0) {
             mark_dirty();
             say("SAVED", b);
+        } else if (rc == -2) {
+            say("SLOT TAKEN", "BY A SONG");
+        } else if (rc == -3) {
+            say("SAVE: NO ROOM", "FOR ITS BANKS");
         } else {
             say("SAVE", "FAILED");
         }
@@ -955,11 +978,28 @@ static void reset_defaults(void)
     mark_dirty();
     say("RESET", "TO DEFAULTS");
 }
+/* CLEAR ALL (GLO + HOME, and again to say yes): a clean start. Every bank empty, all automation gone, bank 1 as reset; the saved songs stay */
+static void clear_all(void)
+{
+    auto_finish_all();
+    memset(proj_auto, 0, sizeof proj_auto);
+    proj_auto_dirty = 1;
+    memset(proj_bank, 0, sizeof proj_bank);
+    proj_bank_dirty = (uint8_t)((1u << ((PROJ_BANKS + 1) / 2)) - 1u);
+    proj.bank = 0;
+    reset_defaults();
+    undo_c = undo_n = 0;                             /* (nothing to go back to: the banks are gone) */
+    undo_key = 0;
+    ui.held_step = -1;
+    ui.bar_lock = 0;
+    ui.view_bar = 0;
+    say("CLEARED", "ALL BANKS");
+}
 static void reset_ask(int on)
 {
     ui.reset_ask = on ? plat_ms() + RESET_ASK_MS : 0u;
     if (on) {
-        say("RESET?", "SAVE: YES");
+        say(ui.reset_all ? "CLEAR ALL?" : "RESET?", ui.reset_all ? "GLO+HOME: YES" : "SAVE: YES");
         ui.msg_until = ui.reset_ask;
     } else {
         say("KEPT", 0);
@@ -994,7 +1034,10 @@ static void button(int b)
     case B_SAVE:
         if (ui.reset_ask) {
             ui.reset_ask = 0;
-            reset_defaults();
+            if (ui.reset_all)
+                say("KEPT", 0);                      /* (clear all: GLO + HOME says yes) */
+            else
+                reset_defaults();
             break;
         }
         list_open(L_SAVE);
@@ -1131,6 +1174,19 @@ static void input(void)
             continue;
         if (btn & m) {
             ui.btn_used &= ~m;
+            if ((i == B_HOME || i == B_REC) && (btn >> B_GLO & 1u)) {
+                ui.btn_used |= m | 1u << B_GLO;     /* GLO + HOME: clear all (asked); GLO + REC: the track's automation */
+                if (i == B_HOME && ui.reset_ask && ui.reset_all) {
+                    ui.reset_ask = 0;                /* asked, and GLO + HOME again: yes */
+                    clear_all();
+                } else if (i == B_HOME) {
+                    ui.reset_all = 1;
+                    reset_ask(1);
+                } else {
+                    auto_rec_track();
+                }
+                continue;
+            }
             if (i == B_SAVE)
                 ui.save_t = plat_ms();
             if (i == B_PLAY)                         /* on the press: in time */
@@ -1158,6 +1214,7 @@ static void input(void)
     }
     if ((btn >> B_SAVE & 1u) && !(ui.btn_used >> B_SAVE & 1u) && !ui.reset_ask &&
         plat_ms() - ui.save_t >= SAVE_HOLD_MS) {
+        ui.reset_all = 0;
         reset_ask(1);                                /* SAVE held: ask (no save on release) */
         ui.btn_used |= 1u << B_SAVE;
     }
@@ -1381,6 +1438,18 @@ static void auto_new_pattern(int t)
             proj_auto_dirty = 1;
         }
     }
+}
+/* GLO + REC: the selected track's automation goes (in the bank playing; the global knobs' stays) */
+static void auto_rec_track(void)
+{
+    int i, had = 0;
+    for (i = 0; i < AUTO_LANES; i++)
+        had += proj_auto[i].bars && proj_auto[i].bank == proj.bank && (proj_auto[i].k & (KT | KA)) &&
+               (proj_auto[i].k & KA ? NE_ACID : proj_auto[i].track) == ui.track;
+    auto_finish_all();
+    auto_new_pattern(ui.track);
+    mark_dirty();
+    say(had ? "AUTOMATION" : "NO AUTOMATION", had ? "TRACK ERASED" : "ON THIS TRACK");
 }
 static void auto_erase_bank(int b)
 {
@@ -1791,7 +1860,17 @@ static void draw_list(void)
         if (!i)
             cv_round(4, y - 2, 232, 21, 5, K_PANEL);
         cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
-        cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+        if (used && ui.parts[n]) {                   /* a song: the slots it takes more */
+            char m[12] = "used +";
+            itoa_u(ui.parts[n], m + 6);
+            cv_text(64, y + 2, &FONT_XS, m, i ? K_DIM : K_ACC);
+        } else if (ui.part_of[n] >= 0) {             /* a part of a song */
+            char m[12] = "in ";
+            slot_name(ui.part_of[n], m + 3);
+            cv_text(64, y + 2, &FONT_XS, m, K_LINE);
+        } else {
+            cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+        }
         if (n == proj.preset)
             cv_round(222, y + 6, 6, 6, 3, K_DIM);
     }

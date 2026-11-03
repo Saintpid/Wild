@@ -77,6 +77,10 @@ int plat_store_save(uint32_t obj, const void *src, uint32_t len) { return flash_
 int plat_preset_load(int n, void *dst, uint32_t max) { return flash_ok ? st_preset_load((uint32_t)n, dst, max) : -1; }
 int plat_preset_save(int n, const void *src, uint32_t len) { return flash_ok ? st_preset_save((uint32_t)n, src, len) : -9; }
 int plat_preset_used(int n) { return flash_ok && st_preset_used((uint32_t)n); }
+int plat_part_of(int n) { return flash_ok ? st_part_of((uint32_t)n) : -1; }
+int plat_part_load(int n, int code, void *dst, uint32_t max) { return flash_ok ? st_part_load((uint32_t)n, (uint32_t)code, dst, max) : -1; }
+int plat_part_save(int n, int code, const void *src, uint32_t len) { return flash_ok ? st_part_save((uint32_t)n, (uint32_t)code, src, len) : -9; }
+int plat_part_free(int n) { return flash_ok ? st_part_free((uint32_t)n) : -9; }
 int plat_bank_load(int n, void *dst, uint32_t max) { return flash_ok ? st_bank_load((uint32_t)n, dst, max) : -1; }
 int plat_bank_save(int n, const void *src, uint32_t len) { return flash_ok ? st_bank_save((uint32_t)n, src, len) : -9; }
 

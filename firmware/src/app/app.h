@@ -71,8 +71,9 @@ extern uint8_t proj_auto_dirty;
 void project_defaults(void);
 int project_load(void);                  /* 0 = loaded; else defaults are in place */
 int project_save(void);                  /* 0 = saved and verified */
-int project_preset_save(int n);          /* the state now into preset slot n: 0 = saved */
+int project_preset_save(int n);          /* the song now, all banks, into slot n: 0 = saved, -2 a part, -3 no room */
 int project_preset_load(int n);          /* preset slot n becomes the project and plays: 0 = loaded */
+int project_slot_free(int n);            /* 1: slot n holds neither a song nor a part of one */
 void project_apply(void);                /* every value to the engine (boot, load) */
 
 void ui_init(void);

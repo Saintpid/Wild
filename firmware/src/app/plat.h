@@ -46,6 +46,12 @@ enum { OBJ_PROJ, OBJ_PANEL, OBJ_NOBJ };
 int plat_preset_load(int n, void *dst, uint32_t max);   /* bytes loaded, < 0 = empty / bad */
 int plat_preset_save(int n, const void *src, uint32_t len);   /* 0 = ok */
 int plat_preset_used(int n);                            /* 1 = holds a preset */
+/* a song's parts (Wild): preset slots that hold no preset hold the rest of a song's banks and its
+ * automation; code = the song's slot * 8 + the part */
+int plat_part_of(int n);                                /* the code, < 0: not a part */
+int plat_part_load(int n, int code, void *dst, uint32_t max);
+int plat_part_save(int n, int code, const void *src, uint32_t len);
+int plat_part_free(int n);                              /* 0 = ok */
 /* the banks (Wild): PLAT_BANK_SECTORS slots like the presets', two banks each (flash 0xD7000.., 0xDE000..);
  * the last one holds the automation */
 #define PLAT_BANK_SECTORS 7

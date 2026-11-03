@@ -140,6 +140,16 @@ int main(void)
         n = st_preset_load(5, got, sizeof got);
         bad += check("presets untouched by the banks", n == (int)sizeof a && !memcmp(got, a, sizeof a) && !st_preset_used(63));
     }
+    {   /* a song's parts: in preset slots, told apart from presets by their type */
+        bad += check("slot 62 no part", st_part_of(62) < 0);
+        bad += check("part 3 of song 5 into slot 62", st_part_save(62, 5 * 8 + 3, b, sizeof b) == 0);
+        bad += check("slot 62: song 5's part 3, not a preset", st_part_of(62) == 5 * 8 + 3 && !st_preset_used(62));
+        n = st_part_load(62, 5 * 8 + 3, got, sizeof got);
+        bad += check("the part loads B", n == (int)sizeof b && !memcmp(got, b, sizeof b));
+        bad += check("not as another song's part", st_part_load(62, 4 * 8 + 3, got, sizeof got) < 0);
+        bad += check("the preset in slot 5 is no part", st_part_of(5) < 0 && st_preset_used(5));
+        bad += check("a part freed: nothing", st_part_free(62) == 0 && st_part_of(62) < 0 && !st_preset_used(62));
+    }
     printf("%s\n", bad ? "STORAGE TEST FAILED" : "storage test passed");
     return bad != 0;
 }

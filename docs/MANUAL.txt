@@ -3,6 +3,8 @@ WILD 0.1.4: Fixed full-cycle encoder counting; slow turns do not relearn interme
 WILD 0.1.4 MIXER
 
 GLO + OCT-: open/close mixer; GLO + OCT+: open/close Audio Load.
+GLO + HOME: clear all. Asks "CLEAR ALL?"; GLO + HOME again within 5 s says yes (SAVE or a key keeps everything). Every bank is emptied and all automation erased, and bank 1 starts from the defaults (the MIDI channel is kept): a clean starting point. Your saved songs are not touched.
+GLO + REC: erases the selected track's automation in the bank playing, at once. The automation of the global knobs stays.
 Mixer faders: SELECT = channel 1, KNOB1 = 2, KNOB2 = 3,
 KNOB3 = 4, KNOB4 = 5 (303). Levels 0..100, saved with the project.
 Each channel has a relative signal peak meter and a 600 ms peak-hold line.
@@ -159,7 +161,7 @@ BLACK KEYS (11, from the left)
       (GLO held for these keeps its page: GLO is not pressed as a page button)
 
 UNDO/REDO:
-  Up to 6 steps back, within the bank playing. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes and preset loads. Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
+  Up to 6 steps back, within the bank playing. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes (loading a song starts undo afresh). Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
 
 ====================================================================
 
@@ -333,7 +335,9 @@ Load:
 
 Any other button closes the list without doing anything. Loading an empty slot keeps what you have.
 
-A preset saves everything: patterns, sounds, the acid line and all settings.
+A preset is a song: it saves everything, all its banks (patterns, sounds, the acid line and all settings of each) and their automation. Loading a song brings exactly its banks, never another song's, and starts on its bank 1.
+
+A song's own slot holds banks 1 and 2. More banks and the automation take more slots, from the top of the list down (064, 063 ...): one slot for each further two banks, one for the automation. On the list those read "in 001" (part of song 001), and the song's own slot "used +3" (three more slots). A part can't be saved over; a song with all 12 banks and automation takes 7 slots. If there is no room left the save says so and nothing is saved. Older presets load as songs of one bank.
 
 Note that saving mutes the sound for a moment, because the flash memory is being written.
 

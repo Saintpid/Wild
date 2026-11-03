@@ -25,7 +25,7 @@
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
- *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty;
+ *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty parts partofN;
  *                                 rec lanes lanebarsN autodirty)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
@@ -139,12 +139,13 @@ int plat_store_save(uint32_t obj, const void *src, uint32_t len)
 static uint8_t preset[PLAT_PRESETS][PLAT_STORE_MAX];
 static int preset_len[PLAT_PRESETS];
 static int preset_init;
+static int part_code[PLAT_PRESETS], part_len[PLAT_PRESETS];    /* a song's part in the slot (-1: none): the same sectors as the presets */
 static void presets_init(void)
 {
     int n;
     if (!preset_init)
         for (preset_init = 1, n = 0; n < PLAT_PRESETS; n++)
-            preset_len[n] = -1;
+            preset_len[n] = part_code[n] = -1;
 }
 int plat_preset_load(int n, void *dst, uint32_t max)
 {
@@ -164,6 +165,7 @@ int plat_preset_save(int n, const void *src, uint32_t len)
         return -1;
     memcpy(preset[n], src, len);
     preset_len[n] = (int)len;
+    part_code[n] = -1;
     store_writes++;
     return 0;
 }
@@ -171,6 +173,44 @@ int plat_preset_used(int n)
 {
     presets_init();
     return (unsigned)n < PLAT_PRESETS && preset_len[n] >= 0;
+}
+int plat_part_of(int n)
+{
+    presets_init();
+    return (unsigned)n < PLAT_PRESETS ? part_code[n] : -1;
+}
+int plat_part_load(int n, int code, void *dst, uint32_t max)
+{
+    if (plat_part_of(n) != code || code < 0)
+        return -1;
+    {
+        int l = part_len[n];
+        if ((uint32_t)l > max)
+            l = (int)max;
+        memcpy(dst, preset[n], (size_t)l);
+        return l;
+    }
+}
+int plat_part_save(int n, int code, const void *src, uint32_t len)
+{
+    presets_init();
+    if ((unsigned)n >= PLAT_PRESETS || len > PLAT_STORE_MAX || code < 0)
+        return -1;
+    memcpy(preset[n], src, len);
+    preset_len[n] = -1;
+    part_code[n] = code;
+    part_len[n] = (int)len;
+    store_writes++;
+    return 0;
+}
+int plat_part_free(int n)
+{
+    presets_init();
+    if ((unsigned)n >= PLAT_PRESETS)
+        return -1;
+    preset_len[n] = part_code[n] = -1;
+    store_writes++;
+    return 0;
 }
 
 /* the banks' sectors, the same way */
@@ -485,6 +525,13 @@ static int expect(const char *what, const char *val)
         int n;
         for (got = 0, n = 0; n < PROJ_BANKS; n++)
             got |= proj_bank_has(n) << n;
+    } else if (!strcmp(what, "parts")) {         /* the preset slots holding a song's part */
+        int n;
+        for (got = 0, n = 0; n < PLAT_PRESETS; n++)
+            got += plat_part_of(n) >= 0;
+    } else if (!strncmp(what, "partof", 6)) {    /* slot N: the song it is a part of (-1: none) */
+        int c = plat_part_of(atoi(what + 6));
+        got = c < 0 ? -1 : c / 8;
     } else if (!strcmp(what, "bankdirty"))       /* the bank sectors not saved yet (bits) */
         got = proj_bank_dirty;
     else if (!strcmp(what, "rec"))               /* REC on, and how many knobs it records now (x 10) */
