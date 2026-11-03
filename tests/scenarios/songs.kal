@@ -1,0 +1,104 @@
+# SONGS: a preset is a song, all its banks and their automation. Its own slot holds banks 1-2; the rest go
+# to slots no preset holds, from the top down ("in 001" on the list). A song loads in place of all the
+# banks, on its bank 1: another song's banks never come with it.
+wait 200
+tap FX
+spin K1 20
+expect tpar15 20
+# song 002: bank 1 alone
+tap SAVE
+tapkey w1
+tap SAVE
+expect preset 1
+expect parts 0
+# song 001: banks 1, 3 and 12 (reverb 10, 40, 70), automation in 12
+spin K1 -10
+expect tpar15 10
+press SEL
+tapkey w2
+release SEL
+spin K1 30
+expect tpar15 40
+press SEL
+tapkey w11
+release SEL
+spin K1 30
+expect tpar15 70
+tap PLAY
+tap REC
+turn K1 5 80
+tap REC
+expect lanes 1
+tap PLAY
+wait 50
+expect banks 2053
+tap SAVE
+tapkey w0
+tap SAVE
+expect preset 0
+# its parts: banks 3-4, 11-12 and the automation, in 064, 063, 062
+expect parts 3
+expect partof63 0
+expect partof62 0
+expect partof61 0
+expect partof60 -1
+tap SAVE
+turn SELECT 63
+shot songlist.png
+tap HOME
+# song 002: its bank 1 alone, no automation
+tap ARP
+tapkey w1
+tap ARP
+wait 20
+expect preset 1
+expect bank 0
+expect banks 1
+expect tpar15 20
+press SEL
+tapkey w11
+release SEL
+expect banks 2049
+expect lanes 0
+# song 001 again: all its banks, on bank 1
+tap ARP
+tapkey w0
+tap ARP
+wait 20
+expect preset 0
+expect bank 0
+expect banks 2053
+tap FX
+expect tpar15 10
+press SEL
+tapkey w2
+release SEL
+expect tpar15 40
+press SEL
+tapkey w11
+release SEL
+expect lanes 1
+# a song's part is not a slot to save to
+tap SAVE
+turn SELECT 63
+expect slot 63
+tap SAVE
+expect partof63 0
+expect parts 3
+# it starts the device: saved when quiet, back after a restart
+wait 6000
+expect bankdirty 0
+reboot
+wait 200
+expect banks 2053
+expect preset 0
+# song 002 saved again with one bank only: still no parts; song 001 keeps its own
+tap ARP
+tapkey w1
+tap ARP
+wait 20
+tap SAVE
+tapkey w1
+tap SAVE
+expect parts 3
+expect dropped 0

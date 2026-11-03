@@ -129,6 +129,8 @@ static struct {
     int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
     uint32_t beat_t;                   /* ...when it came */
     uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
+    int8_t part_of[PLAT_PRESETS];      /* ...and the song whose part a slot holds (-1: none) */
+    uint8_t parts[PLAT_PRESETS];       /* ...and how many a song has */
     float meter[UI_TRACKS];
     int8_t batt;                       /* the battery's % in the header (batt_shown), -1 none, 101 USB power */
 } ui;
@@ -865,7 +867,7 @@ static void black_down(int b)
 
 /* ------------------------------------------------------------ presets --- */
 /* SAVE or ARP opens the list on the last slot used; the same key again saves / loads the slot on it,
- * any other button closes it. A save erases a flash sector: the sound stops a moment. */
+ * any other button closes it. A save erases a flash sector for each slot of the song: the sound stops a moment. */
 static int slot_used(int n) { return (int)(ui.used[n >> 5] >> (n & 31) & 1u); }
 static void slot_name(int n, char *b)               /* "005" */
 {
@@ -880,6 +882,13 @@ static void list_open(int which)
     for (n = 0; n < PLAT_PRESETS; n++) {
         uint32_t m = 1u << (n & 31);
         ui.used[n >> 5] = plat_preset_used(n) ? ui.used[n >> 5] | m : ui.used[n >> 5] & ~m;
+        ui.parts[n] = 0;
+    }
+    for (n = 0; n < PLAT_PRESETS; n++) {
+        int c = plat_part_of(n);
+        ui.part_of[n] = (int8_t)(c < 0 ? -1 : c / 8);
+        if (c >= 0)
+            ui.parts[c / 8]++;
     }
     ui.list = (uint8_t)which;
     ui.list_slot = proj.preset < PLAT_PRESETS ? proj.preset : 0;
@@ -898,11 +907,14 @@ static int preset_load(int n)
         say("PRESET", "EMPTY");
         return -1;
     }
-    undo_mark(0);
+    auto_finish_all();                               /* (a recording ends with its song) */
     if (project_preset_load(n) != 0) {
         say("PRESET", "EMPTY");
         return -1;
     }
+    undo_c = undo_n = 0;                             /* (undo stays in its song: another's banks are gone) */
+    undo_key = 0;
+    ui.held_step = -1;
     ui.bar_lock = 0;
     sel_forget();
     if (ui.view_bar >= track_bars(ui.track))
@@ -917,9 +929,16 @@ static void list_go(void)
     int n = ui.list_slot;
     slot_name(n, b);
     if (ui.list == L_SAVE) {
-        if (project_preset_save(n) == 0) {
+        int rc;
+        auto_finish_all();
+        rc = project_preset_save(n);
+        if (rc == 0) {
             mark_dirty();
             say("SAVED", b);
+        } else if (rc == -2) {
+            say("SLOT TAKEN", "BY A SONG");
+        } else if (rc == -3) {
+            say("SAVE: NO ROOM", "FOR ITS BANKS");
         } else {
             say("SAVE", "FAILED");
         }
@@ -1791,7 +1810,17 @@ static void draw_list(void)
         if (!i)
             cv_round(4, y - 2, 232, 21, 5, K_PANEL);
         cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
-        cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+        if (used && ui.parts[n]) {                   /* a song: the slots it takes more */
+            char m[12] = "used +";
+            itoa_u(ui.parts[n], m + 6);
+            cv_text(64, y + 2, &FONT_XS, m, i ? K_DIM : K_ACC);
+        } else if (ui.part_of[n] >= 0) {             /* a part of a song */
+            char m[12] = "in ";
+            slot_name(ui.part_of[n], m + 3);
+            cv_text(64, y + 2, &FONT_XS, m, K_LINE);
+        } else {
+            cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+        }
         if (n == proj.preset)
             cv_round(222, y + 6, 6, 6, 3, K_DIM);
     }

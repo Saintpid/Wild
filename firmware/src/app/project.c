@@ -115,50 +115,49 @@ static int project_valid(int bytes)
     return 1;
 }
 
-/* the banks from flash, each read as a project (proj the workspace: before the project itself loads).
- * A sector holds two of the size they had when saved: a newer, larger project_t moves the second along. */
-static void project_banks_load(void)
+/* the bank or two loaded at proj_bank[first] (n bytes: more than a project, two of half that each; a
+ * newer, larger project_t moves the second along), each read as a project (proj the workspace) */
+static void banks_take(int first, int n)
 {
     const int sz = (int)sizeof(project_t);
-    int s, i, n, rec;
-    memset(proj_bank, 0, sizeof proj_bank);
-    proj_bank_dirty = 0;
-    for (s = 0; 2 * s < PROJ_BANKS; s++) {
-        uint8_t *b = (uint8_t *)&proj_bank[2 * s];
-        n = plat_bank_load(s, b, 2u * (uint32_t)sz);
-        rec = n > 0 ? n / 2 : 0;
-        if (rec > sz || rec < 8) {                   /* (from a later firmware, or none) */
-            memset(b, 0, 2u * (uint32_t)sz);
-            continue;
-        }
-        if (rec < sz) {                              /* (back to front: the two overlap) */
-            for (i = rec; i-- > 0;)
-                b[sz + i] = b[rec + i];
-            memset(b + rec, 0, (uint32_t)(sz - rec));
-            memset(b + sz + rec, 0, (uint32_t)(sz - rec));
-        }
-        for (i = 2 * s; i < 2 * s + 2 && i < PROJ_BANKS; i++) {
-            proj = proj_bank[i];
-            if (project_valid(rec)) {
-                proj.bank = (uint8_t)i;
-                proj_bank[i] = proj;
-            } else {
-                memset(&proj_bank[i], 0, sizeof proj_bank[i]);
-            }
+    uint8_t *b = (uint8_t *)&proj_bank[first];
+    int two = n > sz, rec = two ? n / 2 : n, i;
+    if (rec > sz || rec < 8) {                       /* (from a later firmware, or none) */
+        memset(b, 0, (uint32_t)(first + 1 < PROJ_BANKS ? 2 : 1) * (uint32_t)sz);
+        return;
+    }
+    if (two && rec < sz) {                           /* (back to front: the two overlap) */
+        for (i = rec; i-- > 0;)
+            b[sz + i] = b[rec + i];
+        memset(b + sz + rec, 0, (uint32_t)(sz - rec));
+    }
+    if (rec < sz)
+        memset(b + rec, 0, (uint32_t)(sz - rec));
+    for (i = first; i < first + 1 + two && i < PROJ_BANKS; i++) {
+        proj = proj_bank[i];
+        if (project_valid(rec)) {
+            proj.bank = (uint8_t)i;
+            proj_bank[i] = proj;
+        } else {
+            memset(&proj_bank[i], 0, sizeof proj_bank[i]);
         }
     }
 }
 
+/* the banks from flash (proj the workspace: before the project itself loads) */
+static void project_banks_load(void)
+{
+    int s;
+    memset(proj_bank, 0, sizeof proj_bank);
+    proj_bank_dirty = 0;
+    for (s = 0; 2 * s < PROJ_BANKS; s++)
+        banks_take(2 * s, plat_bank_load(s, &proj_bank[2 * s], 2u * sizeof(project_t)));
+}
+
 /* the automation: a lane that is not one this firmware knows is dropped */
-static void project_auto_load(void)
+static void auto_check(void)
 {
     int i;
-    memset(proj_auto, 0, sizeof proj_auto);
-    proj_auto_dirty = 0;
-    if (plat_bank_load(PLAT_BANK_SECTORS - 1, proj_auto, sizeof proj_auto) != (int)sizeof proj_auto) {
-        memset(proj_auto, 0, sizeof proj_auto);
-        return;
-    }
     for (i = 0; i < AUTO_LANES; i++) {
         auto_lane_t *l = &proj_auto[i];
         int k = l->k, n = k & 0x80 ? T_NPARAMS : k & 0x40 ? A_NPARAMS : G_NPARAMS;
@@ -166,6 +165,14 @@ static void project_auto_load(void)
             l->track >= NE_TRACKS || (k & 0x3F) >= n || (k & 0xC0) == 0xC0)
             memset(l, 0, sizeof *l);
     }
+}
+static void project_auto_load(void)
+{
+    proj_auto_dirty = 0;
+    if (plat_bank_load(PLAT_BANK_SECTORS - 1, proj_auto, sizeof proj_auto) != (int)sizeof proj_auto)
+        memset(proj_auto, 0, sizeof proj_auto);
+    else
+        auto_check();
 }
 
 int proj_bank_has(int n)
@@ -229,20 +236,88 @@ int project_save(void)
     return plat_store_save(OBJ_PROJ, &proj, sizeof proj);
 }
 
-int project_preset_save(int n)
+/* SONGS: a preset is a song, all its banks and their automation. Its own slot holds banks 1 and 2; the
+ * rest go to parts, in slots that hold no preset (taken from the top down): banks 3-4, 5-6.. 11-12, then
+ * the automation. A part is only written when it holds something. */
+#define SONG_PARTS 6
+#define SONG_AUTO (SONG_PARTS - 1)
+static void song_parts(int n, int8_t at[SONG_PARTS])    /* the slots of song n's parts now (-1: none) */
 {
-    proj.preset = (uint8_t)n;
-    ne_snapshot(&proj.st);
-    ne_acid_snapshot(&proj.acid);
-    proj_has_state = proj_has_acid = 1;
-    return plat_preset_save(n, &proj, sizeof proj);
+    int i, c;
+    for (i = 0; i < SONG_PARTS; i++)
+        at[i] = -1;
+    for (i = 0; i < PLAT_PRESETS; i++)
+        if ((c = plat_part_of(i)) >= 0 && c / 8 == n && c % 8 < SONG_PARTS)
+            at[c % 8] = (int8_t)i;
+}
+static int auto_any(void)
+{
+    int i;
+    for (i = 0; i < AUTO_LANES; i++)
+        if (proj_auto[i].bars)
+            return 1;
+    return 0;
+}
+int project_slot_free(int n)
+{
+    return n >= 0 && n < PLAT_PRESETS && !plat_preset_used(n) && plat_part_of(n) < 0;
 }
 
-/* a preset is a project: it loads the same way, and becomes the one the device starts with */
+int project_preset_save(int n)
+{
+    const uint32_t sz = sizeof(project_t);
+    int8_t at[SONG_PARTS];
+    int need[SONG_PARTS], p, i, more = 0, rc = 0, next = PLAT_PRESETS - 1;
+    if (n < 0 || n >= PLAT_PRESETS)
+        return -1;
+    if (plat_part_of(n) >= 0)
+        return -2;                                   /* (a part of another song) */
+    proj.preset = (uint8_t)n;
+    project_bank_keep(proj.bank);
+    if (!proj_bank_has(0))                           /* (bank 1 is always there: the one playing, if none) */
+        project_bank_keep(0);
+    song_parts(n, at);
+    for (p = 0; p < SONG_PARTS; p++) {
+        need[p] = p == SONG_AUTO ? auto_any() : proj_bank_has(2 * p + 2) || proj_bank_has(2 * p + 3);
+        more += need[p] && at[p] < 0;
+    }
+    for (i = 0; i < PLAT_PRESETS && more > 0; i++)
+        more -= i != n && project_slot_free(i);
+    if (more > 0)
+        return -3;                                   /* (no room) */
+    for (p = 0; p < SONG_PARTS; p++) {
+        int at_p = at[p];
+        if (!need[p]) {
+            if (at_p >= 0 && plat_part_free(at_p) != 0)
+                rc = -1;
+            continue;
+        }
+        if (at_p < 0) {
+            while (next == n || !project_slot_free(next))
+                next--;
+            at_p = next--;
+        }
+        if (p == SONG_AUTO ? plat_part_save(at_p, n * 8 + p, proj_auto, sizeof proj_auto)
+                           : plat_part_save(at_p, n * 8 + p, &proj_bank[2 * p + 2], 2u * sz))
+            rc = -1;
+    }
+    proj_has_state = proj_has_acid = 1;
+    for (i = 0; i < PROJ_BANKS; i++)
+        if (proj_bank_has(i))
+            proj_bank[i].preset = (uint8_t)n;
+    if (plat_preset_save(n, &proj_bank[0], proj_bank_has(1) ? 2u * sz : sz))   /* (last: the song is there) */
+        rc = -1;
+    return rc;
+}
+
+/* a song loads whole, in place of all the banks there are, and starts on its bank 1; it becomes the one
+ * the device starts with. (An older preset: a song of one bank.) */
 int project_preset_load(int n)
 {
+    const uint32_t sz = sizeof(project_t);
     project_t *keep = &proj_bank[proj.bank];         /* (the bank playing: its place is free) */
-    int got;
+    int8_t at[SONG_PARTS];
+    int got, p;
     *keep = proj;
     memset(&proj, 0, sizeof proj);
     got = plat_preset_load(n, &proj, sizeof proj);
@@ -250,8 +325,26 @@ int project_preset_load(int n)
         proj = *keep;
         return -1;
     }
+    memset(proj_bank, 0, sizeof proj_bank);
+    memset(proj_auto, 0, sizeof proj_auto);
+    song_parts(n, at);
+    banks_take(0, plat_preset_load(n, &proj_bank[0], 2u * sz));
+    for (p = 0; p < SONG_AUTO; p++)
+        if (at[p] >= 0)
+            banks_take(2 * p + 2, plat_part_load(at[p], n * 8 + p, &proj_bank[2 * p + 2], 2u * sz));
+    if (at[SONG_AUTO] >= 0 &&
+        plat_part_load(at[SONG_AUTO], n * 8 + SONG_AUTO, proj_auto, sizeof proj_auto) == (int)sizeof proj_auto)
+        auto_check();
+    else
+        memset(proj_auto, 0, sizeof proj_auto);
+    proj_bank_dirty = (uint8_t)((1u << ((PROJ_BANKS + 1) / 2)) - 1u);
+    proj_auto_dirty = 1;
+    memset(&proj, 0, sizeof proj);
+    got = plat_preset_load(n, &proj, sizeof proj);   /* (bank 1 again, with its own flags) */
+    if (got < 8 || !project_valid(got))
+        proj = proj_bank[0];
     proj.preset = (uint8_t)n;
-    proj.bank = keep->bank;                          /* it becomes the bank playing */
+    proj.bank = 0;
     proj_has_state = 1;
     project_apply();
     return 0;

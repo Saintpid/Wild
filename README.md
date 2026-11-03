@@ -1,5 +1,8 @@
-# Wild 0.3.27 - experimental FM-1 firmware
+# Wild 0.3.28 - experimental FM-1 firmware
 
+**0.3.28: songs keep their banks.** A preset is a song: saving it saves all its banks and their
+automation, and loading it brings exactly those, never another song's. A song with many banks takes
+more slots ("in 001" on the list).
 **0.3.27:** SEL alone goes back to bank 1. SEL mode (A/B, Copy) is gone from the Scene page: the
 banks do that now.
 **0.3.26: automation.** REC, turn knobs while it plays, REC again: the moves loop with the phrase.
@@ -148,7 +151,7 @@ command.
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
 | **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation |
-| **SAVE / ARP** | Save / load a preset (64 slots) |
+| **SAVE / ARP** | Save / load a song, all its banks (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
 | **SEL + white 1–12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
