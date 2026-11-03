@@ -3,6 +3,8 @@ WILD 0.1.4: Fixed full-cycle encoder counting; slow turns do not relearn interme
 WILD 0.1.4 MIXER
 
 GLO + OCT-: open/close mixer; GLO + OCT+: open/close Audio Load.
+GLO + HOME: clear all. Asks "CLEAR ALL?"; SAVE within 5 s says yes (anything else keeps everything). Every bank is emptied and all automation erased, and bank 1 starts from the defaults (the MIDI channel is kept): a clean starting point. Your saved songs are not touched.
+GLO + REC: erases the selected track's automation in the bank playing, at once. The automation of the global knobs stays.
 Mixer faders: SELECT = channel 1, KNOB1 = 2, KNOB2 = 3,
 KNOB3 = 4, KNOB4 = 5 (303). Levels 0..100, saved with the project.
 Each channel has a relative signal peak meter and a 600 ms peak-hold line.

@@ -24,6 +24,8 @@
  *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
+ *   GLO + HOME     clear all (asked, SAVE: yes): every bank, all automation; the saved songs stay
+ *   GLO + REC      the selected track's automation erased
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
  *   Program Change n    loads preset n + 1
@@ -115,6 +117,7 @@ static struct {
     uint32_t sig[3];
     uint32_t save_t;                   /* when SAVE went down (held: reset to the defaults?) */
     uint32_t reset_ask;                /* until when "RESET?" waits for SAVE (0: not asking) */
+    uint8_t reset_all;                 /* ...asked as "CLEAR ALL?" (GLO + HOME): every bank, all automation */
     int8_t held_step;                  /* a step key held (its step), -1 none */
     uint8_t held_was_on, held_edited;
     uint8_t held_vel;                  /* ...its velocity and note as edited (the engine's lag a block) */
@@ -386,6 +389,7 @@ static void rec_press(void);
 static void auto_finish_all(void);
 static void auto_erase_bank(int b);
 static void auto_new_pattern(int t);
+static void auto_rec_track(void);
 /* a knob turned: its change, and its name and value big over the tracks a moment (REC held: its
  * automation erased instead) */
 static void turn(int role, int k, int32_t e)
@@ -974,11 +978,28 @@ static void reset_defaults(void)
     mark_dirty();
     say("RESET", "TO DEFAULTS");
 }
+/* CLEAR ALL: a clean start. Every bank empty, all automation gone, bank 1 as reset; the saved songs stay */
+static void clear_all(void)
+{
+    auto_finish_all();
+    memset(proj_auto, 0, sizeof proj_auto);
+    proj_auto_dirty = 1;
+    memset(proj_bank, 0, sizeof proj_bank);
+    proj_bank_dirty = (uint8_t)((1u << ((PROJ_BANKS + 1) / 2)) - 1u);
+    proj.bank = 0;
+    reset_defaults();
+    undo_c = undo_n = 0;                             /* (nothing to go back to: the banks are gone) */
+    undo_key = 0;
+    ui.held_step = -1;
+    ui.bar_lock = 0;
+    ui.view_bar = 0;
+    say("CLEARED", "ALL BANKS");
+}
 static void reset_ask(int on)
 {
     ui.reset_ask = on ? plat_ms() + RESET_ASK_MS : 0u;
     if (on) {
-        say("RESET?", "SAVE: YES");
+        say(ui.reset_all ? "CLEAR ALL?" : "RESET?", "SAVE: YES");
         ui.msg_until = ui.reset_ask;
     } else {
         say("KEPT", 0);
@@ -1013,7 +1034,10 @@ static void button(int b)
     case B_SAVE:
         if (ui.reset_ask) {
             ui.reset_ask = 0;
-            reset_defaults();
+            if (ui.reset_all)
+                clear_all();
+            else
+                reset_defaults();
             break;
         }
         list_open(L_SAVE);
@@ -1150,6 +1174,16 @@ static void input(void)
             continue;
         if (btn & m) {
             ui.btn_used &= ~m;
+            if ((i == B_HOME || i == B_REC) && (btn >> B_GLO & 1u)) {
+                ui.btn_used |= m | 1u << B_GLO;     /* GLO + HOME: clear all (asked); GLO + REC: the track's automation */
+                if (i == B_HOME) {
+                    ui.reset_all = 1;
+                    reset_ask(1);
+                } else {
+                    auto_rec_track();
+                }
+                continue;
+            }
             if (i == B_SAVE)
                 ui.save_t = plat_ms();
             if (i == B_PLAY)                         /* on the press: in time */
@@ -1177,6 +1211,7 @@ static void input(void)
     }
     if ((btn >> B_SAVE & 1u) && !(ui.btn_used >> B_SAVE & 1u) && !ui.reset_ask &&
         plat_ms() - ui.save_t >= SAVE_HOLD_MS) {
+        ui.reset_all = 0;
         reset_ask(1);                                /* SAVE held: ask (no save on release) */
         ui.btn_used |= 1u << B_SAVE;
     }
@@ -1400,6 +1435,18 @@ static void auto_new_pattern(int t)
             proj_auto_dirty = 1;
         }
     }
+}
+/* GLO + REC: the selected track's automation goes (in the bank playing; the global knobs' stays) */
+static void auto_rec_track(void)
+{
+    int i, had = 0;
+    for (i = 0; i < AUTO_LANES; i++)
+        had += proj_auto[i].bars && proj_auto[i].bank == proj.bank && (proj_auto[i].k & (KT | KA)) &&
+               (proj_auto[i].k & KA ? NE_ACID : proj_auto[i].track) == ui.track;
+    auto_finish_all();
+    auto_new_pattern(ui.track);
+    mark_dirty();
+    say(had ? "AUTOMATION" : "NO AUTOMATION", had ? "TRACK ERASED" : "ON THIS TRACK");
 }
 static void auto_erase_bank(int b)
 {

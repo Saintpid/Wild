@@ -7,7 +7,7 @@ a short identity, higher than the one installed).
 
 ## 0.3.28
 
-Firmware identity FM-1_862. Songs keep their banks.
+Firmware identity FM-1_862. Songs keep their banks; clear all for a clean start.
 
 - **A preset is a song:** saving one saves all its banks and their automation, and loading it brings
   exactly those banks and starts on bank 1. Another song's banks never come along any more.
@@ -16,6 +16,10 @@ Firmware identity FM-1_862. Songs keep their banks.
   the song's own slot as "used +3". A song with all 12 banks and automation takes 7 slots. If there is
   no room left, the save says so and nothing is saved.
 - Presets saved before load as songs of one bank.
+- **Clear all, GLO + HOME:** asks "CLEAR ALL?", and SAVE says yes (anything else keeps everything).
+  Every bank is emptied and all automation erased, and bank 1 starts from the defaults: a clean
+  starting point. Your saved songs are not touched.
+- **GLO + REC:** erases the selected track's automation in the bank playing, at once.
 
 ## 0.3.27
 

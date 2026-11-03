@@ -1,0 +1,72 @@
+# CLEAR ALL: GLO + HOME asks, SAVE says yes (anything else keeps): every bank empty, all automation gone,
+# bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes, at once.
+wait 200
+tap FX
+spin K1 30
+expect tpar15 30
+# automation on track 1's reverb and on the 303 (track 5)
+tap PLAY
+tap REC
+turn K1 5 80
+tap REC
+expect lanes 1
+tap OCT-
+expect track 4
+tap REC
+turn K1 5 80
+tap REC
+expect lanes 2
+# GLO + REC on the 303: its automation goes, track 1's stays
+press GLO
+tap REC
+release GLO
+expect lanes 1
+expect rec 0
+expect view 6
+# again: nothing left there
+press GLO
+tap REC
+release GLO
+expect lanes 1
+tap PLAY
+# a bank 3 and a saved song
+press SEL
+tapkey w2
+release SEL
+expect banks 5
+tap SAVE
+tapkey w0
+tap SAVE
+expect preset 0
+# GLO + HOME, then something else: kept
+press GLO
+tap HOME
+release GLO
+expect view 6
+tapkey w4
+expect banks 5
+# GLO + HOME, SAVE: all clear
+press GLO
+tap HOME
+release GLO
+tap SAVE
+expect list 0
+expect bank 0
+expect banks 1
+expect lanes 0
+tap OCT+
+tap FX
+expect tpar15 0
+shot cleared.png
+press SEL
+tapkey w2
+release SEL
+expect lanes 0
+# the saved song still has it all
+tap ARP
+tapkey w0
+tap ARP
+wait 20
+expect banks 5
+expect lanes 1
+expect dropped 0
