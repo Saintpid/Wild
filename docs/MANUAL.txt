@@ -9,6 +9,9 @@ Each channel has a relative signal peak meter and a 600 ms peak-hold line.
 Meters show the existing voice-level signals, not calibrated dBFS or effect returns.
 Mixer refresh is capped at 15 Hz. Playback and key/MIDI input continue.
 Only these five encoders are reassigned while the mixer is open.
+Any button except PLAY, SEL and REC closes the mixer or Audio Load (since 0.3.22). That press
+only closes it: it does not change page, track or anything else. PLAY, SEL and REC work as usual
+and leave it open.
 
 WILD 0.1.2 ADDITION
 
@@ -84,7 +87,7 @@ Bottom:
 BUTTONS
 
 PLAY       Start/stop.
-REC        New patterns on all tracks.
+REC        Nothing for now (new patterns on all tracks moved to GLO + black 10 in 0.3.22).
 SEQ        Switches between SEQ (step editing) and LIVE (play the sounds on the keys).
 SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
@@ -151,8 +154,9 @@ BLACK KEYS (11, from the left)
   8   Mute track 4
   9   Mute track 5 (acid)
       Turning a track back on also selects it for editing.
-  10  New pattern for the selected track
-  11  New sound for the selected track
+  10  New pattern for the selected track. GLO + 10: new patterns on all tracks
+  11  New sound for the selected track. GLO + 11: new sounds on all tracks that are not muted
+      (GLO held for these keeps its page: GLO is not pressed as a page button)
 
 UNDO/REDO:
   Up to 12 steps back. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes and preset loads. Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
@@ -184,7 +188,7 @@ RHYTHM (HOME, page 2)
              or soft, the step keys' two strengths: strong on most quarters (85 %), on about half of
              the other steps (45 %). Dynamics then spreads it down: at 0 every hit is exactly 127 or
              50; at 100 a strong one goes down to 95 (still strong), a soft one to 20. It acts on new
-             patterns (black 10, REC), not on the hits already there; hold a step and turn KNOB 1 to
+             patterns (black 10, GLO + black 10), not on the hits already there; hold a step and turn KNOB 1 to
              set one by hand.
 
 TRACK (EDIT)
@@ -249,7 +253,7 @@ Deviance (ENV's third page, the acid line's own, KNOB 1; 0 = off, the default): 
   It gets tired: playing hard spends its energy. With hard drums it keeps going for about three phrases, give or take, then rests, mostly for eight bars (now and then four or twelve), whatever the drums do: from a bar on a half phrase the knobs go back to their calm place in a bar or two, with no twists and no build. Then it comes back hard, all at once. With calm drums it does not tire and gets its energy back.
   Turn Cutoff, Reso, Env mod or Decay yourself and Deviance lets go of all four at once: they go to the values you set (a 20 ms glide, no click). 2 s after your last turn it takes them up again, from there.
 
-How a new acid pattern is drawn (Black 10, E1, REC):
+How a new acid pattern is drawn (Black 10, E1, GLO + black 10):
   1. The rhythm: likeliest on the one, then the offbeat eighths and the beats, with rests between. It is a motif of a bar (or half a bar twice) that repeats over the bars with small changes, most at the end of bars 2 and 4.
   2. The notes: the root and the fifth most, then the third and the seventh; mostly small steps or the same note, now and then a leap, now and then a note outside the scale.
   3. The octaves (Octaves), the 303 way: notes side by side are pushed apart. Next to a low note the next goes up an octave, after one up the next comes back down (now and then below the root). Up likelier off the beat. At 15 % about four in ten neighbours are an octave apart, at 35 % and up most of them.

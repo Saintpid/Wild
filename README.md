@@ -1,5 +1,7 @@
-# Wild 0.3.21 - experimental FM-1 firmware
+# Wild 0.3.22 - experimental FM-1 firmware
 
+**0.3.22:** any button but PLAY, SEL and REC leaves the mixer and Audio Load. GLO + black 10
+makes new patterns on all tracks (was REC), GLO + black 11 new sounds on all tracks.
 **0.3.21:** a soft drum hit (the step keys' second press) is velocity 50, was 64, and shows a shade
 dimmer on the screen.
 **0.3.20: the 303 on Open303's own voice:** its filter, saw and VCA as X0X's, with Wild's touches
@@ -34,7 +36,7 @@ Deviance rests until 2 s after your last turn. And a
 **Major** scale for the acid line. 0.2.1: Drive without the aliasing-like grit, and a cleaner 303
 square. 0.2.0: the 303's diode ladder filter, and 303 waves (Original / All) on GLOBAL's Scene page.
 The diode ladder takes about 20 % more time for the acid voice: check Audio Load (GLO + OCT+) on
-the FM-1. GLO + OCT- toggles the mixer. 0.1.0 failed hardware startup; 0.1.1 and later fix it.
+the FM-1. GLO + OCT- toggles the mixer; any button but PLAY, SEL and REC closes either. 0.1.0 failed hardware startup; 0.1.1 and later fix it.
 
 Wild is a separate n001se 1.7.1 fork for the M-VAVE FM-1. It keeps the five
 tracks, musical Chaos, controls, MIDI and 303 behavior, and renders continuous
@@ -132,8 +134,8 @@ command.
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 12 steps |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |
-| **Black 10 / 11** | New pattern / new sound on the selected track |
-| **PLAY / REC / SEQ** | Start/stop / new patterns on all tracks / switch SEQ and LIVE |
+| **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
+| **PLAY / REC / SEQ** | Start/stop / nothing for now / switch SEQ and LIVE |
 | **SAVE / ARP** | Save / load a preset (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Scenes, by the SEL mode: a scene by chance, two scenes (A/B) to switch between, or a copy to play with. Again: back |

@@ -13,14 +13,15 @@
  *   black 3        the Master page (hi cut, lo cut, resonance, glue); again: back
  *   black 4        the preset list to load: a slot (SELECT, OCT-/+, PRESETS, a white key), black 4 again
  *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); unmuted, it is selected
- *   black 10 / 11  a new pattern / a new sound for the selected track
- *   PLAY start / stop    REC new patterns for every unmuted track    SEQ the mode
+ *   black 10 / 11  a new pattern / a new sound for the selected track; with GLO held: for every track
+ *   PLAY start / stop    SEQ the mode    (REC: nothing for now)
  *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
  *   PRESETS        the knob of the Setup page's choice (Glue by default)
  *   SEL            by the Scene page's SEL mode: Chance, a scene by chance (which tracks play, how much of
  *                  each effect each sound gets), SEL again back; A/B, two scenes to work on and swap; Copy,
  *                  a copy to play with, SEL again back to the original (SEL lit: in the scene, B, the copy)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
+ *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
  *   Program Change n    loads preset n + 1
@@ -592,6 +593,17 @@ static void new_sound(int t)
     }
 }
 
+/* a new sound on every track that plays (GLO + black 11, CC 117) */
+static void new_sounds_all(void)
+{
+    int t;
+    for (t = 0; t < NE_TRACKS; t++)
+        if (!proj.t[t][T_MUTE])
+            new_sound(t);
+    if (!proj.a[A_MUTE])
+        new_sound(NE_ACID);
+}
+
 /* SEL: a SCENE by chance. Which tracks play (each by a chance of 0.6, at least two) and each sound's
  * effects: its sends, filter share, drive and modulation effect. What they were is kept, and SEL again
  * puts it all back, whatever was turned in the scene. In the scene the mute keys set the kept mutes (the
@@ -754,6 +766,15 @@ static void black_down(int b)
         } else {
             say(a, "MUTED");
         }
+    } else if ((b == BK_PATTERN || b == BK_SOUND) && (ui.btn >> B_GLO & 1u)) {
+        ui.btn_used |= 1u << B_GLO;                  /* GLO held: every track (GLO keeps its page) */
+        undo_mark(0);
+        if (b == BK_PATTERN)
+            ne_generate(-1);
+        else
+            new_sounds_all();
+        mark_dirty();
+        say(b == BK_PATTERN ? "NEW PATTERNS" : "NEW SOUNDS", "ALL TRACKS");
     } else if (b == BK_PATTERN) {
         undo_mark(0);
         ne_generate(t);
@@ -885,12 +906,6 @@ static void button(int b)
         if (!playing())
             ui.bar_lock = 0;
         break;
-    case B_REC:
-        undo_mark(0);
-        ne_generate(-1);
-        mark_dirty();
-        say("NEW PATTERNS", "ALL TRACKS");
-        break;
     case B_SEQ:
         ui.live = !ui.live;
         ui.held_step = -1;
@@ -946,11 +961,7 @@ static void midi_cc(uint32_t cc, uint32_t v)
     } else if (cc == 7u || cc == 116u) {
         knob_set(G_LEVEL, pc);
     } else if (cc == 117u && v >= 64u) {
-        for (t = 0; t < NE_TRACKS; t++)
-            if (!proj.t[t][T_MUTE])
-                new_sound(t);
-        if (!proj.a[A_MUTE])
-            new_sound(NE_ACID);
+        new_sounds_all();
         mark_dirty();
     } else if (cc == 118u && v >= 64u) {
         ne_generate(-1);
@@ -998,6 +1009,20 @@ static float mixer_peak[UI_TRACKS], mixer_level[UI_TRACKS];
 static uint32_t mixer_hold[UI_TRACKS];
 static uint32_t diagnostics_at;
 
+/* the mixer or Audio Load opened or closed: the screen drawn anew */
+static void overlay_redraw(void)
+{
+    diagnostics_at = plat_ms() - 250u;
+    mixer_at = plat_ms() - 66u;
+    lcd_fill(0, 0, 240, 240, K_BG);
+    memset(ui.sig, 0, sizeof ui.sig);
+}
+static void overlay_close(void)
+{
+    mixer_open = diagnostics_open = 0;
+    overlay_redraw();
+}
+
 static void mixer_turn(int channel, int32_t delta)
 {
     int k = channel == NE_ACID ? KA | A_LEVEL : KT | T_LEVEL;
@@ -1028,7 +1053,10 @@ static void input(void)
             if (i == B_PLAY)                         /* on the press: in time */
                 button((int)i);
         } else if (!(ui.btn_used & m) && i != B_PLAY) {
-            button((int)i);
+            if ((mixer_open || diagnostics_open) && i != B_SEL && i != B_REC)
+                overlay_close();                     /* the mixer, Audio Load: a button leaves (only that) */
+            else
+                button((int)i);
         }
     }
     {
@@ -1040,10 +1068,7 @@ static void input(void)
             if (!diagnostics_chord) {
                 if (which == 1u) { mixer_open ^= 1u; diagnostics_open = 0; }
                 else { diagnostics_open ^= 1u; mixer_open = 0; }
-                diagnostics_at = plat_ms() - 250u;
-                mixer_at = plat_ms() - 66u;
-                lcd_fill(0, 0, 240, 240, K_BG);
-                memset(ui.sig, 0, sizeof ui.sig);
+                overlay_redraw();
             }
             diagnostics_chord = 1;
         } else diagnostics_chord = 0;

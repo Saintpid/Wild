@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.22
+
+Firmware identity FM-1_856. Everything new at once on GLO, and quicker out of the mixer.
+
+- **GLO + black 10:** new patterns on all tracks (this was REC, which now does nothing).
+- **GLO + black 11:** new sounds on all tracks that are not muted.
+- **Leaving the mixer and Audio Load:** any button except PLAY, SEL and REC closes them. That press
+  only closes them, so the page, the track and everything else stay as they were. PLAY, SEL and REC
+  work as usual with the mixer open.
+
 ## 0.3.21
 
 Firmware identity FM-1_855. Softer soft drum hits.

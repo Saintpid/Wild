@@ -1,0 +1,81 @@
+# GLO + black 10 / 11: a new pattern / a new sound on every track (GLO keeps its page); REC does nothing.
+# The mixer (GLO + OCT-) and Audio Load (GLO + OCT+): any button but PLAY, SEL and REC closes them, and
+# does only that
+wait 200
+expect view 0
+expect track 0
+expect patkeep1 0
+expect patkeep2 0
+expect patkeep5 0
+expect mark0 0
+expect mark2 0
+press GLO
+tapkey b9
+release GLO
+wait 20
+expect view 0
+expect patmoved1 1
+expect patmoved2 1
+expect patmoved5 1
+expect moved0 0
+expect moved2 0
+press GLO
+tapkey b10
+release GLO
+wait 20
+expect view 0
+expect moved0 >0
+expect moved2 >0
+expect patkeep1 0
+tap REC
+wait 20
+expect patmoved1 0
+# the mixer: SEL, REC and PLAY keep it open (SEL still plays its scene)
+press GLO
+press OCT-
+wait 50
+release OCT-
+release GLO
+expect mixer 1
+tap SEL
+wait 20
+expect mixer 1
+expect scene 1
+tap SEL
+wait 20
+expect scene 0
+tap REC
+tap PLAY
+wait 100
+expect mixer 1
+expect playing 1
+# HOME closes it, without turning HOME's page
+tap HOME
+wait 100
+expect mixer 0
+expect view 0
+expect playing 1
+shot closed.png
+# OCT+ closes Audio Load, the track stays
+press GLO
+press OCT+
+wait 50
+release OCT+
+release GLO
+expect diagnostics 1
+tap OCT+
+wait 100
+expect diagnostics 0
+expect track 0
+# GLO alone closes the mixer and stays on its page
+press GLO
+press OCT-
+wait 50
+release OCT-
+release GLO
+expect mixer 1
+tap GLO
+wait 100
+expect mixer 0
+expect view 0
+expect dropped 0
