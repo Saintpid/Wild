@@ -188,3 +188,8 @@
   (residual -102 dB) until a voice ends a control step earlier or later (peak < 3e-5 test), which
   changes voice allocation and so the shared noise rng's order from there on: a different take of
   the noise, not a quality change.
+
+## 0.3.17 / 851 - slow Tune and Pitch
+- User: Pitch/Tune too jumpy when turned. ui.c slow_knob(): A_TUNE, T_TUNE, T_PITCH take two
+  detents a step (ui.half/half_k keep the odd detent per encoder), never accel(). Host "spin" stays
+  exact (accel_off). Scenario slow-tune.kal (turn, 5 ms apart).

@@ -100,6 +100,8 @@ static struct {
     uint8_t view_bar, bar_lock;        /* the bar the keys show; locked: chosen, else the playhead's */
     uint32_t btn, keys, btn_used;
     uint32_t enc_t[NE];
+    uint8_t half_k[NE];                /* a slow knob's half step left over (half), and whose (half_k) */
+    int8_t half[NE];
     uint8_t dirty;
     uint32_t act_t;
     char msg[2][24];
@@ -350,6 +352,13 @@ static void undo_go(int d)
     }
 }
 
+/* Tune and Pitch: a semitone every two detents however quick the turn, so a sound walks
+ * up or down the notes as it plays instead of jumping (the host's "spin": exact steps) */
+static int slow_knob(int k)
+{
+    return k == (KA | A_TUNE) || k == (KT | T_TUNE) || k == (KT | T_PITCH);
+}
+
 /* a knob turned: its change, and its name and value big over the tracks a moment */
 static void turn(int role, int k, int32_t e)
 {
@@ -358,7 +367,16 @@ static void turn(int role, int k, int32_t e)
         return;
     p = kinfo(k);
     undo_mark(1u << 24 | (uint32_t)k << 8 | ui.track);
-    knob_set(k, kval(k) + accel(role, e, p->hi - p->lo));
+    if (slow_knob(k) && !accel_off) {                /* two detents a step, never quicker */
+        if (ui.half_k[role] != k)
+            ui.half_k[role] = (uint8_t)k, ui.half[role] = 0;
+        e += ui.half[role];
+        ui.half[role] = (int8_t)(e % 2);
+        e /= 2;
+    } else
+        e = accel(role, e, p->hi - p->lo);
+    if (e)
+        knob_set(k, kval(k) + e);
     s_cpy(ui.pop[0], kname(k));
     ktext(k, kval(k), ui.pop[1]);
     ui.pop_t = plat_ms() | 1u;

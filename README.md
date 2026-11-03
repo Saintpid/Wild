@@ -1,5 +1,7 @@
-# Wild 0.3.16 - experimental FM-1 firmware
+# Wild 0.3.17 - experimental FM-1 firmware
 
+**0.3.17:** Tune (drums and 303) and Pitch (drums) move a semitone every two detents and no
+longer speed up on a quick turn: a sound walks up or down the notes instead of jumping.
 **0.3.16:** operators that are off or have died away no longer cost render time; the drum
 effects run a block at a time. Same sound, a little lighter.
 **0.3.15:** the audio is rendered 6 ms further ahead (17 ms): peaks when many hits land at once no
@@ -128,7 +130,8 @@ command.
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
 In bars 4 and 8 of the phrase the beats 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4 count big over the sequencer, so it is easy to place
-breaks. When you turn a knob, the parameter's name and value show big.
+breaks. When you turn a knob, the parameter's name and value show big. A quick turn moves most
+knobs further; Tune and Pitch always move a semitone every two detents.
 
 Over USB the FM-1 shows up as **n001se FM-1**: MIDI in and out and an audio input (stereo, 44.1 kHz)
 that you can record straight into your computer.
