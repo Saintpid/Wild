@@ -319,7 +319,9 @@ static void state_go(const project_t *to)
         for (i = 0; i < T_NPARAMS; i++)
             if (proj.t[t][i] != to->t[t][i]) {
                 proj.t[t][i] = to->t[t][i];
-                if (!st || i != T_BARS)              /* (the restored state holds its length) */
+                if (st && (i == T_BARS || i == T_RANDLEN))   /* (the restored state holds its length) */
+                    ne_tset_keep(t, i, proj.t[t][i]);
+                else
                     ne_tset(t, i, proj.t[t][i]);
             }
     for (i = 0; i < A_NPARAMS; i++)
