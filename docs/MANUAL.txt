@@ -226,7 +226,7 @@ The acid track (track 5) has its own parameters on the same pages:
 
 PATTERN    Bars (1â€“4), Notes (how many steps have notes), Slides, Evolve
 TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
-SOUND      Cutoff, Reso, Env mod, Decay
+SOUND      Cutoff (314 Hz - 2.4 kHz, as a 303's), Reso, Env mod, Decay (200 ms - 2 s)
 RHYTHM     Grid: 16ths or Triplets, as on the drum tracks (1-4 bars of 12 steps in triplets)
 TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0â€“100 %)
 DEVIANCE   (ENV, page 3: the acid line's only) Deviance (below)
@@ -235,9 +235,10 @@ MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn
 
 How the acid line plays, as a TB-303:
   Gate       A note sounds for half a step. A slide holds it into the next step, and the next note glides there without a new attack: the volume and the filter envelope go on. A note that is not slid into starts again. A rest closes the gate, so a slide into a rest makes a longer note. Slides in a row make one long movement, also from the last step into the first.
-  Slide      The pitch glides at the same speed whatever the interval (an RC of 45 ms), so a slide of one or two octaves may not get there before the next step; the next note goes on from where the pitch is.
+  Slide      The pitch glides at the same speed whatever the interval, in about 60 ms (Open303's: an RC of 12 ms), so even two octaves get there within a step.
+  Calibrated The knobs, Env Mod's curve, the VCA and the filters around the ladder are Open303's (Robin Schmidt's model of a real 303, from his measurements): Env Mod opens the sweep and lowers where it rests, more with the cutoff up, and a little even at 0; the resonance comes in mostly in the knob's first half; the VCA opens at once, decays slowly while the gate is held (1.2 s) and closes in 1 ms (50 ms after an accent); the square is the 303's: the ramp through a transistor, at half the saw's level.
   Filter     A model of the 303's diode ladder: four stages that load each other, the bottom one twice as fast (the 303's half-size capacitor). Gentle under the cutoff, about 18 dB/oct above a resonant peak, with a high-pass in the resonance feedback, so the bass stays when the resonance goes up. The level stays even as the resonance goes up. At high resonance it sings and saturates, but never runs away. A sweep moves it every sample. As on a real 303, the saw's ramp bows a little, the VCA rounds loud accents, and the pitch and the cutoff drift slowly (a few cents, a few per cent).
-  Accent     Louder and brighter. The brightness goes through a sweep: accents in a row build up, the more the higher the resonance.
+  Accent     Louder (much: the filter envelope pushes the VCA up, as on a 303) and brighter. The brightness goes through a sweep: accents in a row build up, the more the higher the resonance.
 
 Deviance (ENV's third page, the acid line's own, KNOB 1; 0 = off, the default): the acid line's own hand on its Cutoff, Reso, Env mod and Decay, so it keeps moving while you work on the drums. It does not change the pattern (that is Evolve), and the knobs keep their values: Deviance plays around them, at 100 % mostly by its own.
   It follows the drums: how busy the playing tracks are (their hits, the loud ones and the ones off the eighths count more), how hard they sound (Edge and Drive) and a little of Chaos. Muted tracks do not count, so a breakdown calms it too.

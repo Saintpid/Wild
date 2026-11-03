@@ -95,14 +95,16 @@ typedef struct {
     uint32_t now;
     float phase, phase2, freq;     /* the oscillator: it runs on, notes or not */
     float dh;                      /* its step at 2x: freq x wmul / 2 sr (pitch_step(), when either moves) */
-    float sq_u1;                   /* the square's clipper: its last input (ADAA) */
     float cv, cv_to, glide;        /* the pitch in semitones over C2 and where it goes, the slide's RC */
-    float env, amp;                /* the cutoff envelope, the VCA */
-    float att, att_soft, att_hard; /* the VCA's attack: this note's, a plain note's, an accent's */
-    float acc_env, acc_vca, acc_cap;   /* the accent: its envelope, on the VCA, the sweep capacitor */
+    float env, env_rc, rc1, amp;   /* the cutoff envelope, it through its 3 ms RC (and that RC), the VCA's envelope */
+    float acc_env, acc_cap;        /* the accent: its envelope, the sweep capacitor */
     float gate;                    /* samples until the gate closes, < 0 held */
-    uint8_t gate_on, accent, acc_gate, attack, sounding;
-    float s[4], sf, so;            /* the ladder, the feedback's high-pass, the output's */
+    uint8_t gate_on, accent, acc_gate, attack, sounding, acc_rel;
+    float s[4], sf;                /* the ladder, the feedback's high-pass */
+    /* Open303's filters round the ladder: the high-pass before it (at 2x), the de-clicker on the VCA,
+     * the all-pass, high-pass and notch after it; their coefficients (nacid_init) and states */
+    float hp_b0, hp_a1, ap_b0, hp2_b0, hp2_a1, nt_b0, nt_b1, nt_a1, nt_a2, dc_b0, dc_b1, dc_a1, dc_a2;
+    float hp_x, hp_y, ap_x, ap_y, hp2_y, nt_x2, nt_y1, nt_y2, dc_x1, dc_x2, dc_y1, dc_y2;
     float hb_a[32], hb_b[8];       /* the halfband back from 2x: the samples on its taps (each twice, 16 on:
                                     * the taps in a row, no wrap), on its centre */
     uint8_t hb_i;

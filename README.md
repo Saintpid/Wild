@@ -1,5 +1,8 @@
-# Wild 0.3.17 - experimental FM-1 firmware
+# Wild 0.3.18 - experimental FM-1 firmware
 
+**0.3.18: the 303 calibrated as Open303 measured a real one:** its knobs over the 303's own ranges
+(cutoff 314 Hz to 2.4 kHz, decay 200 ms to 2 s), Env Mod's measured curve, the 303's quick slide, its
+VCA (an accent much louder, a quick release) and the filters around its ladder; Open303's square.
 **0.3.17:** Tune (drums and 303) and Pitch (drums) move a semitone every two detents and no
 longer speed up on a quick turn: a sound walks up or down the notes instead of jumping.
 **0.3.16:** operators that are off or have died away no longer cost render time; the drum
@@ -78,10 +81,10 @@ command.
   something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
-  of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), with the 303's gate, slide (an RC of 60 ms that may not get
-  there), accent (a sweep that builds up, a sharp attack against a plain note's soft one, weak on a
-  slid note), Env Mod that lowers where the sweep starts, and a square made from the saw as the 303
-  does; a saw whose ramp bows a little as the 303's, a VCA that rounds loud accents, and a slow
+  of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a
+  real 303: the knobs over the 303's ranges, Env Mod's measured curve, the 303's gate, slide (60 ms),
+  accent (much louder, a sweep that builds up, weak on a slid note), its VCA, the filters around the
+  ladder and its square; a saw whose ramp bows a little as the 303's, a VCA that rounds loud accents, and a slow
   analogue drift (a few cents of pitch, a few per cent of cutoff). Its own sequencer draws musical lines: the rhythm first, a motif
   that repeats, notes from the scale (minor, phrygian, dorian, pentatonic, blues, harmonic minor or
   major), octaves, accents and slides where they move the line. Its Chaos takes it from those rules
