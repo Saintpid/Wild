@@ -89,17 +89,15 @@ Bottom:
 BUTTONS
 
 PLAY       Start/stop.
-REC        Nothing for now (new patterns on all tracks moved to GLO + black 10 in 0.3.22).
+REC        Automation. Press REC (it lights, REC shows red in the header), then turn knobs while it plays: from your first touch each is recorded. REC again: the moves loop over 1, 2, 4 or 8 bars (as long as you recorded), in step with the phrase. Where you did not touch a knob it keeps its value. Turn an automated knob by hand and it follows you; a second after you let go the automation takes it back. A red dot over a knob: it has automation. Hold REC and turn a knob: its automation is erased. A new pattern on a track erases that track's automation. Each bank has its own (28 recorded knobs in all). Bars, Rnd len, Hits, Kind, Grid, tempo, MIDI and the Setup and Scene pages are not recorded.
 SEQ        Switches between SEQ (step editing) and LIVE (play the sounds on the keys).
 SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
-SEL        Scenes. What SEL does is chosen on the Scene page (GLOBAL, page 5), SEL mode:
-           Chance: a scene by chance. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. Press SEL again and everything is back as it was before, even if you turned things meanwhile. While the scene plays, the mute keys (black 5â€“9) set the original's mutes, not the scene's: you choose what will play when you come back. Their lights show the original's mutes meanwhile.
-           A/B: two scenes to switch between. The first press makes a copy of everything (patterns, sounds, effects, settings) and you go on in the copy, B: change anything, make new rhythms, new sounds. Press SEL and you are back in A, just as you left it. Press again and you are in B where you last were. So you can work up two scenes and switch between them.
-           Copy: a copy to play with that is never kept. SEL makes a copy of everything and you change what you like. SEL again takes you back to the original, and the changes are gone. The next SEL makes a new copy.
-           SEL is lit while you are in the scene, in B or in the copy. The Setup and Scene pages are never swapped. Changing SEL mode, loading a preset or a reset forgets the copy. Swapping patterns or sounds gives a very short break in the sound.
+SEL        Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene, everything as before it).
+SEL + white 1-12  The banks: each key a whole setup of its own (patterns, sounds, effects, settings, automation). It comes in at once; the tempo, level and the Setup and Scene pages stay the same for all. The bank you leave keeps what you did in it. An empty bank starts as a copy of the one playing. While SEL is held the keys show the banks: lit the one playing, dim the ones with something in them. Undo starts afresh in each bank. Swapping banks gives a very short break in the sound.
+SEL + white 16  Chance: a new scene by chance at every press. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. While the scene plays, the mute keys (black 5-9) set the original's mutes; SEL alone (or another bank) ends it, and the bank keeps how it was before the scene. SEL is lit while a scene plays.
 
 Page buttons (another press goes to the button's next page):
 HOME       Pattern → Rhythm
@@ -161,7 +159,7 @@ BLACK KEYS (11, from the left)
       (GLO held for these keeps its page: GLO is not pressed as a page button)
 
 UNDO/REDO:
-  Up to 12 steps back. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes and preset loads. Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
+  Up to 6 steps back, within the bank playing. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes and preset loads. Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
 
 ====================================================================
 
@@ -315,7 +313,6 @@ SETUP (GLOBAL, page 4)
   (The CPU load shows at the top right of this page.)
 
 SCENE (GLOBAL, page 5)
-  SEL mode   Chance, A/B or Copy: what SEL does (see SEL under BUTTONS). Default: Chance
   303 waves  Original or All: the waves a new acid sound (black 11 on track 5) is drawn from. Original: only the 303's own, Saw and Square. All: any of the six. Default: Original. Wave on the TONE page can still be set to any of them.
 
 ====================================================================
@@ -403,5 +400,5 @@ TIPS FOR LIVE SETS
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
 - Mutate at 30â€“50 builds tension before every round without touching the mutes yourself.
-- Press SEL for a new scene in the middle of a set, and SEL again to land back. With SEL mode A/B you can build a second version of the whole set and switch to it for a big change.
+- Hold SEL and press white 16 for a new scene in the middle of a set, and SEL alone to land back in bank 1. Build the next part of the set in another bank (SEL + white 2) and switch to it for a big change.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).

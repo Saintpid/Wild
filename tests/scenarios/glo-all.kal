@@ -30,14 +30,16 @@ expect patkeep1 0
 tap REC
 wait 20
 expect patmoved1 0
-# the mixer: SEL, REC and PLAY keep it open (SEL still plays its scene)
+# the mixer: SEL, REC and PLAY keep it open (SEL + white 16 still plays a scene)
 press GLO
 press OCT-
 wait 50
 release OCT-
 release GLO
 expect mixer 1
-tap SEL
+press SEL
+tapkey w15
+release SEL
 wait 20
 expect mixer 1
 expect scene 1

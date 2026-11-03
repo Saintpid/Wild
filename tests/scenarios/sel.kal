@@ -1,64 +1,56 @@
-# SEL's modes, on the Scene page (GLOBAL's fifth). A/B: two scenes to work on and swap; Copy: a copy to
-# play with, SEL again back to the original (what was done in the copy is gone). GLOBAL opens on Master.
+# SEL alone: back to bank 1 (in bank 1: out of a scene by chance, SEL + white 16). The Scene page has
+# no SEL mode any more (A/B and Copy went with the banks): KNOB 1 is 303 waves.
 wait 200
 tap GLO
-expect view 11
 tap GLO
 tap GLO
 tap GLO
 tap GLO
 expect view 15
-expect gpar19 0
 spin K1 1
-expect gpar19 1
+expect gpar25 1
+expect gpar19 0
 tap PLAY
-# A/B: the first SEL keeps A and goes on in B (the same, to begin with)
-tap SEL
-expect scene 1
 tap FX
 spin K1 30
 expect tpar15 30
-tapkey b9
-wait 50
-shot scene_b.png
+# SEL alone in bank 1: nothing changes
 tap SEL
-wait 50
 expect scene 0
-expect tpar15 0
-expect gpar19 1
-tap SEL
-wait 50
-expect scene 1
 expect tpar15 30
+expect bank 0
+# SEL + white 16: a scene; SEL alone: back, as it was
+press SEL
+tapkey w15
+release SEL
+expect scene 1
+shot scene_chance.png
 tap SEL
 wait 50
-expect tpar15 0
-# Copy: SEL again back to the original, the copy's changes gone
-tap GLO
-tap GLO
-tap GLO
-tap GLO
-tap GLO
-expect view 15
-spin K1 1
-expect gpar19 2
 expect scene 0
-tap SEL
+expect tpar15 30
+# from bank 3, in a scene: SEL alone, back to bank 1 as it was; bank 3 keeps its original
+press SEL
+tapkey w2
+release SEL
+expect bank 2
+spin K1 20
+expect tpar15 50
+press SEL
+tapkey w15
+release SEL
 expect scene 1
-tap FX
-spin K1 50
+tap SEL
+wait 50
+expect bank 0
+expect scene 0
+expect tpar15 30
+press SEL
+tapkey w2
+release SEL
+wait 50
 expect tpar15 50
 tap SEL
 wait 50
-expect scene 0
-expect tpar15 0
-tap SEL
-expect scene 1
-expect tpar15 0
-spin K1 20
-expect tpar15 20
-tap SEL
-wait 50
-expect tpar15 0
-expect gpar19 2
+expect bank 0
 expect dropped 0

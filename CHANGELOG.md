@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.27
+
+Firmware identity FM-1_861. SEL alone takes you home to bank 1.
+
+- **SEL alone:** back to bank 1 from wherever you are, as you left it (a scene by chance in the bank
+  you leave ends there, and that bank keeps how it was before the scene). In bank 1 with a scene by
+  chance playing, SEL alone ends the scene.
+- **SEL mode is gone** from the Scene page (GLOBAL, page 5): A/B and Copy are what the banks do now,
+  and Chance is SEL + white 16. 303 waves is on KNOB 1 of the Scene page now.
+
 ## 0.3.26
 
 Firmware identity FM-1_860. Automation: REC records what you do with the knobs.
