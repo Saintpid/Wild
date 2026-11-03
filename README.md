@@ -1,5 +1,8 @@
-# Wild 0.3.24 - experimental FM-1 firmware
+# Wild 0.3.25 - experimental FM-1 firmware
 
+**0.3.25: twelve banks.** Hold SEL and press white key 1-12: a whole setup of its own (patterns,
+sounds, effects, settings) comes in at once, with the tempo kept. Key 16: a new scene by chance at
+each press. Undo is 6 steps now (it was 12) to make room.
 **0.3.24:** a drum track on Rnd len Fixed plays its Bars: a new pattern no longer keeps a length
 drawn earlier, or the one a loaded project had before Bars was turned.
 **0.3.23:** the battery in the header, with how much is left in % (a lightning bolt on USB power).
@@ -135,13 +138,15 @@ command.
 | --- | --- |
 | **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). A press: empty → strong → soft → off (303: accent → plain → off). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
-| **Black 3 / 4** | Undo / redo, 12 steps |
+| **Black 3 / 4** | Undo / redo, 6 steps (within the bank) |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / REC / SEQ** | Start/stop / nothing for now / switch SEQ and LIVE |
 | **SAVE / ARP** | Save / load a preset (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Scenes, by the SEL mode: a scene by chance, two scenes (A/B) to switch between, or a copy to play with. Again: back |
+| **SEL + white 1–12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
+| **SEL + white 16** | Chance: a new scene by chance at every press (the bank keeps its original) |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
 In bars 4 and 8 of the phrase the beats 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4 count big over the sequencer, so it is easy to place

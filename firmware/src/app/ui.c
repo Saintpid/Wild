@@ -20,6 +20,8 @@
  *   SEL            by the Scene page's SEL mode: Chance, a scene by chance (which tracks play, how much of
  *                  each effect each sound gets), SEL again back; A/B, two scenes to work on and swap; Copy,
  *                  a copy to play with, SEL again back to the original (SEL lit: in the scene, B, the copy)
+ *   SEL + white    the banks: keys 1-12 a whole project each (the tempo shared), key 16 a new scene by
+ *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
@@ -120,7 +122,8 @@ static struct {
     uint8_t held_flags;                /* ...an acid step's accent and slide */
     uint8_t voices;                    /* the CPU guard's voice limit now */
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
-    uint8_t scene;                     /* SEL: a scene by chance plays (what was before: sc_*) */
+    uint8_t scene;                     /* SEL A/B: in B; Copy: in the copy */
+    uint8_t chance;                    /* a scene by chance plays (what was before: sc_*) */
     uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
     char pop[2][16];                   /* ...the parameter and its value */
     int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
@@ -269,8 +272,9 @@ static int32_t accel(int role, int32_t s, int range)
 static int track_bars(int t);
 /* The whole project before each edit, UNDO_N deep: undo_h[0 .. undo_c - 1] are the states to undo to,
  * undo_h[undo_c + 1 .. undo_n - 1] the ones to redo. One turn of a knob (the same knob, changes less than
- * UNDO_JOIN apart) or one held step is one edit. */
-#define UNDO_N 12
+ * UNDO_JOIN apart) or one held step is one edit. Six edits back (the banks took the rest of the RAM); a
+ * change of bank starts afresh. */
+#define UNDO_N 7
 #define UNDO_JOIN 1500u
 static project_t undo_h[UNDO_N];
 static uint8_t undo_c, undo_n;
@@ -299,21 +303,33 @@ static void undo_mark(uint32_t key)
     undo_take(&undo_h[undo_c++]);
     undo_n = undo_c;
 }
-/* the project and the engine to another state: only what differs goes to the engine (the patterns and
- * sounds stop the sound a moment, the settings do not) */
-static void state_go(const project_t *to)
+/* the values SEL's scenes and the banks never change: the tempo, the level, the Setup and Scene pages' */
+static const uint8_t SEL_KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
+static int sel_kept(int g)
 {
-    static project_t now;
+    uint32_t i;
+    for (i = 0; i < sizeof SEL_KEEP; i++)
+        if (SEL_KEEP[i] == g)
+            return 1;
+    return 0;
+}
+/* the project and the engine to another state: only what differs goes to the engine (the patterns and
+ * sounds stop the sound a moment, the settings do not); keep: SEL_KEEP's stay. The state it leaves is in
+ * the playing bank's place (stale meanwhile) after it: state_was() */
+#define state_was() (&proj_bank[proj.bank])
+static void state_go(const project_t *to, int keep)
+{
+    project_t *now = state_was();
     int i, t, st, ac;
-    undo_take(&now);
-    st = memcmp(&now.st, &to->st, sizeof to->st) != 0;
-    ac = memcmp(&now.acid, &to->acid, sizeof to->acid) != 0;
+    undo_take(now);
+    st = memcmp(&now->st, &to->st, sizeof to->st) != 0;
+    ac = memcmp(&now->acid, &to->acid, sizeof to->acid) != 0;
     if (st)
         ne_restore(&to->st);
     if (ac)
         ne_acid_restore(&to->acid);
     for (i = 0; i < G_NPARAMS; i++)
-        if (proj.g[i] != to->g[i])
+        if (proj.g[i] != to->g[i] && !(keep && sel_kept(i)))
             ne_set(i, proj.g[i] = to->g[i]);
     for (t = 0; t < NE_TRACKS; t++)
         for (i = 0; i < T_NPARAMS; i++)
@@ -346,7 +362,7 @@ static void undo_go(int d)
     if (undo_n < undo_c + 1)
         undo_n = (uint8_t)(undo_c + 1);
     undo_c = (uint8_t)(undo_c + d);
-    state_go(&undo_h[undo_c]);
+    state_go(&undo_h[undo_c], 0);
     undo_key = 0;
     {
         char b[16];
@@ -433,9 +449,15 @@ static void select_track(int t)
     }
 }
 
+static void bank_key(int w);
+static int sel_held(void);
 static void white_down(int w)
 {
     int t = ui.track, s;
+    if (sel_held() && !ui.list) {                    /* SEL held: the banks */
+        bank_key(w);
+        return;
+    }
     if (ui.list) {                                   /* the list: a slot of its page of 16 */
         ui.list_slot = (uint8_t)(ui.list_slot / NWHITE * NWHITE + w);
         return;
@@ -616,7 +638,7 @@ static const uint8_t SC_T[SC_N] = {T_MUTE, T_REVERB, T_DELAY, T_FILTER, T_DRIVE,
 static const uint8_t SC_A[SC_N] = {A_MUTE, A_REVERB, A_DELAY, A_FILTER, A_DRIVE, A_MOD, A_MODAMT, A_MODRATE, A_MODCHANCE};
 static int16_t sc_was[UI_TRACKS][SC_N];
 /* in a scene by chance, the mute keys set the original's mutes: what plays when SEL brings it back */
-static int sc_chance(void) { return ui.scene && proj.g[G_SELMODE] == NE_SEL_CHANCE; }
+static int sc_chance(void) { return ui.chance; }
 static void sc_set(int t, int i, int v)
 {
     if (t == NE_ACID)
@@ -625,18 +647,20 @@ static void sc_set(int t, int i, int v)
         tpar_set(t, SC_T[i], v);
 }
 static int rnd_or0(int zero_pct, int lo, int hi) { return rnd_in(0, 99) < zero_pct ? 0 : rnd_in(lo, hi); }
-static void scene(void)
+static void scene_back(void)
+{
+    int t, i;
+    for (t = 0; t < UI_TRACKS; t++)
+        for (i = 0; i < SC_N; i++)
+            sc_set(t, i, sc_was[t][i]);
+    ui.chance = 0;
+}
+/* a new scene by chance; one playing already goes first (what it was before stays the original) */
+static void scene_new(void)
 {
     int t, i, plays = 0;
-    undo_mark(0);
-    if (ui.scene) {
-        for (t = 0; t < UI_TRACKS; t++)
-            for (i = 0; i < SC_N; i++)
-                sc_set(t, i, sc_was[t][i]);
-        ui.scene = 0;
-        say("SCENE", "BACK");
-        return;
-    }
+    if (ui.chance)
+        scene_back();
     ui_rng ^= plat_ms();
     for (t = 0; t < UI_TRACKS; t++)
         for (i = 0; i < SC_N; i++)
@@ -661,8 +685,18 @@ static void scene(void)
             plays++;
         }
     }
-    ui.scene = 1;
+    ui.chance = 1;
     say("SCENE", "BY CHANCE");
+}
+static void scene(void)
+{
+    undo_mark(0);
+    if (ui.chance) {
+        scene_back();
+        say("SCENE", "BACK");
+        return;
+    }
+    scene_new();
 }
 
 /* SEL's other modes (Scene page: SEL mode). A/B: the first SEL keeps a copy of everything (patterns,
@@ -674,22 +708,16 @@ static project_t sel_keep;                           /* A/B: the other scene; Co
 static uint8_t sel_have;
 static void sel_forget(void)
 {
-    ui.scene = 0;
+    ui.scene = ui.chance = 0;
     sel_have = 0;
 }
 static void sel_go(const project_t *to)
 {
-    static project_t t;
-    static const uint8_t KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
-    uint32_t i;
-    t = *to;
-    for (i = 0; i < sizeof KEEP; i++)
-        t.g[KEEP[i]] = proj.g[KEEP[i]];
-    state_go(&t);
+    state_go(to, 1);
+    ui.chance = 0;                                   /* (a scene by chance in it: gone with it) */
 }
 static void sel_press(void)
 {
-    static project_t now;
     int m = proj.g[G_SELMODE];
     ne_space_shift();                                /* (by Space's chance: at 100 always) */
     if (m == NE_SEL_CHANCE) {
@@ -698,10 +726,12 @@ static void sel_press(void)
     }
     undo_mark(0);
     if (m == NE_SEL_AB) {
-        undo_take(&now);
-        if (sel_have)
+        if (sel_have) {
             sel_go(&sel_keep);
-        sel_keep = now;
+            sel_keep = *state_was();                 /* the one left: the other now */
+        } else {
+            undo_take(&sel_keep);
+        }
         sel_have = 1;
         ui.scene ^= 1u;
         say("SCENE", ui.scene ? "B" : "A");
@@ -713,6 +743,68 @@ static void sel_press(void)
         sel_go(&sel_keep);
         ui.scene = 0;
         say("BACK TO", "THE ORIGINAL");
+    }
+}
+
+/* BANKS: SEL held and a white key. Keys 1-12 a bank each: the one playing is kept in its place and the
+ * key's comes in whole (patterns, sounds, effects, settings; the tempo and SEL_KEEP's stay). An empty
+ * bank starts as a copy of the one playing. Key 16: a new scene by chance, at each press. SEL let go
+ * after a bank key does nothing else. */
+#define BANK_CHANCE 15                               /* the last white key */
+static void say_bank(const char *a, int n, const char *b)
+{
+    char s[16] = "BANK ";
+    itoa_u((uint32_t)n + 1u, s + 5);
+    say(a ? a : s, a ? s : b);
+}
+static void bank_go(int n)
+{
+    int cur = proj.bank, t, i, has;
+    if (n == cur) {
+        say_bank(0, n, "PLAYS");
+        return;
+    }
+    has = proj_bank_has(n);
+    if (has) {
+        state_go(&proj_bank[n], 1);                  /* (the one left goes to its place: state_was()) */
+    } else {
+        project_bank_keep(cur);
+    }
+    if (ui.chance) {                                 /* a scene by chance: the bank keeps its original */
+        project_t *b = &proj_bank[cur];
+        for (t = 0; t < UI_TRACKS; t++)
+            for (i = 0; i < SC_N; i++)
+                if (t == NE_ACID)
+                    b->a[SC_A[i]] = sc_was[t][i];
+                else
+                    b->t[t][SC_T[i]] = sc_was[t][i];
+    }
+    proj_bank[cur].bank = (uint8_t)cur;
+    proj_bank_dirty |= (uint8_t)(1u << (cur / 2));
+    proj.bank = (uint8_t)n;
+    if (!has && ui.chance)                           /* a new one: the original, not the scene */
+        state_go(&proj_bank[cur], 1);
+    sel_forget();
+    undo_c = undo_n = 0;                             /* (undo stays in its bank) */
+    undo_key = 0;
+    ui.held_step = -1;
+    if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
+        ui.bar_lock = 0;
+    mark_dirty();
+    say_bank(0, n, has ? "" : "NEW: A COPY");
+}
+static int sel_held(void) { return (ui.btn >> B_SEL & 1u) != 0; }
+static void bank_key(int w)
+{
+    ui.btn_used |= 1u << B_SEL;                      /* (SEL let go: nothing more) */
+    if (w == BANK_CHANCE) {
+        undo_mark(0);
+        scene_new();
+        mark_dirty();
+    } else if (w < PROJ_BANKS) {
+        bank_go(w);
+    } else {
+        say("NO BANK", "ON THIS KEY");
     }
 }
 
@@ -866,10 +958,12 @@ static void set_view(int v)
 static void reset_defaults(void)
 {
     int16_t keep = proj.g[G_MIDICH];
+    uint8_t bank = proj.bank;
     int t;
     undo_mark(0);
     project_defaults();
     proj.g[G_MIDICH] = keep;
+    proj.bank = bank;                                /* (the bank playing: the others stay) */
     sel_forget();
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
@@ -1647,9 +1741,16 @@ static void leds(void)
         b |= 1u << B_PLAY;
     if (!ui.live)
         b |= 1u << B_SEQ;
-    if (ui.scene)
+    if (ui.scene || ui.chance)
         b |= 1u << B_SEL;
-    if (ui.live) {
+    if (sel_held() && !ui.list) {                    /* SEL held: the banks (lit: playing, dim: one there) */
+        for (i = 0; i < PROJ_BANKS; i++)
+            if ((int)i == proj.bank)
+                k |= 1u << WHITE_K[i];
+            else if (proj_bank_has((int)i))
+                d |= 1u << WHITE_K[i];
+        d |= 1u << WHITE_K[BANK_CHANCE];
+    } else if (ui.live) {
         for (i = 0; i < NWHITE; i++)
             if (ui.meter[i >> 2] > 0.15f)
                 d |= 1u << WHITE_K[i];
@@ -1698,7 +1799,7 @@ static void autosave(void)
     uint32_t now = plat_ms();
     if (!ui.dirty || playing() || ui.btn || ui.keys || now - ui.act_t < AUTOSAVE_QUIET || ne_out_level > 0.0005f)
         return;
-    if (project_save() == 0)
+    if (project_save() == 0 && project_banks_save() == 0)
         ui.dirty = 0;
 }
 

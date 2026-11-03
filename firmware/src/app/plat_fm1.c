@@ -77,6 +77,8 @@ int plat_store_save(uint32_t obj, const void *src, uint32_t len) { return flash_
 int plat_preset_load(int n, void *dst, uint32_t max) { return flash_ok ? st_preset_load((uint32_t)n, dst, max) : -1; }
 int plat_preset_save(int n, const void *src, uint32_t len) { return flash_ok ? st_preset_save((uint32_t)n, src, len) : -9; }
 int plat_preset_used(int n) { return flash_ok && st_preset_used((uint32_t)n); }
+int plat_bank_load(int n, void *dst, uint32_t max) { return flash_ok ? st_bank_load((uint32_t)n, dst, max) : -1; }
+int plat_bank_save(int n, const void *src, uint32_t len) { return flash_ok ? st_bank_save((uint32_t)n, src, len) : -9; }
 
 static volatile uint32_t audio_cpu_pct, audio_xruns;
 uint32_t plat_cpu_pct(void) { return audio_cpu_pct; }

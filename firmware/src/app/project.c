@@ -6,6 +6,9 @@
 project_t proj;
 static uint8_t proj_has_state;           /* the project carries patterns and sounds (not just defaults) */
 static uint8_t proj_has_acid;            /* ...and an acid pattern (not from before format 3) */
+project_t proj_bank[PROJ_BANKS];
+uint8_t proj_bank_dirty;
+static project_t proj_tmp;               /* an older project's layout, as it moves into this one */
 
 void project_defaults(void)
 {
@@ -27,17 +30,17 @@ void project_defaults(void)
 /* An older format moves into this one: its values in place, the ones it lacks at their defaults */
 static void project_upgrade(void)
 {
-    static project_t old;
+    project_t *old = &proj_tmp;
     uint32_t f = proj.format;
     int ng = PROJ_G_OF(f), nt = PROJ_T_OF(f), na = PROJ_A_OF(f), i, t;
     const uint8_t *p;
     proj_has_acid = f >= 3u;
     if (f == PROJ_FORMAT)
         return;
-    old = proj;
+    *old = proj;
     project_defaults();
     proj_has_acid = f >= 3u;
-    p = (const uint8_t *)&old + 8;                   /* the old layout, field by field */
+    p = (const uint8_t *)old + 8;                   /* the old layout, field by field */
     memcpy(proj.g, p, 2u * (uint32_t)ng);
     p += 2 * ng;
     for (t = 0; t < NE_TRACKS; t++, p += 2 * nt)
@@ -45,7 +48,8 @@ static void project_upgrade(void)
     memcpy(&proj.st, p, sizeof proj.st);
     p += sizeof proj.st;
     if (f >= 2u) {
-        proj.preset = *p;
+        proj.preset = p[0];
+        proj.bank = p[1];
         p += 32;
     }
     if (f >= 3u) {
@@ -104,12 +108,80 @@ static int project_valid(int bytes)
     }
     if (proj.preset >= PLAT_PRESETS)
         proj.preset = 0;
+    if (proj.bank >= PROJ_BANKS)
+        proj.bank = 0;
     return 1;
+}
+
+/* the banks from flash, each read as a project (proj the workspace: before the project itself loads).
+ * A sector holds two of the size they had when saved: a newer, larger project_t moves the second along. */
+static void project_banks_load(void)
+{
+    const int sz = (int)sizeof(project_t);
+    int s, i, n, rec;
+    memset(proj_bank, 0, sizeof proj_bank);
+    proj_bank_dirty = 0;
+    for (s = 0; 2 * s < PROJ_BANKS; s++) {
+        uint8_t *b = (uint8_t *)&proj_bank[2 * s];
+        n = plat_bank_load(s, b, 2u * (uint32_t)sz);
+        rec = n > 0 ? n / 2 : 0;
+        if (rec > sz || rec < 8) {                   /* (from a later firmware, or none) */
+            memset(b, 0, 2u * (uint32_t)sz);
+            continue;
+        }
+        if (rec < sz) {
+            memmove(b + sz, b + rec, (size_t)rec);
+            memset(b + rec, 0, (size_t)(sz - rec));
+            memset(b + sz + rec, 0, (size_t)(sz - rec));
+        }
+        for (i = 2 * s; i < 2 * s + 2 && i < PROJ_BANKS; i++) {
+            proj = proj_bank[i];
+            if (project_valid(rec)) {
+                proj.bank = (uint8_t)i;
+                proj_bank[i] = proj;
+            } else {
+                memset(&proj_bank[i], 0, sizeof proj_bank[i]);
+            }
+        }
+    }
+}
+
+int proj_bank_has(int n)
+{
+    return n >= 0 && n < PROJ_BANKS && (n == proj.bank || proj_bank[n].magic == PROJ_MAGIC);
+}
+
+void project_bank_keep(int n)
+{
+    project_t *b = &proj_bank[n];
+    *b = proj;
+    ne_snapshot(&b->st);
+    ne_acid_snapshot(&b->acid);
+    b->bank = (uint8_t)n;
+    proj_bank_dirty |= (uint8_t)(1u << (n / 2));
+}
+
+/* the changed sectors, the one playing in its place too (it is the project as well) */
+int project_banks_save(void)
+{
+    int s, rc = 0;
+    if (!proj_bank_dirty)
+        return 0;
+    project_bank_keep(proj.bank);
+    for (s = 0; 2 * s < PROJ_BANKS; s++)
+        if (proj_bank_dirty >> s & 1u) {
+            if (plat_bank_save(s, &proj_bank[2 * s], 2u * sizeof(project_t)) == 0)
+                proj_bank_dirty &= (uint8_t)~(1u << s);
+            else
+                rc = -1;
+        }
+    return rc;
 }
 
 int project_load(void)
 {
     int n;
+    project_banks_load();
     memset(&proj, 0, sizeof proj);
     n = plat_store_load(OBJ_PROJ, &proj, sizeof proj);
     if (n >= 8 && project_valid(n)) {
@@ -140,16 +212,17 @@ int project_preset_save(int n)
 /* a preset is a project: it loads the same way, and becomes the one the device starts with */
 int project_preset_load(int n)
 {
-    static project_t keep;
+    project_t *keep = &proj_bank[proj.bank];         /* (the bank playing: its place is free) */
     int got;
-    keep = proj;
+    *keep = proj;
     memset(&proj, 0, sizeof proj);
     got = plat_preset_load(n, &proj, sizeof proj);
     if (got < 8 || !project_valid(got)) {
-        proj = keep;
+        proj = *keep;
         return -1;
     }
     proj.preset = (uint8_t)n;
+    proj.bank = keep->bank;                          /* it becomes the bank playing */
     proj_has_state = 1;
     project_apply();
     return 0;

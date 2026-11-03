@@ -154,28 +154,28 @@ static int st_save(uint32_t obj, const void *src, uint32_t len)
 #define ST_PRESETS 64u
 _Static_assert(ST_PRESET_BASE + ST_PRESETS * ST_SECTOR <= 0xDC000u, "the presets would reach the panel's sectors");
 
-static int st_preset_head(uint32_t n, st_hdr_t *h)
+/* Wild's banks: ST_BANK_SECTORS more of the same, two banks a sector: 0xD7000.. (after the presets, up
+ * to the panel's) and 0xDE000.. (after the panel's, below the loader's 0xE0000). type 0x200 + sector. */
+#define ST_BANK_SECTORS 6u
+static uint32_t st_bank_off(uint32_t n) { return n < 5u ? 0xD7000u + n * ST_SECTOR : 0xDE000u + (n - 5u) * ST_SECTOR; }
+_Static_assert(ST_PRESET_BASE + ST_PRESETS * ST_SECTOR == 0xD7000u, "the banks follow the presets");
+
+/* a single-copy slot: the sector at off, its header's type */
+static int st_slot_head(uint32_t off, uint32_t type, st_hdr_t *h)
 {
-    uint32_t off = ST_PRESET_BASE + n * ST_SECTOR;
-    if (n >= ST_PRESETS || st_read(off, h, sizeof *h))
+    if (st_read(off, h, sizeof *h))
         return -1;
-    if (h->magic != ST_MAGIC || h->type != 0x100u + n || h->len > ST_PAYLOAD_MAX ||
+    if (h->magic != ST_MAGIC || h->type != type || h->len > ST_PAYLOAD_MAX ||
         h->hcrc != st_crc32(h, sizeof *h - 4u))
         return -1;
     return 0;
 }
 
-static int st_preset_used(uint32_t n)
+static int st_slot_load(uint32_t off, uint32_t type, void *dst, uint32_t max)
 {
+    uint32_t i;
     st_hdr_t h;
-    return st_preset_head(n, &h) == 0;
-}
-
-static int st_preset_load(uint32_t n, void *dst, uint32_t max)
-{
-    uint32_t i, off = ST_PRESET_BASE + n * ST_SECTOR;
-    st_hdr_t h;
-    if (st_preset_head(n, &h) || st_read(off + ST_PAYLOAD_OFF, st_buf, h.len) || st_crc32(st_buf, h.len) != h.crc)
+    if (st_slot_head(off, type, &h) || st_read(off + ST_PAYLOAD_OFF, st_buf, h.len) || st_crc32(st_buf, h.len) != h.crc)
         return -1;
     if (h.len > max)
         h.len = max;
@@ -184,12 +184,12 @@ static int st_preset_load(uint32_t n, void *dst, uint32_t max)
     return (int)h.len;
 }
 
-static int st_preset_save(uint32_t n, const void *src, uint32_t len)
+static int st_slot_save(uint32_t base, uint32_t type, const void *src, uint32_t len)
 {
-    uint32_t off, base = ST_PRESET_BASE + n * ST_SECTOR;
+    uint32_t off;
     int rc;
     st_hdr_t h, chk;
-    if (n >= ST_PRESETS || len > ST_PAYLOAD_MAX)
+    if (len > ST_PAYLOAD_MAX)
         return -1;
     for (off = 0; off < len; off++)
         st_buf[off] = ((const uint8_t *)src)[off];
@@ -201,7 +201,7 @@ static int st_preset_save(uint32_t n, const void *src, uint32_t len)
             return rc;
     }
     h.magic = ST_MAGIC;
-    h.type = (uint16_t)(0x100u + n);
+    h.type = (uint16_t)type;
     h.slot = 0;
     h.seq = 1u;
     h.len = len;
@@ -210,7 +210,29 @@ static int st_preset_save(uint32_t n, const void *src, uint32_t len)
     h.hcrc = st_crc32(&h, sizeof h - 4u);
     if ((rc = st_prog(base, &h, sizeof h)) != 0)
         return rc;
-    if (st_preset_head(n, &chk) || chk.crc != h.crc)
+    if (st_slot_head(base, type, &chk) || chk.crc != h.crc)
         return -7;
     return 0;
+}
+
+static int st_preset_used(uint32_t n)
+{
+    st_hdr_t h;
+    return n < ST_PRESETS && st_slot_head(ST_PRESET_BASE + n * ST_SECTOR, 0x100u + n, &h) == 0;
+}
+static int st_preset_load(uint32_t n, void *dst, uint32_t max)
+{
+    return n < ST_PRESETS ? st_slot_load(ST_PRESET_BASE + n * ST_SECTOR, 0x100u + n, dst, max) : -1;
+}
+static int st_preset_save(uint32_t n, const void *src, uint32_t len)
+{
+    return n < ST_PRESETS ? st_slot_save(ST_PRESET_BASE + n * ST_SECTOR, 0x100u + n, src, len) : -1;
+}
+static int st_bank_load(uint32_t n, void *dst, uint32_t max)
+{
+    return n < ST_BANK_SECTORS ? st_slot_load(st_bank_off(n), 0x200u + n, dst, max) : -1;
+}
+static int st_bank_save(uint32_t n, const void *src, uint32_t len)
+{
+    return n < ST_BANK_SECTORS ? st_slot_save(st_bank_off(n), 0x200u + n, src, len) : -1;
 }

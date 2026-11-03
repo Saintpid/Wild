@@ -25,7 +25,7 @@
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
- *                                 patkeepN patmovedN (N 5: the acid line))
+ *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
 #define OM_HOST 1
@@ -170,6 +170,29 @@ int plat_preset_used(int n)
 {
     presets_init();
     return (unsigned)n < PLAT_PRESETS && preset_len[n] >= 0;
+}
+
+/* the banks' sectors, the same way */
+static uint8_t banks[PLAT_BANK_SECTORS][PLAT_STORE_MAX];
+static int banks_len[PLAT_BANK_SECTORS] = {-1, -1, -1, -1, -1, -1};
+int plat_bank_load(int n, void *dst, uint32_t max)
+{
+    int l;
+    if ((unsigned)n >= PLAT_BANK_SECTORS || (l = banks_len[n]) < 0)
+        return -1;
+    if ((uint32_t)l > max)
+        l = (int)max;
+    memcpy(dst, banks[n], (size_t)l);
+    return l;
+}
+int plat_bank_save(int n, const void *src, uint32_t len)
+{
+    if ((unsigned)n >= PLAT_BANK_SECTORS || len > PLAT_STORE_MAX)
+        return -1;
+    memcpy(banks[n], src, len);
+    banks_len[n] = (int)len;
+    store_writes++;
+    return 0;
 }
 
 static uint32_t cpu_pct;
@@ -454,7 +477,15 @@ static int expect(const char *what, const char *val)
             got |= (ne_seq()->track[t].mute != proj.t[t][T_MUTE]) << t;
         got |= (ne_acid()->mute != proj.a[A_MUTE]) << NE_TRACKS;
     } else if (!strcmp(what, "scene"))
-        got = ui.scene;
+        got = ui.scene | ui.chance;
+    else if (!strcmp(what, "bank"))              /* the bank playing (0..) */
+        got = proj.bank;
+    else if (!strcmp(what, "banks")) {           /* the banks holding a project (bits) */
+        int n;
+        for (got = 0, n = 0; n < PROJ_BANKS; n++)
+            got |= proj_bank_has(n) << n;
+    } else if (!strcmp(what, "bankdirty"))       /* the bank sectors not saved yet (bits) */
+        got = proj_bank_dirty;
     else if (!strcmp(what, "adev")) {            /* the 303's Deviance: how far its knobs are moved now, x 1000 */
         int k;
         float d = 0.0f;
@@ -527,7 +558,7 @@ static int expect(const char *what, const char *val)
         } else {
             const nseq_track *x = &ne_seq()->track[t];
             for (s = 0; s < x->length; s++)
-                h = (h ^ ((uint32_t)x->step[s].on | (uint32_t)x->step[s].vel << 1 | (uint32_t)(uint8_t)x->step[s].note << 8)) * 16777619u;
+                h = (h ^ (x->step[s].on ? 1u | (uint32_t)x->step[s].vel << 1 | (uint32_t)(uint8_t)x->step[s].note << 8 : 0u)) * 16777619u;   /* (an off step's data: none) */
         }
         if (what[3] == 'k') { kept_pat[t] = h; got = 0; }
         else got = h != kept_pat[t];
@@ -680,6 +711,8 @@ int main(int argc, char **argv)
             fails += expect(a, b);
         else if (!strcmp(cmd, "reboot")) {
             memset(&proj, 0, sizeof proj);
+            memset(proj_bank, 0xA5, sizeof proj_bank);   /* (RAM after a power cycle: anything) */
+            proj_bank_dirty = 0;
             boot();
         } else if (!strcmp(cmd, "echo"))
             printf("%s", line + 5);
