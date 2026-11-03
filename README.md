@@ -1,5 +1,6 @@
-# Wild 0.3.22 - experimental FM-1 firmware
+# Wild 0.3.23 - experimental FM-1 firmware
 
+**0.3.23:** the battery in the header, with how much is left in % (a lightning bolt on USB power).
 **0.3.22:** any button but PLAY, SEL and REC leaves the mixer and Audio Load. GLO + black 10
 makes new patterns on all tracks (was REC), GLO + black 11 new sounds on all tracks.
 **0.3.21:** a soft drum hit (the step keys' second press) is velocity 50, was 64, and shows a shade

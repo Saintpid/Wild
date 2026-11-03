@@ -81,3 +81,19 @@ int plat_preset_used(int n) { return flash_ok && st_preset_used((uint32_t)n); }
 static volatile uint32_t audio_cpu_pct, audio_xruns;
 uint32_t plat_cpu_pct(void) { return audio_cpu_pct; }
 uint32_t plat_xruns(void) { return audio_xruns; }
+
+/* the battery: one conversion every 2 s from the main loop (a few us), smoothed over ~16 s. The scale is
+ * Felucca's ADC (3.3 V full scale) over PB1's halving divider: 6.6 V at 1023 */
+static int32_t batt_s;                 /* the reading x 16, smoothed (0: none yet) */
+static void batt_poll(void)
+{
+    static uint32_t t;
+    int32_t a;
+    if (t && fm1_ms - t < 2000u)
+        return;
+    t = fm1_ms | 1u;
+    if ((a = fm1_adc_read(FM1_ADC_BATT)) > 0)
+        batt_s = batt_s ? batt_s + (a * 16 - batt_s) / 8 : a * 16;
+}
+uint32_t plat_batt_mv(void) { return (uint32_t)batt_s * 6600u / (1023u * 16u); }
+int plat_usb_power(void) { return usb.config && !usb.suspended; }

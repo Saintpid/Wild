@@ -175,6 +175,9 @@ int plat_preset_used(int n)
 static uint32_t cpu_pct;
 uint32_t plat_cpu_pct(void) { return cpu_pct; }
 uint32_t plat_xruns(void) { return 0; }
+static uint32_t batt_mv, usb_power;     /* none, unless a scenario sets them (battery MV, usbpower 0/1) */
+uint32_t plat_batt_mv(void) { return batt_mv; }
+int plat_usb_power(void) { return (int)usb_power; }
 
 /* -------------------------------------------------------------- app --- */
 #include "../firmware/src/app/app.h"
@@ -405,6 +408,8 @@ static int expect(const char *what, const char *val)
         got = diagnostics_open;
     else if (!strcmp(what, "view"))
         got = ui.view;
+    else if (!strcmp(what, "battery"))           /* the battery's % on the screen, -1 none, 101 USB power */
+        got = ui.batt;
     else if (!strcmp(what, "dirty"))
         got = ui.dirty;
     else if (!strcmp(what, "store_writes"))
@@ -634,6 +639,10 @@ int main(int argc, char **argv)
             accel_off = 0;
         } else if (!strcmp(cmd, "master"))
             master = (uint32_t)atoi(a);
+        else if (!strcmp(cmd, "battery"))
+            batt_mv = (uint32_t)atoi(a);
+        else if (!strcmp(cmd, "usbpower"))
+            usb_power = (uint32_t)atoi(a);
         else if (!strcmp(cmd, "midi")) {
             uint32_t s = (uint32_t)strtoul(a, 0, 16), d1 = (uint32_t)strtoul(b, 0, 16), d2 = (uint32_t)strtoul(c, 0, 16);
             uint32_t cin = s >= 0xF0 ? 0x0F : s >> 4;

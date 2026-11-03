@@ -5,6 +5,20 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.23
+
+Firmware identity FM-1_857. How much battery is left, on the screen.
+
+- **The battery in the header:** a battery beside the tempo, filled as far as it is, with the % in
+  it. Red at 10 % and below. It is read every two seconds (no load on the audio) and smoothed, so it
+  settles a little after power-on, and it goes up again only when the battery has really been
+  charged, not when it recovers a little as the playing stops.
+- The % is an estimate from the battery's voltage (the FM-1 has no fuel gauge): it follows a usual
+  Li-ion curve and agrees with where the FM-1's own firmware changes its battery bars.
+- **On a computer's USB:** a lightning bolt instead, as the battery is charging. A charger alone is
+  not seen, so it shows the % then.
+- On the Setup page the audio load keeps its place, so the battery is not shown there.
+
 ## 0.3.22
 
 Firmware identity FM-1_856. Everything new at once on GLO, and quicker out of the mixer.
