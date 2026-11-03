@@ -46,6 +46,10 @@ enum { OBJ_PROJ, OBJ_PANEL, OBJ_NOBJ };
 int plat_preset_load(int n, void *dst, uint32_t max);   /* bytes loaded, < 0 = empty / bad */
 int plat_preset_save(int n, const void *src, uint32_t len);   /* 0 = ok */
 int plat_preset_used(int n);                            /* 1 = holds a preset */
+/* the banks (Wild): PLAT_BANK_SECTORS slots like the presets', two banks each (flash 0xD7000.., 0xDE000..) */
+#define PLAT_BANK_SECTORS 6
+int plat_bank_load(int n, void *dst, uint32_t max);     /* bytes loaded, < 0 = empty / bad */
+int plat_bank_save(int n, const void *src, uint32_t len);   /* 0 = ok */
 /* flash: OBJ_PROJ 0xFC000, OBJ_PANEL 0xDC000 (2 sectors each, inside Felucca's data area) */
 
 /* audio load in % of the render budget, and xruns since boot (device: from the ISR) */

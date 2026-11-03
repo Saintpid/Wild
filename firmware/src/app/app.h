@@ -37,12 +37,24 @@ typedef struct {
     int16_t t[NE_TRACKS][T_NPARAMS];     /* n001se.h T_*, per track */
     ne_state_t st;                       /* the patterns and the sounds, as saved */
     uint8_t preset;                      /* the preset slot it came from / went to last (0..63) */
-    uint8_t rsv[31];                     /* room to grow */
+    uint8_t bank;                        /* the bank it is (0..PROJ_BANKS - 1; older: 0) */
+    uint8_t rsv[30];                     /* room to grow */
     ne_acid_t acid;                      /* the acid line's pattern, as saved */
     int16_t a[A_NPARAMS];                /* n001se.h A_* */
 } project_t;
 
 extern project_t proj;
+/* The banks: whole projects (patterns, sounds, settings) to switch between, SEL + a white key. The one
+ * playing is proj (proj.bank); its own place here is stale meanwhile, and the UI uses it as scratch. Two to
+ * a flash sector, saved like the project: once stopped and quiet. */
+#define PROJ_BANKS 12
+_Static_assert(PROJ_BANKS <= 2 * PLAT_BANK_SECTORS, "two banks a sector");
+_Static_assert(2 * sizeof(project_t) <= PLAT_STORE_MAX, "two banks must fit a sector");
+extern project_t proj_bank[PROJ_BANKS];
+extern uint8_t proj_bank_dirty;          /* the sectors to save (bits) */
+int proj_bank_has(int n);                /* 1: bank n holds a project (the one playing always) */
+void project_bank_keep(int n);           /* the state now into bank n's place, saved when quiet */
+int project_banks_save(void);            /* the changed sectors: 0 = all saved */
 
 void project_defaults(void);
 int project_load(void);                  /* 0 = loaded; else defaults are in place */

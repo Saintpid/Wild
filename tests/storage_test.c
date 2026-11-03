@@ -121,6 +121,25 @@ int main(void)
         bad += check("the project untouched by presets", n == (int)sizeof b && !memcmp(got, b, sizeof b));
         bad += check("presets clear of the panel", ST_PRESET_BASE + ST_PRESETS * 4096u <= st_sector(OBJ_PANEL, 0));
     }
+    {   /* Wild's banks: their own sectors, clear of the presets, the panel, the project and the loader */
+        uint32_t s, ok = 1;
+        for (s = 0; s < ST_BANK_SECTORS; s++) {
+            uint32_t o = st_bank_off(s);
+            if (o < ST_PRESET_BASE + ST_PRESETS * 4096u || o + 4096u > 0xE0000u ||
+                (o < st_sector(OBJ_PANEL, 1) + 4096u && st_sector(OBJ_PANEL, 0) < o + 4096u))
+                ok = 0;
+        }
+        bad += check("bank sectors in the data region, clear of the rest", (int)ok);
+        bad += check("bank sector 0 empty", st_bank_load(0, got, sizeof got) < 0);
+        bad += check("save bank sectors 0 and 5", st_bank_save(0, a, sizeof a) == 0 && st_bank_save(5, b, sizeof b) == 0);
+        n = st_bank_load(0, got, sizeof got);
+        bad += check("bank sector 0 loads A", n == (int)sizeof a && !memcmp(got, a, sizeof a));
+        n = st_bank_load(5, got, sizeof got);
+        bad += check("bank sector 5 loads B", n == (int)sizeof b && !memcmp(got, b, sizeof b));
+        bad += check("bank sector 6 does not exist", st_bank_save(6, a, sizeof a) < 0);
+        n = st_preset_load(5, got, sizeof got);
+        bad += check("presets untouched by the banks", n == (int)sizeof a && !memcmp(got, a, sizeof a) && !st_preset_used(63));
+    }
     printf("%s\n", bad ? "STORAGE TEST FAILED" : "storage test passed");
     return bad != 0;
 }

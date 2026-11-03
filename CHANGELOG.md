@@ -5,6 +5,25 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.25
+
+Firmware identity FM-1_859. Twelve banks, for sharp turns in a live set.
+
+- **Banks:** hold SEL and press one of the white keys 1-12. Each key is a bank: a whole setup of its
+  own, with the patterns of all five tracks, the sounds, the effects and the settings. It comes in at
+  once and plays from where the sequence is; the tempo, the level and the Setup and Scene pages stay
+  the same for all banks. The bank you leave keeps everything you did in it.
+- **An empty bank** starts as a copy of the one playing, so you can build the next part from where
+  you are.
+- **While SEL is held** the white keys show the banks: lit is the one playing, dim the ones with
+  something in them.
+- **SEL + key 16 (Chance):** a new scene by chance at every press (which tracks play, how much of each
+  effect). Change bank and the bank keeps how it was before the scene.
+- SEL on its own works as before, as long as no white key was pressed while it was held.
+- The banks are saved by themselves like the project: once stopped and quiet. A preset holds the bank
+  that plays when you save it, and loading one replaces the bank playing.
+- **Undo is 6 steps now** (was 12) to make room, and it starts afresh in each bank.
+
 ## 0.3.24
 
 Firmware identity FM-1_858. A Fixed length is the length.
