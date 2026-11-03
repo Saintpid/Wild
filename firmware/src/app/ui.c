@@ -24,7 +24,7 @@
  *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
- *   GLO + HOME     clear all (asked, SAVE: yes): every bank, all automation; the saved songs stay
+ *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation; saved songs stay
  *   GLO + REC      the selected track's automation erased
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
@@ -978,7 +978,7 @@ static void reset_defaults(void)
     mark_dirty();
     say("RESET", "TO DEFAULTS");
 }
-/* CLEAR ALL: a clean start. Every bank empty, all automation gone, bank 1 as reset; the saved songs stay */
+/* CLEAR ALL (GLO + HOME, and again to say yes): a clean start. Every bank empty, all automation gone, bank 1 as reset; the saved songs stay */
 static void clear_all(void)
 {
     auto_finish_all();
@@ -999,7 +999,7 @@ static void reset_ask(int on)
 {
     ui.reset_ask = on ? plat_ms() + RESET_ASK_MS : 0u;
     if (on) {
-        say(ui.reset_all ? "CLEAR ALL?" : "RESET?", "SAVE: YES");
+        say(ui.reset_all ? "CLEAR ALL?" : "RESET?", ui.reset_all ? "GLO+HOME: YES" : "SAVE: YES");
         ui.msg_until = ui.reset_ask;
     } else {
         say("KEPT", 0);
@@ -1035,7 +1035,7 @@ static void button(int b)
         if (ui.reset_ask) {
             ui.reset_ask = 0;
             if (ui.reset_all)
-                clear_all();
+                say("KEPT", 0);                      /* (clear all: GLO + HOME says yes) */
             else
                 reset_defaults();
             break;
@@ -1176,7 +1176,10 @@ static void input(void)
             ui.btn_used &= ~m;
             if ((i == B_HOME || i == B_REC) && (btn >> B_GLO & 1u)) {
                 ui.btn_used |= m | 1u << B_GLO;     /* GLO + HOME: clear all (asked); GLO + REC: the track's automation */
-                if (i == B_HOME) {
+                if (i == B_HOME && ui.reset_ask && ui.reset_all) {
+                    ui.reset_ask = 0;                /* asked, and GLO + HOME again: yes */
+                    clear_all();
+                } else if (i == B_HOME) {
                     ui.reset_all = 1;
                     reset_ask(1);
                 } else {

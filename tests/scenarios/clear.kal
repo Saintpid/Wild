@@ -1,5 +1,5 @@
-# CLEAR ALL: GLO + HOME asks, SAVE says yes (anything else keeps): every bank empty, all automation gone,
-# bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes, at once.
+# CLEAR ALL: GLO + HOME asks, GLO + HOME again says yes (a key or SAVE keeps): every bank empty, all
+# automation gone,# bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes, at once.
 wait 200
 tap FX
 spin K1 30
@@ -45,12 +45,21 @@ release GLO
 expect view 6
 tapkey w4
 expect banks 5
-# GLO + HOME, SAVE: all clear
+# GLO + HOME, SAVE: kept too
 press GLO
 tap HOME
 release GLO
 tap SAVE
 expect list 0
+expect banks 5
+# GLO + HOME twice: all clear
+press GLO
+tap HOME
+release GLO
+press GLO
+tap HOME
+release GLO
+expect view 6
 expect bank 0
 expect banks 1
 expect lanes 0

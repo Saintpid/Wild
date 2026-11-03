@@ -16,7 +16,7 @@ Firmware identity FM-1_862. Songs keep their banks; clear all for a clean start.
   the song's own slot as "used +3". A song with all 12 banks and automation takes 7 slots. If there is
   no room left, the save says so and nothing is saved.
 - Presets saved before load as songs of one bank.
-- **Clear all, GLO + HOME:** asks "CLEAR ALL?", and SAVE says yes (anything else keeps everything).
+- **Clear all, GLO + HOME:** asks "CLEAR ALL?", and GLO + HOME again says yes (SAVE or a key keeps everything).
   Every bank is emptied and all automation erased, and bank 1 starts from the defaults: a clean
   starting point. Your saved songs are not touched.
 - **GLO + REC:** erases the selected track's automation in the bank playing, at once.
