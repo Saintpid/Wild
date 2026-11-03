@@ -3,6 +3,8 @@
 **0.3.18: the 303 calibrated as Open303 measured a real one:** its knobs over the 303's own ranges
 (cutoff 314 Hz to 2.4 kHz, decay 200 ms to 2 s), Env Mod's measured curve, the 303's quick slide, its
 VCA (an accent much louder, a quick release) and the filters around its ladder; Open303's square.
+**0.3.19:** the phaser, flanger, chorus and ring modulator without the bitcrusher-like grit on
+bass and kicks, and flanger and chorus tails that stay clean as they fade.
 **0.3.17:** Tune (drums and 303) and Pitch (drums) move a semitone every two detents and no
 longer speed up on a quick turn: a sound walks up or down the notes instead of jumping.
 **0.3.16:** operators that are off or have died away no longer cost render time; the drum

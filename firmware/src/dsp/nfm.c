@@ -780,25 +780,56 @@ NFM_CODE void nfm_mod_reset(nfm_mod_state *s)
 {
     for (int k = 0; k < 4; ++k) s->x1[k] = s->y1[k] = 0.0f;
     s->fb = 0.0f;
-    s->ein = s->eout = 0.0f;
-    s->g = 1.0f;
+    s->ein = s->eout = s->ein2 = s->eout2 = 0.0f;
+    s->g = s->gt = 1.0f;
+    s->dg = 0.0f;
     s->w = 0;
     if (s->line) nfm_zero(s->line, NFM_MOD_LEN * 2u);
 }
 
-/* the levels in and out followed, every 16th frame the gain that matches them (within 0.5..2: sqrt by
- * two Newton steps from the last value) */
+/* the levels in and out followed (a pole each frame, a second each 16th: a single one let a bass's
+ * level ripple through, its third harmonic -30 dB at 30 Hz), every 16th frame the gain that matches them
+ * (within 0.5..2: sqrt by two Newton steps from the last value), slid to over the next 16 frames: held
+ * in steps, the gain was a 2.8 kHz staircase that sounded like a bitcrusher */
 NFM_CODE NFM_HOT static inline float mod_match(nfm_mod_state *s, float x, float y, int i)
 {
-    s->ein += 0.001f * (x * x - s->ein);
-    s->eout += 0.001f * (y * y - s->eout);
-    if ((i & 15) == 0 && s->eout > 1e-10f && s->ein > 1e-10f) {
-        float want = s->ein / s->eout, r = s->g;
-        want = want > 4.0f ? 4.0f : want < 0.25f ? 0.25f : want;
-        r = 0.5f * (r + want / r);
-        s->g = 0.5f * (r + want / r);
+    s->ein += 0.002f * (x * x - s->ein);
+    s->eout += 0.002f * (y * y - s->eout);
+    if ((i & 15) == 0) {
+        s->ein2 += 0.032f * (s->ein - s->ein2);
+        s->eout2 += 0.032f * (s->eout - s->eout2);
+        if (s->eout2 > 1e-10f && s->ein2 > 1e-10f) {
+            float want = s->ein2 / s->eout2, r = s->gt;
+            want = want > 4.0f ? 4.0f : want < 0.25f ? 0.25f : want;
+            r = 0.5f * (r + want / r);
+            s->gt = 0.5f * (r + want / r);
+        }
+        s->dg = (s->gt - s->g) * (1.0f / 16.0f);
     }
-    return y * s->g;
+    float g = s->g + s->dg;
+    s->g = g;
+    return y * g;
+}
+
+/* The flanger's and chorus's lines hold a 16-bit float: sign, 4 bits of exponent and 11 of mantissa,
+ * within +-4 as before, so a quiet tail keeps its 12 bits as a loud hit does (below 2^-13, -78 dB, even
+ * steps of 2^-24). As int16 x 8192, a tail 40 dB down had 6 bits left: grit. */
+NFM_CODE NFM_HOT static inline int16_t mod_put(float x)
+{
+    union { float f; uint32_t u; } v = { x };
+    uint32_t sign = (v.u >> 16) & 0x8000u, m = v.u & 0x7FFFFFFFu;
+    v.u = m;
+    if (m < (114u << 23)) return (int16_t)(sign | (uint32_t)(v.f * 16777216.0f + 0.5f));
+    m = (m - (113u << 23) + 0x800u) >> 12;                       /* rounded */
+    if (m > 0x7FFFu) m = 0x7FFFu;                                /* 4 and up */
+    return (int16_t)(sign | m);
+}
+NFM_CODE NFM_HOT static inline float mod_get(int16_t h)
+{
+    uint32_t b = (uint16_t)h, m = b & 0x7FFFu;
+    union { uint32_t u; float f; } v = { (m << 12) + (113u << 23) };
+    float a = m >= 0x800u ? v.f : (float)m * (1.0f / 16777216.0f);
+    return b & 0x8000u ? -a : a;
 }
 
 NFM_CODE NFM_HOT static inline float mod_phaser(const nfm_mod *m, nfm_mod_state *s, float x, int i)
@@ -821,8 +852,8 @@ NFM_CODE NFM_HOT static inline float mod_line(const nfm_mod *m, nfm_mod_state *s
     int di = (int)d;
     float t = d - (float)di;
     uint16_t w = s->w;
-    float a = (float)s->line[(w - di) & (NFM_MOD_LEN - 1)], b = (float)s->line[(w - di - 1) & (NFM_MOD_LEN - 1)];
-    float del = (a + (b - a) * t) * (1.0f / 8192.0f), in, y;
+    float a = mod_get(s->line[(w - di) & (NFM_MOD_LEN - 1)]), b = mod_get(s->line[(w - di - 1) & (NFM_MOD_LEN - 1)]);
+    float del = a + (b - a) * t, in, y;
     if (m->type == NFM_MOD_FLANGER) {
         in = x + del * (0.3f + 0.55f * m->amount);
         y = (x + del) * 0.6f;
@@ -831,8 +862,7 @@ NFM_CODE NFM_HOT static inline float mod_line(const nfm_mod *m, nfm_mod_state *s
         in = x;
         y = (x + del * wet) * (1.0f / (1.0f + 0.5f * wet));
     }
-    in *= 8192.0f;
-    s->line[w & (NFM_MOD_LEN - 1)] = (int16_t)(in > 32767.0f ? 32767.0f : in < -32768.0f ? -32768.0f : in);
+    s->line[w & (NFM_MOD_LEN - 1)] = mod_put(in);
     s->w = (uint16_t)(w + 1u);
     return mod_match(s, x, y, i);
 }

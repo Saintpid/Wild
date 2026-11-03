@@ -149,8 +149,10 @@ typedef struct {
 typedef struct {
     float x1[4], y1[4], fb;   /* the phaser's four allpasses and its feedback */
     float ein, eout, g;       /* the loudness match: what goes in and out, followed (~20 ms); the gain */
-    int16_t *line;            /* NFM_MOD_LEN frames, or 0 (no flanger, chorus) */
+    int16_t *line;            /* NFM_MOD_LEN frames (16-bit floats), or 0 (no flanger, chorus) */
     uint16_t w;
+    float gt, dg;             /* the gain's target, and its slide a frame */
+    float ein2, eout2;        /* the levels' second pole */
 } nfm_mod_state;
 void nfm_mod_block(nfm_mod *m, float sr, int n);
 void nfm_mod_reset(nfm_mod_state *s);
