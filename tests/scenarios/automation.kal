@@ -1,6 +1,6 @@
 # AUTOMATION: REC, a knob turned while it plays, REC again: the knob's moves loop with the phrase. Turned
 # by hand it is the hand's, and a second after, the automation's again. REC held and the knob turned:
-# erased. Per bank, saved like the banks.
+# erased. Per bank, saved like the banks. A track's new pattern takes its automation with the old one.
 wait 200
 tap FX
 expect tpar15 0
@@ -73,3 +73,24 @@ wait 200
 expect lanes 1
 expect lanebars0 2
 expect dropped 0
+# a new pattern: its track's automation goes, another track's and the global ones stay
+tap PLAY
+tap FX
+tap FX
+tap FX
+expect view 8
+tap REC
+turn K1 -20 80
+tap REC
+expect lanes 2
+tap OCT+
+tapkey b9
+expect lanes 2
+tap OCT-
+tapkey b9
+expect lanes 1
+press GLO
+tapkey b9
+release GLO
+expect lanes 1
+expect autodirty 1

@@ -1,5 +1,8 @@
-# Wild 0.3.25 - experimental FM-1 firmware
+# Wild 0.3.26 - experimental FM-1 firmware
 
+**0.3.26: automation.** REC, turn knobs while it plays, REC again: the moves loop with the phrase.
+Turned by hand a knob is yours, and a second after you let go the automation takes it back. REC held
+and a knob turned erases its automation; so does a new pattern on its track. Each bank has its own.
 **0.3.25: twelve banks.** Hold SEL and press white key 1-12: a whole setup of its own (patterns,
 sounds, effects, settings) comes in at once, with the tempo kept. Key 16: a new scene by chance at
 each press. Undo is 6 steps now (it was 12) to make room.
@@ -141,7 +144,8 @@ command.
 | **Black 3 / 4** | Undo / redo, 6 steps (within the bank) |
 | **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
-| **PLAY / REC / SEQ** | Start/stop / nothing for now / switch SEQ and LIVE |
+| **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
+| **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation |
 | **SAVE / ARP** | Save / load a preset (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Scenes, by the SEL mode: a scene by chance, two scenes (A/B) to switch between, or a copy to play with. Again: back |
