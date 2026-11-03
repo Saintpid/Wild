@@ -1,5 +1,5 @@
 # CLEAR ALL: GLO + HOME asks, GLO + HOME again says yes (a key or SAVE keeps): every bank empty, all
-# automation gone,# bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes, at once.
+# automation gone, bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes.
 wait 200
 tap FX
 spin K1 30
