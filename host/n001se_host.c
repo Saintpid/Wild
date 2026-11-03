@@ -24,7 +24,8 @@
  *                                 stepN velN noteN (step N of the selected track) hits velmin len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
- *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches)
+ *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
+ *                                 patkeepN patmovedN (N 5: the acid line))
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
 #define OM_HOST 1
@@ -509,6 +510,22 @@ static int expect(const char *what, const char *val)
                 e += x * x;
         }
         got = (int)(sqrtf(e / (float)(NFM_PARAMS - 1)) * 1000.0f);
+    } else if (!strncmp(what, "patkeep", 7) || !strncmp(what, "patmoved", 8)) {
+        /* a track's pattern (5: the acid line's): patkeep<t> keeps it (0), patmoved<t> 1 if it changed since */
+        static uint32_t kept_pat[NE_TRACKS + 1];
+        int t = atoi(what + (what[3] == 'k' ? 7 : 8)), s;
+        uint32_t h = 2166136261u;
+        t = t < 0 ? 0 : t > NE_TRACKS ? NE_TRACKS : t;
+        if (t == NE_TRACKS) {
+            for (s = 0; s < ac->length; s++)
+                h = (h ^ ((uint32_t)ac->step[s].flags | (uint32_t)(uint8_t)ac->step[s].note << 8)) * 16777619u;
+        } else {
+            const nseq_track *x = &ne_seq()->track[t];
+            for (s = 0; s < x->length; s++)
+                h = (h ^ ((uint32_t)x->step[s].on | (uint32_t)x->step[s].vel << 1 | (uint32_t)(uint8_t)x->step[s].note << 8)) * 16777619u;
+        }
+        if (what[3] == 'k') { kept_pat[t] = h; got = 0; }
+        else got = h != kept_pat[t];
     } else if (!strncmp(what, "kind", 4))
         got = ne_fm()->slot[atoi(what + 4) & 3].kind;
     else if (!strcmp(what, "dimkeys"))
