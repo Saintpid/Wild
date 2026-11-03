@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.17
+
+Firmware identity FM-1_851. Calmer Tune and Pitch knobs.
+
+- **Tune and Pitch move a semitone every two detents, however quick the turn:** Tune on the drums
+  and the 303, and Pitch on the drums, no longer speed up when turned fast (a quick twist could
+  throw Tune from 0 to +24 at once). Playing with them while the pattern runs, the sound now walks
+  up or down the notes instead of jumping. The other knobs still speed up on a quick turn.
+
 ## 0.3.16
 
 Firmware identity FM-1_850. The drums and the 303 a little lighter to run, the same sound.

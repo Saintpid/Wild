@@ -1,0 +1,32 @@
+# Tune and Pitch: a semitone every two detents however quick the turn (no acceleration),
+# on the drums (Tune, Pitch) and the acid line (Tune); other knobs still speed up
+wait 200
+expect track 0
+# the kick's Tune (ENV twice, KNOB 3): 8 quick detents, 4 semitones
+tap ENV
+tap ENV
+expect view 4
+turn K3 8 5
+expect tpar14 4
+# an odd detent waits for its pair; back down to 0
+turn K3 -1 5
+expect tpar14 4
+turn K3 -7 5
+expect tpar14 0
+# its Pitch (EDIT, KNOB 2): 10 quick detents, 5
+tap EDIT
+expect view 2
+expect tpar4 0
+turn K2 10 5
+expect tpar4 5
+# a quick turn of another knob still speeds up: Level (KNOB 3)
+turn K3 -10 5
+expect tpar13 <60
+# the acid line's Tune (ENV twice, KNOB 3)
+tap OCT-
+expect track 4
+tap ENV
+tap ENV
+expect view 4
+turn K3 12 5
+expect apar14 6
