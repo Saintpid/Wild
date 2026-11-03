@@ -5,6 +5,26 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.26
+
+Firmware identity FM-1_860. Automation: REC records what you do with the knobs.
+
+- **REC, turn, REC:** press REC (it lights, and REC shows red in the header), then turn any knob
+  while the sequence plays; from your first touch its value is recorded. Press REC again and your
+  moves play back in a loop. Several knobs can be recorded at once, also the mixer's faders.
+- **The loop** is as long as you recorded, made 1, 2, 4 or 8 bars, and runs in step with the phrase
+  (the bars shown at the bottom). Where you did not touch the knob, it keeps the value it had.
+- **Your hand wins:** turn a knob that has automation and it follows you; a second after you let go,
+  the automation takes it back. Record it again to replace it.
+- **Erase:** hold REC and turn the knob. A red dot over a knob shows it has automation.
+- **A new pattern, clean knobs:** a new pattern on a track (black 10, MIDI C1-E1) erases that track's
+  automation (its knobs and its mixer fader); on all tracks (GLO + black 10, CC 118) that of every
+  track that gets one. The global knobs' automation (master, FX bus, Glue, Groove) stays.
+- **Per bank:** each bank has its own automation. 28 recorded knobs in all, shared by the banks; it is
+  saved by itself like the banks, once stopped and quiet.
+- Knobs that set what the patterns are (Bars, Rnd len, Hits, Kind, Grid) and the device's (tempo,
+  MIDI, the Setup and Scene pages) are not recorded. Stopping, or changing bank, ends a recording.
+
 ## 0.3.25
 
 Firmware identity FM-1_859. Twelve banks, for sharp turns in a live set.
