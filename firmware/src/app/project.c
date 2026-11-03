@@ -129,10 +129,11 @@ static void project_banks_load(void)
             memset(b, 0, 2u * (uint32_t)sz);
             continue;
         }
-        if (rec < sz) {
-            memmove(b + sz, b + rec, (size_t)rec);
-            memset(b + rec, 0, (size_t)(sz - rec));
-            memset(b + sz + rec, 0, (size_t)(sz - rec));
+        if (rec < sz) {                              /* (back to front: the two overlap) */
+            for (i = rec; i-- > 0;)
+                b[sz + i] = b[rec + i];
+            memset(b + rec, 0, (uint32_t)(sz - rec));
+            memset(b + sz + rec, 0, (uint32_t)(sz - rec));
         }
         for (i = 2 * s; i < 2 * s + 2 && i < PROJ_BANKS; i++) {
             proj = proj_bank[i];
