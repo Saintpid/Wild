@@ -14,7 +14,9 @@
  *   black 4        the preset list to load: a slot (SELECT, OCT-/+, PRESETS, a white key), black 4 again
  *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); unmuted, it is selected
  *   black 10 / 11  a new pattern / a new sound for the selected track; with GLO held: for every track
- *   PLAY start / stop    SEQ the mode    (REC: nothing for now)
+ *   PLAY start / stop    SEQ the mode
+ *   REC            automation: the knobs turned while it plays are recorded, REC again ends it, and they
+ *                  loop (a knob with automation: a red dot); REC held and a knob turned: its automation erased
  *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
  *   PRESETS        the knob of the Setup page's choice (Glue by default)
  *   SEL            by the Scene page's SEL mode: Chance, a scene by chance (which tracks play, how much of
@@ -124,6 +126,7 @@ static struct {
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
     uint8_t scene;                     /* SEL A/B: in B; Copy: in the copy */
     uint8_t chance;                    /* a scene by chance plays (what was before: sc_*) */
+    uint8_t rec;                       /* REC: the knobs turned are recorded (auto_*) */
     uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
     char pop[2][16];                   /* ...the parameter and its value */
     int16_t beat;                      /* the beat counted big over the tracks (phrase step / 4), -1 none */
@@ -379,11 +382,18 @@ static int slow_knob(int k)
     return k == (KA | A_TUNE) || k == (KT | T_TUNE) || k == (KT | T_PITCH);
 }
 
-/* a knob turned: its change, and its name and value big over the tracks a moment */
+static int auto_touch(int k, int t);
+static void rec_press(void);
+static void auto_finish_all(void);
+static void auto_erase_bank(int b);
+/* a knob turned: its change, and its name and value big over the tracks a moment (REC held: its
+ * automation erased instead) */
 static void turn(int role, int k, int32_t e)
 {
     const ne_param_t *p;
     if (!e || k == K_NONE)
+        return;
+    if (auto_touch(k, dtrack()))
         return;
     p = kinfo(k);
     undo_mark(1u << 24 | (uint32_t)k << 8 | ui.track);
@@ -764,6 +774,7 @@ static void bank_go(int n)
         say_bank(0, n, "PLAYS");
         return;
     }
+    auto_finish_all();                               /* (a recording ends with its bank) */
     has = proj_bank_has(n);
     if (has) {
         state_go(&proj_bank[n], 1);                  /* (the one left goes to its place: state_was()) */
@@ -964,6 +975,7 @@ static void reset_defaults(void)
     project_defaults();
     proj.g[G_MIDICH] = keep;
     proj.bank = bank;                                /* (the bank playing: the others stay) */
+    auto_erase_bank(bank);
     sel_forget();
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
@@ -1020,6 +1032,7 @@ static void button(int b)
         break;
     case B_ARP: list_open(L_LOAD); break;
     case B_SEL: sel_press(); break;
+    case B_REC: rec_press(); break;
     default:
         for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
             if (VIEW_BTN[v] == b) {
@@ -1127,7 +1140,7 @@ static void mixer_turn(int channel, int32_t delta)
     int value = old + (int)delta;
     if (value < 0) value = 0;
     if (value > 100) value = 100;
-    if (value == old) return;
+    if (auto_touch(k, channel == NE_ACID ? 0 : channel) || value == old) return;
     undo_mark(1u << 24 | (uint32_t)k << 8 | (uint32_t)channel);
     if (channel == NE_ACID) knob_set(k, value);
     else tpar_set(channel, T_LEVEL, value);
@@ -1277,6 +1290,232 @@ static uint16_t mix(uint16_t a, uint16_t b, int t)   /* t 0..16: a -> b */
 /* the global step playing now (-1: stopped): the phrase counts from the start */
 static int phrase_step(void) { return playing() && ne_seq()->steps ? (int)((ne_seq()->steps - 1u) % (8u * NE_BAR)) : -1; }
 
+/* ------------------------------------------------------------ automation --- */
+/* REC: from then on each knob turned while it plays is recorded (the mixer's faders too), its value at
+ * each sixteenth, until REC again (or the stop, or a change of bank). Its lane is as many bars as it was
+ * recorded for, made 1, 2, 4 or 8, and loops in step with the phrase; where nothing was recorded the
+ * value before stays. A knob with a lane plays it; turned by hand it is the hand's, and a second after
+ * the hand lets go the lane's again. REC held and a knob turned: that knob's automation erased. A knob
+ * that sets what the patterns are (bars, grid, kind) or the device (tempo, MIDI, Setup, Scene) has none. */
+#define AUTO_HOLD 1000u                                /* ms the hand keeps a knob after its last turn */
+#define REC_MAX 8                                    /* knobs recorded at once */
+static uint32_t auto_hold[AUTO_LANES];               /* until when the hand has a lane's knob */
+static struct { int8_t lane; uint32_t start, last; } rec_l[REC_MAX];
+static uint8_t rec_n;
+static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
+static int auto_ok(int k)
+{
+    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLO, T_HITHI}, NOT_A[] = {A_BARS, A_GRID},
+                         NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
+    const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
+    uint32_t n = k & KT ? sizeof NOT_T : k & KA ? sizeof NOT_A : sizeof NOT_G, i;
+    for (i = 0; i < n; i++)
+        if (no[i] == (k & 0x3F))
+            return 0;
+    return 1;
+}
+/* the lane of knob k (track t for a T_*) in the bank playing, -1 none */
+static int auto_find(int k, int t)
+{
+    int i;
+    t = k & KT ? t : 0;
+    for (i = 0; i < AUTO_LANES; i++)
+        if (proj_auto[i].bars && proj_auto[i].bank == proj.bank && proj_auto[i].k == k && proj_auto[i].track == t)
+            return i;
+    return -1;
+}
+static int auto_recording(int l)
+{
+    int r;
+    for (r = 0; r < rec_n; r++)
+        if (rec_l[r].lane == l)
+            return 1;
+    return 0;
+}
+static int auto_value(const auto_lane_t *l)          /* the knob's value now (proj) */
+{
+    int i = l->k & 0x3F;
+    return l->k & KT ? proj.t[l->track][i] : l->k & KA ? proj.a[i] : proj.g[i];
+}
+static void auto_set(const auto_lane_t *l, int v)
+{
+    if (l->k & KT)
+        tpar_set(l->track, l->k & 0x3F, v);
+    else
+        knob_set(l->k, v);
+}
+/* the phrase's sixteenths since the start: the step playing and how far into it */
+static uint32_t auto_step(void) { return ne_seq()->steps - 1u; }
+static float auto_frac(void)
+{
+    const nseq *q = ne_seq();
+    float len = NE_SR * 60.0f / (q->bpm < 20.0f ? 20.0f : q->bpm) / 4.0f, f = 1.0f - q->to_next / len;
+    return f < 0.0f ? 0.0f : f > 0.999f ? 0.999f : f;
+}
+
+/* a recording done: its sixteenths into a lane of 1, 2, 4 or 8 bars, AUTO_PTS values over it */
+static void auto_finish(int r)
+{
+    auto_lane_t *l = &proj_auto[rec_l[r].lane];
+    uint8_t out[AUTO_PTS];
+    uint32_t span = rec_l[r].last - rec_l[r].start + 1u;
+    int bars = 1, n, q, j, i, have = -1;
+    while (bars < 8 && (uint32_t)bars * NE_BAR < span)
+        bars *= 2;
+    n = bars * NE_BAR;
+    for (q = 0; q < n; q++) {                        /* each sixteenth of the lane: the phrase's that has one */
+        out[q] = 255;
+        for (j = q; j < AUTO_PTS; j += n)
+            if (l->v[j] != 255)
+                out[q] = l->v[j];
+        if (out[q] != 255)
+            have = q;
+    }
+    rec_l[r] = rec_l[--rec_n];
+    if (have < 0) {                                  /* (nothing came: no lane) */
+        l->bars = 0;
+        return;
+    }
+    for (q = 1; q <= n; q++)                         /* where nothing was recorded, the value before stays */
+        if (out[(have + q) % n] == 255)
+            out[(have + q) % n] = out[(have + q - 1) % n];
+    for (i = 0; i < AUTO_PTS; i++) {                 /* over AUTO_PTS, between the sixteenths in a line */
+        uint32_t x = (uint32_t)i * (uint32_t)n, a = x / AUTO_PTS, f = x % AUTO_PTS;
+        int v0 = out[a], v1 = out[(a + 1u) % (uint32_t)n];
+        l->v[i] = (uint8_t)(v0 + ((v1 - v0) * (int)f + (v1 > v0 ? AUTO_PTS / 2 : -AUTO_PTS / 2)) / AUTO_PTS);
+    }
+    l->bars = (uint8_t)bars;
+    proj_auto_dirty = 1;
+    mark_dirty();
+}
+static void auto_finish_all(void)
+{
+    while (rec_n)
+        auto_finish(rec_n - 1);
+}
+static void auto_erase_bank(int b)
+{
+    int i;
+    auto_finish_all();
+    for (i = 0; i < AUTO_LANES; i++)
+        if (proj_auto[i].bars && proj_auto[i].bank == b) {
+            proj_auto[i].bars = 0;
+            proj_auto_dirty = 1;
+        }
+}
+
+/* a knob is turned by hand: REC held, its lane goes (1: the turn is done); recording, it is recorded from
+ * now; else its lane, if it has one, waits for the hand */
+static int auto_touch(int k, int t)
+{
+    int l, i;
+    if (k == K_NONE || !auto_ok(k)) {
+        if (!rec_held())
+            return 0;
+        ui.btn_used |= 1u << B_REC;
+        say("NO AUTOMATION", "ON THIS KNOB");
+        return 1;
+    }
+    l = auto_find(k, t);
+    if (rec_held()) {
+        ui.btn_used |= 1u << B_REC;
+        if (l >= 0 && !auto_recording(l)) {
+            proj_auto[l].bars = 0;
+            proj_auto_dirty = 1;
+            mark_dirty();
+        }
+        say("AUTOMATION", l >= 0 ? "ERASED" : "NONE HERE");
+        return 1;
+    }
+    if (l >= 0)
+        auto_hold[l] = plat_ms() + AUTO_HOLD;
+    if (!ui.rec || !playing() || (l >= 0 && auto_recording(l)))
+        return 0;
+    if (rec_n >= REC_MAX) {
+        say("RECORDING", "8 AT MOST");
+        return 0;
+    }
+    if (l < 0)
+        for (i = 0; i < AUTO_LANES && l < 0; i++)
+            if (!proj_auto[i].bars)
+                l = i;
+    if (l < 0) {
+        say("AUTOMATION", "FULL");
+        return 0;
+    }
+    proj_auto[l].k = (uint8_t)k;
+    proj_auto[l].track = (uint8_t)(k & KT ? t : 0);
+    proj_auto[l].bank = proj.bank;
+    proj_auto[l].bars = 8;
+    memset(proj_auto[l].v, 255, AUTO_PTS);
+    rec_l[rec_n].lane = (int8_t)l;
+    rec_l[rec_n].start = rec_l[rec_n].last = auto_step();
+    rec_n++;
+    return 0;
+}
+
+static void rec_press(void)
+{
+    if (ui.rec) {
+        int n = rec_n;
+        char b[16];
+        auto_finish_all();
+        ui.rec = 0;
+        itoa_u((uint32_t)n, b);
+        s_cpy(b + s_len(b), n == 1 ? " KNOB" : " KNOBS");
+        say("RECORDED", b);
+    } else {
+        ui.rec = 1;
+        say("REC", playing() ? "TURN A KNOB" : "PLAY, TURN A KNOB");
+    }
+}
+
+/* each frame: what is recorded written down, the lanes played (the hand's knobs left alone) */
+static void auto_frame(void)
+{
+    uint32_t now = plat_ms(), st;
+    int i, r;
+    float pos;
+    if (!playing()) {
+        auto_finish_all();
+        return;
+    }
+    if (!ne_seq()->steps)
+        return;
+    st = auto_step();
+    for (r = 0; r < rec_n; r++) {
+        auto_lane_t *l = &proj_auto[rec_l[r].lane];
+        if (st - rec_l[r].start >= (uint32_t)AUTO_PTS)  /* (over 8 bars: the oldest written over) */
+            rec_l[r].start = st - (AUTO_PTS - 1u);
+        rec_l[r].last = st;
+        l->v[st % AUTO_PTS] = (uint8_t)(auto_value(l) - kinfo(l->k)->lo);
+    }
+    pos = (float)(st % AUTO_PTS) + auto_frac();
+    for (i = 0; i < AUTO_LANES; i++) {
+        const auto_lane_t *l = &proj_auto[i];
+        const ne_param_t *p;
+        float x, f;
+        int a, v;
+        if (!l->bars || l->bank != proj.bank || (int32_t)(now - auto_hold[i]) < 0 || auto_recording(i))
+            continue;
+        x = pos;
+        while (x >= (float)(l->bars * NE_BAR))
+            x -= (float)(l->bars * NE_BAR);
+        x *= (float)AUTO_PTS / (float)(l->bars * NE_BAR);
+        a = (int)x;
+        f = x - (float)a;
+        p = kinfo(l->k);
+        v = p->lo + (int)((float)l->v[a % AUTO_PTS] + ((float)l->v[(a + 1) % AUTO_PTS] - (float)l->v[a % AUTO_PTS]) * f + 0.5f);
+        v = v < p->lo ? p->lo : v > p->hi ? p->hi : v;
+        if (v != auto_value(l))
+            auto_set(l, v);
+    }
+}
+static int auto_has(int k)                           /* the knob on screen has a lane here */
+{
+    return k != K_NONE && auto_find(k, dtrack()) >= 0;
+}
+
 /* the battery's % from its voltage: a Li-ion cell's curve under a light load. An estimate: the divider's scale is
  * not measured, though the stock firmware's bars (531 / 561 / 591 on the ADC: 3.43 / 3.62 / 3.81 V) fall on
  * about 2, 13 and 51 % of it */
@@ -1347,6 +1586,8 @@ static void draw_header(void)
         h = hash(hash(h, (uint32_t)ui.msg[0][0] << 8 | ui.msg[0][1]), ui.msg_until);
     if (ui.view == V_SETUP)
         h = hash(h, plat_cpu_pct() | plat_xruns() << 8);
+    if (ui.rec)
+        h = hash(h, 1u + rec_n + ((plat_ms() / 160u) & 1u) * 16u);
     if (h == ui.sig[0])
         return;
     ui.sig[0] = h;
@@ -1385,6 +1626,12 @@ static void draw_header(void)
             }
             x -= text_w(&FONT_S, t) + 10;
             cv_text(x, 6, &FONT_S, t, K_DIM);
+        }
+        if (ui.rec) {                                 /* REC: red, the dot blinking while it records */
+            x -= text_w(&FONT_S, "REC") + 22;
+            if (!rec_n || (plat_ms() / 160u) & 1u)
+                cv_round(x, 9, 9, 9, 4, K_RED);
+            cv_text(x + 13, 6, &FONT_S, "REC", K_RED);
         }
         x = 18 + text_w(&FONT_B, VIEW_NAME[ui.view]);
         {   /* the button's pages, when it has more than one: a dot each, this one filled */
@@ -1689,7 +1936,8 @@ static void draw_knobs(void)
     uint32_t h = hash(2166136261u, ui.view | (uint32_t)ui.touched << 8 | (uint32_t)ui.track << 16), i;
     int now_touch = plat_ms() < ui.touch_until;
     for (i = 0; i < 4; i++)
-        h = hash(h, view_knob((int)i) == K_NONE ? 0xFFFFu : (uint32_t)kval(view_knob((int)i)) | (uint32_t)view_knob((int)i) << 16);
+        h = hash(h, view_knob((int)i) == K_NONE ? 0xFFFFu : (uint32_t)kval(view_knob((int)i)) | (uint32_t)view_knob((int)i) << 16 |
+                    (uint32_t)auto_has(view_knob((int)i)) << 15);
     h = hash(h, (uint32_t)now_touch);
     if (h == ui.sig[2])
         return;
@@ -1710,6 +1958,8 @@ static void draw_knobs(void)
         hi = kinfo(k)->hi;
         v = kval(k);
         text_c(cx, 6, &FONT_XS, kname(k), C_WHITE);   /* white: read on the small screen */
+        if (auto_has(k))                             /* a red dot: it has automation */
+            cv_round(x + 51, 4, 5, 5, 2, K_RED);
         ktext(k, v, t);
         {   /* the value: big, unless it has lower case (the big face has none) or is long */
             const char *q = t;
@@ -1743,6 +1993,8 @@ static void leds(void)
         b |= 1u << B_SEQ;
     if (ui.scene || ui.chance)
         b |= 1u << B_SEL;
+    if (ui.rec && (!rec_n || blink))                 /* REC: lit, blinking while it records */
+        b |= 1u << B_REC;
     if (sel_held() && !ui.list) {                    /* SEL held: the banks (lit: playing, dim: one there) */
         for (i = 0; i < PROJ_BANKS; i++)
             if ((int)i == proj.bank)
@@ -1964,6 +2216,7 @@ void ui_frame(void)
                 mixer_peak[t] *= 0.92f;
         }
     }
+    auto_frame();
     cpu_guard();
     autosave();
     if (mixer_open) draw_mixer();

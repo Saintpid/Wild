@@ -25,7 +25,8 @@
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
- *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty)
+ *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty;
+ *                                 rec lanes lanebarsN autodirty)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
 #define OM_HOST 1
@@ -174,7 +175,7 @@ int plat_preset_used(int n)
 
 /* the banks' sectors, the same way */
 static uint8_t banks[PLAT_BANK_SECTORS][PLAT_STORE_MAX];
-static int banks_len[PLAT_BANK_SECTORS] = {-1, -1, -1, -1, -1, -1};
+static int banks_len[PLAT_BANK_SECTORS] = {-1, -1, -1, -1, -1, -1, -1};
 int plat_bank_load(int n, void *dst, uint32_t max)
 {
     int l;
@@ -486,6 +487,16 @@ static int expect(const char *what, const char *val)
             got |= proj_bank_has(n) << n;
     } else if (!strcmp(what, "bankdirty"))       /* the bank sectors not saved yet (bits) */
         got = proj_bank_dirty;
+    else if (!strcmp(what, "rec"))               /* REC on, and how many knobs it records now (x 10) */
+        got = ui.rec + 10 * rec_n;
+    else if (!strcmp(what, "lanes")) {           /* the automation lanes of the bank playing */
+        int i;
+        for (got = 0, i = 0; i < AUTO_LANES; i++)
+            got += proj_auto[i].bars && proj_auto[i].bank == proj.bank;
+    } else if (!strncmp(what, "lanebars", 8))    /* lane N's bars (any bank) */
+        got = proj_auto[atoi(what + 8) % AUTO_LANES].bars;
+    else if (!strcmp(what, "autodirty"))
+        got = proj_auto_dirty;
     else if (!strcmp(what, "adev")) {            /* the 303's Deviance: how far its knobs are moved now, x 1000 */
         int k;
         float d = 0.0f;
@@ -713,6 +724,7 @@ int main(int argc, char **argv)
             memset(&proj, 0, sizeof proj);
             memset(proj_bank, 0xA5, sizeof proj_bank);   /* (RAM after a power cycle: anything) */
             proj_bank_dirty = 0;
+            memset(proj_auto, 0xA5, sizeof proj_auto);
             boot();
         } else if (!strcmp(cmd, "echo"))
             printf("%s", line + 5);

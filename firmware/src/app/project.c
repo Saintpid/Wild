@@ -8,6 +8,8 @@ static uint8_t proj_has_state;           /* the project carries patterns and sou
 static uint8_t proj_has_acid;            /* ...and an acid pattern (not from before format 3) */
 project_t proj_bank[PROJ_BANKS];
 uint8_t proj_bank_dirty;
+auto_lane_t proj_auto[AUTO_LANES] OM_POOL;
+uint8_t proj_auto_dirty;
 static project_t proj_tmp;               /* an older project's layout, as it moves into this one */
 
 void project_defaults(void)
@@ -147,6 +149,25 @@ static void project_banks_load(void)
     }
 }
 
+/* the automation: a lane that is not one this firmware knows is dropped */
+static void project_auto_load(void)
+{
+    int i;
+    memset(proj_auto, 0, sizeof proj_auto);
+    proj_auto_dirty = 0;
+    if (plat_bank_load(PLAT_BANK_SECTORS - 1, proj_auto, sizeof proj_auto) != (int)sizeof proj_auto) {
+        memset(proj_auto, 0, sizeof proj_auto);
+        return;
+    }
+    for (i = 0; i < AUTO_LANES; i++) {
+        auto_lane_t *l = &proj_auto[i];
+        int k = l->k, n = k & 0x80 ? T_NPARAMS : k & 0x40 ? A_NPARAMS : G_NPARAMS;
+        if ((l->bars != 1 && l->bars != 2 && l->bars != 4 && l->bars != 8) || l->bank >= PROJ_BANKS ||
+            l->track >= NE_TRACKS || (k & 0x3F) >= n || (k & 0xC0) == 0xC0)
+            memset(l, 0, sizeof *l);
+    }
+}
+
 int proj_bank_has(int n)
 {
     return n >= 0 && n < PROJ_BANKS && (n == proj.bank || proj_bank[n].magic == PROJ_MAGIC);
@@ -166,8 +187,14 @@ void project_bank_keep(int n)
 int project_banks_save(void)
 {
     int s, rc = 0;
+    if (proj_auto_dirty) {
+        if (plat_bank_save(PLAT_BANK_SECTORS - 1, proj_auto, sizeof proj_auto) == 0)
+            proj_auto_dirty = 0;
+        else
+            rc = -1;
+    }
     if (!proj_bank_dirty)
-        return 0;
+        return rc;
     project_bank_keep(proj.bank);
     for (s = 0; 2 * s < PROJ_BANKS; s++)
         if (proj_bank_dirty >> s & 1u) {
@@ -183,6 +210,7 @@ int project_load(void)
 {
     int n;
     project_banks_load();
+    project_auto_load();
     memset(&proj, 0, sizeof proj);
     n = plat_store_load(OBJ_PROJ, &proj, sizeof proj);
     if (n >= 8 && project_valid(n)) {

@@ -136,7 +136,7 @@ int main(void)
         bad += check("bank sector 0 loads A", n == (int)sizeof a && !memcmp(got, a, sizeof a));
         n = st_bank_load(5, got, sizeof got);
         bad += check("bank sector 5 loads B", n == (int)sizeof b && !memcmp(got, b, sizeof b));
-        bad += check("bank sector 6 does not exist", st_bank_save(6, a, sizeof a) < 0);
+        bad += check("bank sector 7 does not exist", st_bank_save(7, a, sizeof a) < 0);
         n = st_preset_load(5, got, sizeof got);
         bad += check("presets untouched by the banks", n == (int)sizeof a && !memcmp(got, a, sizeof a) && !st_preset_used(63));
     }
