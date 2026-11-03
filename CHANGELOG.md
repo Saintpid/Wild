@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.19
+
+Firmware identity FM-1_853. The phaser, flanger, chorus and ring modulator without the grit.
+
+- **No more bitcrusher in the modulation effects:** they keep their loudness matched to the dry
+  sound, and that gain used to jump every 16 samples, a 2.8 kHz staircase that crunched like a
+  bitcrusher, most on bass and kicks. It now slides smoothly, and follows the level more calmly so
+  a low note's own wave no longer shakes it (on a 30 Hz tone the added distortion is 7 dB lower).
+- **Flanger and chorus tails stay clean:** their delay lines now hold a small floating-point number
+  instead of a fixed one, so a quiet tail keeps as much detail as a loud hit (it used to fall to
+  a few bits 40 dB down). Same memory, same headroom.
+- The effects sound otherwise the same and cost about the same to run.
+
 ## 0.3.18
 
 Firmware identity FM-1_852. The 303 calibrated as Open303 measured a real one.

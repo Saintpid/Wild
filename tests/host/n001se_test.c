@@ -365,6 +365,52 @@ int main(int argc, char **argv)
               "two strengths: %d of %d quarters strong, %d of %d others, flat %d, softest %d, softest strong %d", sbn, nb,
               son, no, two, lo, strong_lo);
     }
+    /* the modulation effects on a low sine, loud and 50 dB down: smooth (no 2.8 kHz gain staircase, no
+     * coarse steps in the delay line: what sounded like a bitcrusher) and as loud as what went in */
+    {
+        static int16_t ml[NFM_MOD_LEN];
+        static const float amp[2] = { 0.3f, 0.001f };
+        static const char *const nm[NFM_MODS] = { "", "phaser", "flanger", "chorus", "ring", "" };
+        int ty, q;
+        for (ty = NFM_MOD_PHASER; ty <= NFM_MOD_RING; ty++)
+            for (q = 0; q < 2; q++) {
+                nfm_mod m;
+                nfm_mod_state st;
+                float c = 0.0f, sn = amp[q], y1 = 0.0f, y2 = 0.0f;
+                const float w = 6.2831853f * 40.0f / NE_SR;
+                double ein = 0.0, eout = 0.0, ed = 0.0;
+                int bl, j;
+                memset(&m, 0, sizeof m);
+                memset(&st, 0, sizeof st);
+                m.type = (uint8_t)ty;
+                m.amount = 0.7f;
+                m.rate = 0.3f;
+                m.chance = 1.0f;
+                st.line = ml;
+                nfm_mod_reset(&st);
+                c = amp[q], sn = 0.0f;
+                for (bl = 0; bl < 690; bl++) {     /* 2 s */
+                    nfm_mod_block(&m, NE_SR, 128);
+                    for (j = 0; j < 128; j++) {
+                        float x = sn, y;
+                        float nc = c - w * sn;     /* a rotation: the sine without libm */
+                        sn += w * nc;
+                        c = nc;
+                        y = nfm_mod_tick(&m, &st, x, j);
+                        if (bl >= 345) {
+                            float d = y - 2.0f * y1 + y2;
+                            ein += (double)(x * x), eout += (double)(y * y), ed += (double)(d * d);
+                        }
+                        y2 = y1, y1 = y;
+                    }
+                }
+                /* the second difference against the signal: a clean 40 Hz is 3e-9; the stepped gain made 4e-7..3e-5,
+                 * the int16 line 50 dB down 6e-4 (flanger) and 2e-3 (chorus). The level within
+                 * the match's 0.25..4 (the chorus's 12 ms is near half a 40 Hz wave: it nearly cancels) */
+                CHECK(ed < eout * 1.6e-7 && eout > ein * 0.25 && eout < ein * 4.0,
+                      "%s at %g: rough %.1e of the level, out/in %.2f", nm[ty], (double)amp[q], ed / eout, eout / ein);
+            }
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();
