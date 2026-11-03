@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.20
+
+Firmware identity FM-1_854. The 303 on Open303's own voice, with Wild's touches on top.
+
+- **Open303's filter:** the 303's diode ladder as mystran and kunn fitted it to a real one (the
+  filter X0X uses), in place of Wild's own model. As on a 303, the sound thins out as the resonance
+  goes up.
+- **Its diodes bend:** each stage of the filter rounds when driven hard, so squelchy lines sing and
+  growl a little more (Wild's, on top of Open303).
+- **Open303's saw and VCA**, with Wild's bowed ramp, accents that build up with the resonance, a VCA
+  that rounds loud accents and the slow drift kept.
+- **Lighter to run:** the 303's render costs about 12 % less than in 0.3.19.
+
 ## 0.3.19
 
 Firmware identity FM-1_853. The phaser, flanger, chorus and ring modulator without the grit.

@@ -1,5 +1,8 @@
-# Wild 0.3.18 - experimental FM-1 firmware
+# Wild 0.3.20 - experimental FM-1 firmware
 
+**0.3.20: the 303 on Open303's own voice:** its filter, saw and VCA as X0X's, with Wild's touches
+on top (diodes that bend, a bowed saw, accents that build up, a VCA that rounds them, a slow drift).
+Closer to a real 303, and its render about 12 % lighter.
 **0.3.18: the 303 calibrated as Open303 measured a real one:** its knobs over the 303's own ranges
 (cutoff 314 Hz to 2.4 kHz, decay 200 ms to 2 s), Env Mod's measured curve, the 303's quick slide, its
 VCA (an accent much louder, a quick release) and the filters around its ladder; Open303's square.
@@ -83,7 +86,7 @@ command.
   something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal or clap, and perc, click and metal land in a random octave.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
-  of the 303's diode ladder filter (four stages that load each other, the bottom one twice as fast), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a
+  of the 303's diode ladder filter (Open303's TeeBeeFilter, its diodes bending a little), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a
   real 303: the knobs over the 303's ranges, Env Mod's measured curve, the 303's gate, slide (60 ms),
   accent (much louder, a sweep that builds up, weak on a slid note), its VCA, the filters around the
   ladder and its square; a saw whose ramp bows a little as the 303's, a VCA that rounds loud accents, and a slow

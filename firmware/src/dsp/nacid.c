@@ -127,7 +127,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->db_ph = 1.0f;
     a->d_energy = 1.0f;
     a->dsm = 1.0f - exp2f_(-32.0f * 1.4427f / (0.02f * sr)); /* Deviance's offsets glide: 20 ms */
-    a->wander = 0.0f;                              /* (Open303 has no drift) */
+    a->wander = 1.0f;                              /* (Wild's: a slow drift, as an analogue voice) */
     a->wmul = 1.0f;
     pitch_step(a);
     a->wrng = a->rng ^ 0x51ed270bu;
@@ -676,7 +676,12 @@ NFM_CODE NFM_HOT static void control(nacid *a)
     float slo = 3.773996f * em + 0.736966f, shi = 4.194549f * em + 0.864345f;
     float sc = (1.0f - cut) * slo + cut * shi, off = 0.048293f * cut + 0.294391f;
     a->env_rc += (a->env - a->env_rc) * a->rc1;
-    a->acc_cap += ((a->accent ? a->env : 0.0f) - a->acc_cap) * a->rc2;
+    /* (Wild's: the sweep capacitor charges in Open303's 15 ms and lets go slowly; the more resonance,
+     * the slower both, as the 303's resonance pot is on it too, so accents in a row build up) */
+    float src = a->acc_gate ? a->acc_env : 0.0f;
+    float chg = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.015f + 0.05f * reso) * a->sr));
+    float dis = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.08f + 0.5f * reso) * a->sr));
+    a->acc_cap += (src - a->acc_cap) * (src > a->acc_cap ? chg : dis);
     float oct = sc * (a->env_rc - off) + (a->accent ? a->p[NACID_P_ACCENT] : 0.0f) * a->acc_cap + a->wd[1] * a->wander;
     float fc = base * exp2f_(oct);
     fc = fc < 200.0f ? 200.0f : fc > 20000.0f ? 20000.0f : fc;          /* (Open303's limits) */
@@ -709,13 +714,20 @@ NFM_CODE NFM_HOT static void control(nacid *a)
  * halfband: 27 taps, 7 multiplies a sample, flat to 17 kHz, -57 dB from 27 kHz. */
 NFM_DATA NFM_HOT_DATA static const float hbc[7] = { 0.31402690f, -0.09586685f, 0.04802163f, -0.02583784f, 0.01338052f, -0.00619374f, 0.00246937f };
 
+#define SAW_BOW 0.12f
+
 /* the wave at phase t, dt its step */
 NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
 {
     float x;
     switch (a->wave) {
     default:
-    case NACID_SAW: x = 1.0f - t - t + blep(t, dt); break;   /* Open303's: a plain saw, falling */
+    case NACID_SAW: {                        /* Open303's, falling; its ramp bowed a little as a 303's (a
+                                              * capacitor charging: steeper at one end, rounder at the other) */
+        float r = 2.0f * t - 1.0f;
+        x = SAW_BOW * (r * r - 0.33333333f) - r + blep(t, dt);
+        break;
+    }
     case NACID_SQUARE:                       /* Open303's 303 square: the ramp through a transistor's tanh
                                               * (36.9 dB of drive), a hard edge at the wrap, its DC off, at
                                               * half the saw's level */
@@ -744,6 +756,8 @@ NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
     return x;
 }
 
+#define DIODE_V 1.2f                        /* the diodes' knee: soft (0.6 is hard) */
+#define VCA_ROOM 3.0f
 NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float fb0, float fa1)
 {
     /* Open303's TeeBeeFilter: the feedback through its high-pass, four stages (the first twice as
@@ -753,10 +767,11 @@ NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float fb0, f
     a->fbx = t;
     t = x - a->sf;
     float b0 = a->b0, y1 = a->s[0], y2 = a->s[1], y3 = a->s[2], y4 = a->s[3];
-    y1 += 2.0f * b0 * (t - y1 + y2);
-    y2 += b0 * (y1 - 2.0f * y2 + y3);
-    y3 += b0 * (y2 - 2.0f * y3 + y4);
-    y4 += b0 * (y3 - 2.0f * y4);
+    /* (Wild's: the diodes bend, each stage's drive through a soft knee) */
+    y1 += 2.0f * b0 * DIODE_V * soft((t - y1 + y2) * (1.0f / DIODE_V));
+    y2 += b0 * DIODE_V * soft((y1 - 2.0f * y2 + y3) * (1.0f / DIODE_V));
+    y3 += b0 * DIODE_V * soft((y2 - 2.0f * y3 + y4) * (1.0f / DIODE_V));
+    y4 += b0 * DIODE_V * soft((y3 - 2.0f * y4) * (1.0f / DIODE_V));
     a->s[0] = y1, a->s[1] = y2, a->s[2] = y3, a->s[3] = y4;
     return a->g2 * y4;
 }
@@ -863,8 +878,10 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
         a->hp2_y = h;
         a->nt_y2 = a->nt_y1;
         a->nt_y1 = y;
-        /* the VCA, Open303's: linear (a line's loudness about as before, its accents' peaks the 303's) */
-        float o = y * 0.6f * vd * lvl;
+        /* the VCA, Open303's (a line's loudness about as before, its accents' peaks the 303's); a
+         * transistor pair, so it rounds what goes through it loud (Wild's) */
+        float o = y * 0.6f * vd;
+        o = VCA_ROOM * soft(o * (1.0f / VCA_ROOM)) * lvl;
 
         /* the drive, then the moving filter when the effects chose it (faded in and out) */
         a->ins_f += (a->ins_f_to - a->ins_f) * fade;
