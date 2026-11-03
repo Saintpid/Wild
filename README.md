@@ -1,5 +1,7 @@
-# Wild 0.3.20 - experimental FM-1 firmware
+# Wild 0.3.21 - experimental FM-1 firmware
 
+**0.3.21:** a soft drum hit (the step keys' second press) is velocity 50, was 64, and shows a shade
+dimmer on the screen.
 **0.3.20: the 303 on Open303's own voice:** its filter, saw and VCA as X0X's, with Wild's touches
 on top (diodes that bend, a bowed saw, accents that build up, a VCA that rounds them, a slow drift).
 Closer to a real 303, and its render about 12 % lighter.

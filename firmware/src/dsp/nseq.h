@@ -29,7 +29,7 @@
 /* The two strengths a hit has on the step keys (any velocity 1..127 still plays as it is): strong, as a
  * key sets it, and soft; above SPLIT a hit counts as strong (a press takes it down to soft). */
 #define NSEQ_VEL_STRONG 100
-#define NSEQ_VEL_SOFT 64
+#define NSEQ_VEL_SOFT 50
 #define NSEQ_VEL_SPLIT 82
 
 /* MIDI notes that drive the generator (see nseq_midi_note). */
