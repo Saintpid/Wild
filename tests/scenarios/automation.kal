@@ -1,0 +1,75 @@
+# AUTOMATION: REC, a knob turned while it plays, REC again: the knob's moves loop with the phrase. Turned
+# by hand it is the hand's, and a second after, the automation's again. REC held and the knob turned:
+# erased. Per bank, saved like the banks.
+wait 200
+tap FX
+expect tpar15 0
+tap PLAY
+tap REC
+expect rec 1
+# track 1's reverb up over most of a bar: a lane of 1 bar
+turn K1 20 80
+expect rec 11
+expect tpar15 20
+shot recording.png
+tap REC
+expect rec 0
+expect lanes 1
+expect lanebars0 1
+# by hand: the hand's while it turns, the automation's a second after
+spin K1 70
+expect tpar15 90
+wait 400
+expect tpar15 90
+wait 1500
+expect tpar15 <21
+shot automated.png
+# in another bank: none; back: it plays again
+press SEL
+tapkey w1
+release SEL
+wait 50
+expect lanes 0
+spin K1 100
+wait 2500
+expect tpar15 100
+press SEL
+tapkey w0
+release SEL
+wait 2500
+expect lanes 1
+expect tpar15 <21
+# REC held and the knob turned: erased (and REC's release does nothing)
+press REC
+spin K1 1
+release REC
+expect rec 0
+expect lanes 0
+spin K1 100
+wait 2500
+expect tpar15 100
+# a knob that sets the pattern has none
+tap HOME
+tap REC
+spin K1 1
+wait 300
+expect rec 1
+tap REC
+expect lanes 0
+# recorded again, longer: 2 bars (the drive, K4 on the FX page)
+tap FX
+tap REC
+turn K4 30 120
+tap REC
+expect lanes 1
+expect lanebars0 2
+# saved once stopped and quiet, and back after a power cycle
+tap PLAY
+wait 6000
+expect autodirty 0
+expect dirty 0
+reboot
+wait 200
+expect lanes 1
+expect lanebars0 2
+expect dropped 0

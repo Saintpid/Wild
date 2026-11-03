@@ -155,8 +155,9 @@ static int st_save(uint32_t obj, const void *src, uint32_t len)
 _Static_assert(ST_PRESET_BASE + ST_PRESETS * ST_SECTOR <= 0xDC000u, "the presets would reach the panel's sectors");
 
 /* Wild's banks: ST_BANK_SECTORS more of the same, two banks a sector: 0xD7000.. (after the presets, up
- * to the panel's) and 0xDE000.. (after the panel's, below the loader's 0xE0000). type 0x200 + sector. */
-#define ST_BANK_SECTORS 6u
+ * to the panel's) and 0xDE000.. (after the panel's, below the loader's 0xE0000); the last, the automation.
+ * type 0x200 + sector. */
+#define ST_BANK_SECTORS 7u
 static uint32_t st_bank_off(uint32_t n) { return n < 5u ? 0xD7000u + n * ST_SECTOR : 0xDE000u + (n - 5u) * ST_SECTOR; }
 _Static_assert(ST_PRESET_BASE + ST_PRESETS * ST_SECTOR == 0xD7000u, "the banks follow the presets");
 

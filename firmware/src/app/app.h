@@ -48,13 +48,25 @@ extern project_t proj;
  * playing is proj (proj.bank); its own place here is stale meanwhile, and the UI uses it as scratch. Two to
  * a flash sector, saved like the project: once stopped and quiet. */
 #define PROJ_BANKS 12
-_Static_assert(PROJ_BANKS <= 2 * PLAT_BANK_SECTORS, "two banks a sector");
+_Static_assert(PROJ_BANKS <= 2 * (PLAT_BANK_SECTORS - 1), "two banks a sector (the last: the automation)");
 _Static_assert(2 * sizeof(project_t) <= PLAT_STORE_MAX, "two banks must fit a sector");
 extern project_t proj_bank[PROJ_BANKS];
 extern uint8_t proj_bank_dirty;          /* the sectors to save (bits) */
 int proj_bank_has(int n);                /* 1: bank n holds a project (the one playing always) */
 void project_bank_keep(int n);           /* the state now into bank n's place, saved when quiet */
-int project_banks_save(void);            /* the changed sectors: 0 = all saved */
+int project_banks_save(void);            /* the changed sectors (and the automation): 0 = all saved */
+/* AUTOMATION (REC): a knob's moves, AUTO_PTS values over its lane's bars (1, 2, 4 or 8), looped in step with
+ * the phrase, for one bank. k: the UI's knob (0x80 a track's T_*, 0x40 the acid line's A_*, else G_*), track
+ * for a T_*; v: the value - lo (255: none yet). A pool shared by all the banks, saved in the last bank sector. */
+#define AUTO_LANES 28
+#define AUTO_PTS 128
+typedef struct {
+    uint8_t k, track, bank, bars;        /* bars 0: free */
+    uint8_t v[AUTO_PTS];
+} auto_lane_t;
+_Static_assert(AUTO_LANES * sizeof(auto_lane_t) <= PLAT_STORE_MAX, "the automation must fit its sector");
+extern auto_lane_t proj_auto[AUTO_LANES];
+extern uint8_t proj_auto_dirty;
 
 void project_defaults(void);
 int project_load(void);                  /* 0 = loaded; else defaults are in place */
