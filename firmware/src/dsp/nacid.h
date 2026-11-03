@@ -97,7 +97,7 @@ typedef struct {
     float dh;                      /* its step at 2x: freq x wmul / 2 sr (pitch_step(), when either moves) */
     float cv, cv_to, glide;        /* the pitch in semitones over C2 and where it goes, the slide's RC */
     float env, env_rc, rc1, amp;   /* the cutoff envelope, it through its 3 ms RC (and that RC), the VCA's envelope */
-    float acc_env, acc_cap;        /* the accent: its envelope, the sweep capacitor */
+    float acc_env, acc_cap;        /* the accent: its envelope (displays), its RC of 15 ms on the cutoff envelope */
     float gate;                    /* samples until the gate closes, < 0 held */
     uint8_t gate_on, accent, acc_gate, attack, sounding, acc_rel;
     float s[4], sf;                /* the ladder, the feedback's high-pass */
@@ -108,9 +108,11 @@ typedef struct {
     float hb_a[32], hb_b[8];       /* the halfband back from 2x: the samples on its taps (each twice, 16 on:
                                     * the taps in a row, no wrap), on its centre */
     uint8_t hb_i;
-    float P[16], q[4];             /* the ladder solved (every 8 samples) */
-    float ga, k, comp;             /* the cutoff as a one-pole's gain (displays, tests), the resonance, its make-up */
-    float dk_env, dk_acc, chg, dis;
+    float fbx;                     /* the feedback's high-pass: its last input (its output: sf) */
+    float b0, k, g2;               /* Open303's TeeBeeFilter: the stages' gain, the feedback, the make-up */
+    float d_b0, d_k, d_g2;         /* their steps a sample, towards the next control (every 8 samples) */
+    float ga;                      /* the cutoff as a one-pole's gain (displays, tests) */
+    float dk_env, dk_acc, rc2;
     uint8_t ctl;
     /* the effects: the filter faded in and out, the drive, sends, from nacid_route */
     float ins_f, ins_f_to;
@@ -136,8 +138,7 @@ typedef struct {
     uint8_t d_rest, d_woke;        /* bars of rest left (0: playing); a rest just ended */
     uint32_t drng;                 /* its own: at Deviance 0 nothing else changes */
     /* the ladder between two solves: each tick a step towards the next one (P, q), and k's */
-    float dP[16], dq[4], dk, dcomp;
-    float wander;                  /* the analogue drift's depth (1 as a 303's, 0 none: tests) */
+    float wander;                  /* an analogue drift's depth (0, as Open303: none; 1 a few cents)  */
     float wd[2], wd_c[2], wmul;    /* its pitch and cutoff (two slow noises), the pitch as a ratio */
     uint32_t wrng;
 } nacid;

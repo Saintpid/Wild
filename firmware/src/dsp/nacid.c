@@ -90,6 +90,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->ga = 0.1f;
     a->dk_env = a->dk_acc = 0.999f;
     a->rc1 = 1.0f - exp2f_(-8.0f * 1.4427f / (0.003f * sr)); /* the envelope to the cutoff: an RC of 3 ms */
+    a->rc2 = 1.0f - exp2f_(-8.0f * 1.4427f / (0.015f * sr)); /* and to the accent's sweep: 15 ms */
     /* Open303's filters round the ladder (as measured on a 303): a high-pass at 44.5 Hz before it (at
      * 2x); after it an all-pass at 14 Hz, a high-pass at 24 Hz, a notch 4.7 octaves wide at 7.5 Hz; the
      * VCA through a low-pass at 200 Hz (12 dB), so a step in it does not click */
@@ -126,7 +127,7 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->db_ph = 1.0f;
     a->d_energy = 1.0f;
     a->dsm = 1.0f - exp2f_(-32.0f * 1.4427f / (0.02f * sr)); /* Deviance's offsets glide: 20 ms */
-    a->wander = 1.0f;
+    a->wander = 1.0f;                              /* (Wild's: a slow drift, as an analogue voice) */
     a->wmul = 1.0f;
     pitch_step(a);
     a->wrng = a->rng ^ 0x51ed270bu;
@@ -488,40 +489,6 @@ NFM_CODE void nacid_hit(nacid *a, int note, int accent)
     play(a, st, 0);
 }
 
-/* The 303's diode ladder: four capacitors on a ladder of diodes, so each stage loads the one before
- * (not four buffered stages); the bottom one half the size of the others, so twice as fast. Its
- * linear part as trapezoidal integrators, solved for the sample: with G the stages' gains and D the
- * ladder's coupling, y = P s + q x, P = (I - G D)^-1, q = P G e1 (x into the bottom stage). Solved
- * here every 8 samples (a tridiagonal solve per column) as where to be at the next solve: the render
- * steps P and q there tick by tick, so a sweep moves the cutoff every sample, not in steps of 8; the
- * feedback around it, its high-pass and the clip on the way in go on in the render. LADDER_F: the coupling pulls the cutoff down, so the
- * stages run higher for the same knob; LADDER_K: the resonance, just short of oscillating. */
-#define LADDER_F 0.75f
-#define LADDER_K 19.0f
-NFM_CODE NFM_HOT static void ladder(nacid *a, float g)
-{
-    NFM_DATA NFM_HOT_DATA static const float dg[4] = { -2.0f, -2.0f, -2.0f, -1.0f };   /* D: -2 on the diagonal (the last -1), 1 beside */
-    float G[4] = { 2.0f * g, g, g, g }, lo[4], di[4], up[4], c[4], d[4];
-    for (int i = 0; i < 4; ++i) {                  /* I - G D */
-        di[i] = 1.0f - G[i] * dg[i];
-        lo[i] = i ? -G[i] : 0.0f;
-        up[i] = i < 3 ? -G[i] : 0.0f;
-    }
-    for (int j = 0; j < 4; ++j) {                  /* column j of P: (I - G D) p = e_j */
-        float m = di[0];
-        c[0] = up[0] / m;
-        d[0] = (j == 0) / m;
-        for (int i = 1; i < 4; ++i) {
-            m = di[i] - lo[i] * c[i - 1];
-            c[i] = up[i] / m;
-            d[i] = ((float)(j == i) - lo[i] * d[i - 1]) / m;
-        }
-        for (int i = 2; i >= 0; --i) d[i] -= c[i] * d[i + 1];
-        for (int i = 0; i < 4; ++i) a->dP[i * 4 + j] = (d[i] - a->P[i * 4 + j]) * (1.0f / 16.0f);
-        if (j == 0) for (int i = 0; i < 4; ++i) a->dq[i] = (d[i] * G[0] - a->q[i]) * (1.0f / 16.0f);
-    }
-}
-
 /* ---------------------------------------------------------------------------------- Deviance ---
  * The four knobs (cutoff, resonance, Env Mod, Decay) played by a hand that listens to the drums. Each
  * goes its own slow way to where the drums' intensity puts it: hard drums, the resonance high, Env Mod
@@ -704,35 +671,40 @@ NFM_CODE NFM_HOT static void control(nacid *a)
     float base = 314.0f * exp2f_(cut * 2.9306f);
     float r = (1.0f - exp2f_(-3.0f * 1.4427f * reso)) * 1.0523956f;
     /* Env Mod, Open303's measured mapping: how far the envelope sweeps (in octaves; more with the
-     * cutoff up) and where it rests below the knob; the envelope through its 3 ms RC */
+     * cutoff up) and where it rests below the knob; the envelope through its 3 ms RC. The accent: the
+     * envelope through an RC of 15 ms (an accented note's; else it lets go as fast), on top */
     float slo = 3.773996f * em + 0.736966f, shi = 4.194549f * em + 0.864345f;
     float sc = (1.0f - cut) * slo + cut * shi, off = 0.048293f * cut + 0.294391f;
     a->env_rc += (a->env - a->env_rc) * a->rc1;
-    float oct = sc * (a->env_rc - off) + a->p[NACID_P_ACCENT] * a->acc_cap + a->wd[1] * a->wander;
+    /* (Wild's: the sweep capacitor charges in Open303's 15 ms and lets go slowly; the more resonance,
+     * the slower both, as the 303's resonance pot is on it too, so accents in a row build up) */
+    float src = a->acc_gate ? a->acc_env : 0.0f;
+    float chg = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.015f + 0.05f * reso) * a->sr));
+    float dis = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.08f + 0.5f * reso) * a->sr));
+    a->acc_cap += (src - a->acc_cap) * (src > a->acc_cap ? chg : dis);
+    float oct = sc * (a->env_rc - off) + (a->accent ? a->p[NACID_P_ACCENT] : 0.0f) * a->acc_cap + a->wd[1] * a->wander;
     float fc = base * exp2f_(oct);
-    if (fc < 200.0f) fc = 200.0f;                                     /* (Open303's floor) */
-    float w = fc * LADDER_F / a->sr;
-    float g = tan_pi((w > 0.3f ? 0.3f : w) * 0.5f);                    /* (at 2x; its top where it was at 1x) */
+    fc = fc < 200.0f ? 200.0f : fc > 20000.0f ? 20000.0f : fc;          /* (Open303's limits) */
+    /* Open303's TeeBeeFilter (TB_303 mode: four stages, the bottom one twice as fast, mystran & kunn's
+     * fit to a 303's response) at 2x: its coefficients here, a step a sample towards them */
+    float fx = fc * (0.70710678f * 0.5f) / a->sr;
+    float b0 = (0.00045522346f + 6.1922189f * fx) / (1.0f + 12.358354f * fx + 4.4156345f * (fx * fx));
+    float k = fx * (fx * (fx * (fx * (fx * (fx + 7198.6997f) - 5837.7917f) - 476.47308f) + 614.95611f) + 213.87126f) + 16.998792f;
+    float g2 = 2.0f * ((k * (1.0f / 17.0f) - 1.0f) * r + 1.0f) * (1.0f + r);
+    k *= r;
+    a->d_b0 = (b0 - a->b0) * 0.125f;
+    a->d_k = (k - a->k) * 0.125f;
+    a->d_g2 = (g2 - a->g2) * 0.125f;
+    if (a->b0 <= 0.0f) {                                               /* (from silence: there at once) */
+        a->b0 = b0, a->k = k, a->g2 = g2;
+        a->d_b0 = a->d_k = a->d_g2 = 0.0f;
+    }
+    float g = tan_pi(fc * 0.5f / a->sr);
     a->ga = g / (1.0f + g);
-    ladder(a, g);
-    a->dk = (r * LADDER_K - a->k) * (1.0f / 16.0f);
-    /* the resonance takes the passband down by 1 + k above the feedback's high-pass: given back, the
-     * more the higher the cutoff (from 280 Hz up, a fifth of k an octave; low, the resonance sits on
-     * the notes themselves) */
-    float q = 0.2f * (0.1653f + 2.9306f * cut + oct);  /* (log2 of fc / 280 Hz, over 5) */
-    a->dcomp = (1.0f + r * LADDER_K * (q < 0.0f ? 0.0f : q > 0.7f ? 0.7f : q) - a->comp) * (1.0f / 16.0f);
     /* the decay: Open303's 200 ms .. 2 s; an accent cuts it to 200 ms */
     float t = a->accent ? 0.2f : 0.2f * exp2f_(dec * 3.3219281f);
     a->dk_env = exp2f_(-8.0f * 1.4427f / (t * a->sr));
     a->dk_acc = exp2f_(-1.4427f / (0.2f * a->sr));
-    /* the sweep capacitor: it charges from the accent (Open303's 15 ms RC) and lets go slowly; the
-     * more resonance, the slower both (the 303's resonance pot is on it too), so accents in a row
-     * build up */
-    float src = a->acc_gate ? a->acc_env : 0.0f;
-    if (src > a->acc_cap) a->acc_cap += (src - a->acc_cap) * a->chg;
-    else a->acc_cap += (src - a->acc_cap) * a->dis;
-    a->chg = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.015f + 0.05f * reso) * a->sr));
-    a->dis = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.08f + 0.5f * reso) * a->sr));
 }
 
 /* ----------------------------------------------------------------------------- 2x oversampled ---
@@ -742,14 +714,7 @@ NFM_CODE NFM_HOT static void control(nacid *a)
  * halfband: 27 taps, 7 multiplies a sample, flat to 17 kHz, -57 dB from 27 kHz. */
 NFM_DATA NFM_HOT_DATA static const float hbc[7] = { 0.31402690f, -0.09586685f, 0.04802163f, -0.02583784f, 0.01338052f, -0.00619374f, 0.00246937f };
 
-/* a 303's saw: its ramp a capacitor charging, so bowed a little (steeper at the bottom, rounder at
- * the top); the bow continuous at the wrap, only its slope turns there */
 #define SAW_BOW 0.12f
-NFM_CODE NFM_HOT static inline float saw303(float t, float dt)
-{
-    float r = 2.0f * t - 1.0f;
-    return r - blep(t, dt) - SAW_BOW * (r * r - 0.33333333f);
-}
 
 /* the wave at phase t, dt its step */
 NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
@@ -757,7 +722,12 @@ NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
     float x;
     switch (a->wave) {
     default:
-    case NACID_SAW: x = saw303(t, dt); break;
+    case NACID_SAW: {                        /* Open303's, falling; its ramp bowed a little as a 303's (a
+                                              * capacitor charging: steeper at one end, rounder at the other) */
+        float r = 2.0f * t - 1.0f;
+        x = SAW_BOW * (r * r - 0.33333333f) - r + blep(t, dt);
+        break;
+    }
     case NACID_SQUARE:                       /* Open303's 303 square: the ramp through a transistor's tanh
                                               * (36.9 dB of drive), a hard edge at the wrap, its DC off, at
                                               * half the saw's level */
@@ -786,29 +756,24 @@ NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
     return x;
 }
 
-NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float hf, float Gf)
+#define DIODE_V 1.2f                        /* the diodes' knee: soft (0.6 is hard) */
+#define VCA_ROOM 3.0f
+NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float fb0, float fa1)
 {
-    /* the filter: the diode ladder (ladder()), the feedback through its high-pass solved for the
-     * sample (y4 = B + q4 u), a soft clip on the way in, where it sings */
-    const float *P = a->P, *s = a->s;
-    float k = a->k;
-    float B = P[12] * s[0] + P[13] * s[1] + P[14] * s[2] + P[15] * s[3];
-    float u = 4.0f * soft(0.25f * (x * 0.12f * a->comp - k * hf * (B - a->sf)) / (1.0f + k * hf * a->q[3]));
-    float y0 = P[0] * s[0] + P[1] * s[1] + P[2] * s[2] + P[3] * s[3] + a->q[0] * u;
-    float y1 = P[4] * s[0] + P[5] * s[1] + P[6] * s[2] + P[7] * s[3] + a->q[1] * u;
-    float y2 = P[8] * s[0] + P[9] * s[1] + P[10] * s[2] + P[11] * s[3] + a->q[2] * u;
-    float y3 = B + a->q[3] * u;
-    a->s[0] = y0 + y0 - s[0];
-    a->s[1] = y1 + y1 - s[1];
-    a->s[2] = y2 + y2 - s[2];
-    a->s[3] = y3 + y3 - s[3];
-    float v = (y3 - a->sf) * Gf;             /* the feedback's high-pass: its low-pass state */
-    a->sf += v + v;
-    for (int i = 0; i < 16; ++i) a->P[i] += a->dP[i];   /* on towards the next solve */
-    for (int i = 0; i < 4; ++i) a->q[i] += a->dq[i];
-    a->k += a->dk;
-    a->comp += a->dcomp;
-    return y3;
+    /* Open303's TeeBeeFilter: the feedback through its high-pass, four stages (the first twice as
+     * fast), each loading the one before */
+    float t = a->k * a->s[3];
+    a->sf = fb0 * (t - a->fbx) + fa1 * a->sf;
+    a->fbx = t;
+    t = x - a->sf;
+    float b0 = a->b0, y1 = a->s[0], y2 = a->s[1], y3 = a->s[2], y4 = a->s[3];
+    /* (Wild's: the diodes bend, each stage's drive through a soft knee) */
+    y1 += 2.0f * b0 * DIODE_V * soft((t - y1 + y2) * (1.0f / DIODE_V));
+    y2 += b0 * DIODE_V * soft((y1 - 2.0f * y2 + y3) * (1.0f / DIODE_V));
+    y3 += b0 * DIODE_V * soft((y2 - 2.0f * y3 + y4) * (1.0f / DIODE_V));
+    y4 += b0 * DIODE_V * soft((y3 - 2.0f * y4) * (1.0f / DIODE_V));
+    a->s[0] = y1, a->s[1] = y2, a->s[2] = y3, a->s[3] = y4;
+    return a->g2 * y4;
 }
 
 /* Open303's high-pass at 44.5 Hz before the ladder, at 2x */
@@ -832,14 +797,14 @@ NFM_CODE NFM_HOT static inline float halfband(nacid *a, float x0, float x1)
     return y;
 }
 
-#define VCA_ROOM 3.0f
 NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
     /* the VCA as Open303's: 1.23 s down while the gate is held, after it 1 ms (50 after an accent) */
     const float vdk = exp2f_(-1.4427f / (1.23f * a->sr));
     const float rel = exp2f_(-1.4427f / ((a->acc_rel ? 0.05f : 0.001f) * a->sr));
     const float fade = 1.0f - exp2f_(-1.4427f / (0.01f * a->sr));
-    const float gf = tan_pi(75.0f / a->sr), hf = 1.0f / (1.0f + gf), Gf = gf * hf;   /* 150 Hz at 2x (Open303's) */
+    const float fx = exp2f_(-1.4427f * 6.2831853f * 150.0f / (2.0f * a->sr));   /* the feedback's high-pass: 150 Hz at 2x */
+    const float hf = 0.5f * (1.0f + fx), Gf = fx;
     const float boost = 0.45f + 4.0f * a->p[NACID_P_ACCENT];
     float lvl = a->p[NACID_P_LEVEL] * 0.6f * e->master;
     nfm_mod_block(&a->mod, a->sr, n);
@@ -870,6 +835,9 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
             a->env *= a->dk_env;
         }
         --a->ctl;
+        a->b0 += a->d_b0;
+        a->k += a->d_k;
+        a->g2 += a->d_g2;
         a->acc_env *= a->dk_acc;
         /* the VCA: its envelope at once to the top, and the cutoff envelope on it while the gate is
          * held (a little on every note, an accent's much more), through the de-clicker */
@@ -891,7 +859,7 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
             a->amp = 0.0f;
             a->dc_x1 = a->dc_x2 = a->dc_y1 = a->dc_y2 = 0.0f;
             a->hp_x = a->hp_y = a->ap_x = a->ap_y = a->hp2_y = a->nt_x2 = a->nt_y1 = a->nt_y2 = 0.0f;
-            a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = 0.0f;
+            a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = a->fbx = a->b0 = 0.0f;
             nfm_zero(a->hb_a, sizeof a->hb_a);
             nfm_zero(a->hb_b, sizeof a->hb_b);
             continue;
@@ -910,9 +878,9 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
         a->hp2_y = h;
         a->nt_y2 = a->nt_y1;
         a->nt_y1 = y;
-        /* the VCA: a transistor pair, so it rounds what goes through it loud (an accent's peaks most);
-         * as loud as it was over a line (the accents louder, a plain note softer) */
-        float o = y * 2.8f * vd;
+        /* the VCA, Open303's (a line's loudness about as before, its accents' peaks the 303's); a
+         * transistor pair, so it rounds what goes through it loud (Wild's) */
+        float o = y * 0.6f * vd;
         o = VCA_ROOM * soft(o * (1.0f / VCA_ROOM)) * lvl;
 
         /* the drive, then the moving filter when the effects chose it (faded in and out) */
