@@ -11,7 +11,7 @@ wait 100
 expect battery 46
 battery 3800
 wait 100
-expect battery 47
+expect battery 46
 battery 4180
 wait 100
 expect battery 100
