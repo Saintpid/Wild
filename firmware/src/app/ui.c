@@ -19,9 +19,7 @@
  *                  loop (a knob with automation: a red dot); REC held and a knob turned: its automation erased
  *   OCT- / OCT+    the selected track          SELECT the track   ALGORITHM the page
  *   PRESETS        the knob of the Setup page's choice (Glue by default)
- *   SEL            by the Scene page's SEL mode: Chance, a scene by chance (which tracks play, how much of
- *                  each effect each sound gets), SEL again back; A/B, two scenes to work on and swap; Copy,
- *                  a copy to play with, SEL again back to the original (SEL lit: in the scene, B, the copy)
+ *   SEL            alone: back to bank 1 (in bank 1: out of a scene by chance; SEL lit while one plays)
  *   SEL + white    the banks: keys 1-12 a whole project each (the tempo shared), key 16 a new scene by
  *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
@@ -75,7 +73,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_GMIX, G_GEQ, G_GCOLOR, G_GWIDTH},
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
-    {G_SELMODE, G_ACIDWAVES, K_NONE, K_NONE},
+    {G_ACIDWAVES, K_NONE, K_NONE, K_NONE},           /* (G_SELMODE: kept in projects, unused since the banks) */
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -124,7 +122,6 @@ static struct {
     uint8_t held_flags;                /* ...an acid step's accent and slide */
     uint8_t voices;                    /* the CPU guard's voice limit now */
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
-    uint8_t scene;                     /* SEL A/B: in B; Copy: in the copy */
     uint8_t chance;                    /* a scene by chance plays (what was before: sc_*) */
     uint8_t rec;                       /* REC: the knobs turned are recorded (auto_*) */
     uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
@@ -710,51 +707,20 @@ static void scene(void)
     scene_new();
 }
 
-/* SEL's other modes (Scene page: SEL mode). A/B: the first SEL keeps a copy of everything (patterns,
- * sounds, settings) and goes on in it; each SEL after swaps the two, so both can be worked on and played
- * in turn (SEL lit: in B). Copy: SEL keeps the state as it is and goes on in a copy of it; SEL again goes
- * back to what was kept, and what was done in the copy is gone (SEL lit: in the copy). The Setup and
- * Scene pages' values are never swapped. Changing the mode, loading a preset or a reset forget the copy. */
-static project_t sel_keep;                           /* A/B: the other scene; Copy: the original */
-static uint8_t sel_have;
+/* SEL alone: back to bank 1, out of any scene by chance (in bank 1: out of the scene). Its old modes,
+ * A/B and Copy, went with the banks. */
+static void bank_go(int n);
 static void sel_forget(void)
 {
-    ui.scene = ui.chance = 0;
-    sel_have = 0;
-}
-static void sel_go(const project_t *to)
-{
-    state_go(to, 1);
-    ui.chance = 0;                                   /* (a scene by chance in it: gone with it) */
+    ui.chance = 0;
 }
 static void sel_press(void)
 {
-    int m = proj.g[G_SELMODE];
     ne_space_shift();                                /* (by Space's chance: at 100 always) */
-    if (m == NE_SEL_CHANCE) {
+    if (proj.bank == 0 && ui.chance)
         scene();
-        return;
-    }
-    undo_mark(0);
-    if (m == NE_SEL_AB) {
-        if (sel_have) {
-            sel_go(&sel_keep);
-            sel_keep = *state_was();                 /* the one left: the other now */
-        } else {
-            undo_take(&sel_keep);
-        }
-        sel_have = 1;
-        ui.scene ^= 1u;
-        say("SCENE", ui.scene ? "B" : "A");
-    } else if (!ui.scene) {
-        undo_take(&sel_keep);
-        ui.scene = 1;
-        say("COPY", "CHANGE ANYTHING");
-    } else {
-        sel_go(&sel_keep);
-        ui.scene = 0;
-        say("BACK TO", "THE ORIGINAL");
-    }
+    else
+        bank_go(0);
 }
 
 /* BANKS: SEL held and a white key. Keys 1-12 a bank each: the one playing is kept in its place and the
@@ -2014,7 +1980,7 @@ static void leds(void)
         b |= 1u << B_PLAY;
     if (!ui.live)
         b |= 1u << B_SEQ;
-    if (ui.scene || ui.chance)
+    if (ui.chance)
         b |= 1u << B_SEL;
     if (ui.rec && (!rec_n || blink))                 /* REC: lit, blinking while it records */
         b |= 1u << B_REC;

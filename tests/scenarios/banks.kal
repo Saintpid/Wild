@@ -1,6 +1,6 @@
 # BANKS: SEL held and a white key. Keys 1-12 a bank each, a whole project (patterns, sounds, effects,
 # settings) with the tempo shared; an empty one starts as a copy. Key 16: a new scene by chance at each
-# press. SEL let go after a bank key does nothing else; SEL alone works as before. Saved when quiet.
+# press. SEL let go after a bank key does nothing else; SEL alone goes back to bank 1. Saved when quiet.
 wait 200
 expect bank 0
 expect banks 1
@@ -75,11 +75,14 @@ press SEL
 tapkey w12
 release SEL
 expect bank 1
-# SEL alone: its scene by chance, as before
-tap SEL
-expect scene 1
+# SEL alone: back to bank 1
 tap SEL
 expect scene 0
+expect bank 0
+expect tpar15 0
+press SEL
+tapkey w1
+release SEL
 expect tpar15 30
 # playing: nothing saved; stopped and quiet: the project and the banks
 expect store_writes 0
