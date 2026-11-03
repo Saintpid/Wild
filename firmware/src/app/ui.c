@@ -386,6 +386,7 @@ static int auto_touch(int k, int t);
 static void rec_press(void);
 static void auto_finish_all(void);
 static void auto_erase_bank(int b);
+static void auto_new_pattern(int t);
 /* a knob turned: its change, and its name and value big over the tracks a moment (REC held: its
  * automation erased instead) */
 static void turn(int role, int k, int32_t e)
@@ -875,15 +876,17 @@ static void black_down(int b)
     } else if ((b == BK_PATTERN || b == BK_SOUND) && (ui.btn >> B_GLO & 1u)) {
         ui.btn_used |= 1u << B_GLO;                  /* GLO held: every track (GLO keeps its page) */
         undo_mark(0);
-        if (b == BK_PATTERN)
+        if (b == BK_PATTERN) {
             ne_generate(-1);
-        else
+            auto_new_pattern(-1);
+        } else
             new_sounds_all();
         mark_dirty();
         say(b == BK_PATTERN ? "NEW PATTERNS" : "NEW SOUNDS", "ALL TRACKS");
     } else if (b == BK_PATTERN) {
         undo_mark(0);
         ne_generate(t);
+        auto_new_pattern(t);
         mark_dirty();
         say("NEW PATTERN", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
@@ -1075,6 +1078,7 @@ static void midi_cc(uint32_t cc, uint32_t v)
         mark_dirty();
     } else if (cc == 118u && v >= 64u) {
         ne_generate(-1);
+        auto_new_pattern(-1);
         mark_dirty();
     } else if (cc == 74u || cc == 71u) {
         knob_set(KA | (cc == 74u ? A_CUTOFF : A_RESO), pc);
@@ -1100,8 +1104,11 @@ static void midi_in(void)
             if (d1 >= 36u && d1 <= 48u)
                 undo_mark(0);
             ne_midi_note((int)d1, (int)d2);
-            if (d1 >= 36u && d1 <= 48u)
+            if (d1 >= 36u && d1 <= 48u) {            /* (C1..E1 a track's new pattern, C2 the drums') */
+                if (d1 <= 36u + NE_ACID || d1 == 48u)
+                    auto_new_pattern(d1 == 48u ? -2 : (int)d1 - 36);
                 mark_dirty();
+            }
         } else if (type == 0xB0u) {
             midi_cc(d1, d2);
         } else if (type == 0xC0u && d1 < (uint32_t)PLAT_PRESETS) {
@@ -1392,6 +1399,22 @@ static void auto_finish_all(void)
 {
     while (rec_n)
         auto_finish(rec_n - 1);
+}
+/* a new pattern: the automation of its track goes with the old one (a track's knobs, its mixer fader;
+ * the acid line's). t -1: every track playing (as ne_generate(-1)); -2: the four drum tracks (MIDI C2) */
+static void auto_new_pattern(int t)
+{
+    int i, x;
+    for (i = 0; i < AUTO_LANES; i++) {
+        auto_lane_t *l = &proj_auto[i];
+        if (!l->bars || l->bank != proj.bank || !(l->k & (KT | KA)) || auto_recording(i))
+            continue;
+        x = l->k & KA ? NE_ACID : l->track;
+        if (t == -1 ? !tmuted(x) : t == -2 ? x < NE_TRACKS : x == t) {
+            l->bars = 0;
+            proj_auto_dirty = 1;
+        }
+    }
 }
 static void auto_erase_bank(int b)
 {
