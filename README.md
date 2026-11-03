@@ -1,5 +1,7 @@
-# Wild 0.3.23 - experimental FM-1 firmware
+# Wild 0.3.24 - experimental FM-1 firmware
 
+**0.3.24:** a drum track on Rnd len Fixed plays its Bars: a new pattern no longer keeps a length
+drawn earlier, or the one a loaded project had before Bars was turned.
 **0.3.23:** the battery in the header, with how much is left in % (a lightning bolt on USB power).
 **0.3.22:** any button but PLAY, SEL and REC leaves the mixer and Audio Load. GLO + black 10
 makes new patterns on all tracks (was REC), GLO + black 11 new sounds on all tracks.

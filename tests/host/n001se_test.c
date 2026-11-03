@@ -411,6 +411,35 @@ int main(int argc, char **argv)
                       "%s at %g: rough %.1e of the level, out/in %.2f", nm[ty], (double)amp[q], ed / eout, eout / ein);
             }
     }
+    /* back to Fixed: a track that drew an odd length plays its Bars again, at once and with each new
+     * pattern; a restored odd length (a project, an undo) stands until the next new pattern, which plays
+     * the Bars noted with it */
+    {
+        const nseq_track *tr = &ne_seq()->track[2];
+        int odd = 0, back, keep, gen, tries;
+        ne_init();
+        ne_tset(2, T_BARS, 1);
+        ne_tset(2, T_RANDLEN, 3);
+        for (tries = 0; tries < 50 && !odd; tries++) {
+            ne_generate(2);
+            render(1, 0);
+            odd = tr->length % 16 != 0;
+        }
+        ne_tset(2, T_RANDLEN, 0);
+        render(1, 0);
+        back = tr->length;
+        ne_snapshot(&a);
+        a.len[2] = 29;
+        ne_restore(&a);
+        ne_tset_keep(2, T_BARS, 2);
+        render(1, 0);
+        keep = tr->length;
+        ne_generate(2);
+        render(1, 0);
+        gen = tr->length;
+        CHECK(odd && back == 16 && keep == 29 && gen == 32, "Fixed: drew odd %d, back %d, kept %d, new pattern %d",
+              odd, back, keep, gen);
+    }
     /* saved and restored: the same */
     ne_snapshot(&a);
     ne_init();

@@ -5,7 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.23
+## 0.3.24
+
+Firmware identity FM-1_858. A Fixed length is the length.
+
+- **Rnd len at Fixed plays the Bars you set:** a drum track that had drawn a random length (an odd
+  one, such as a bar and 13 steps) kept it after Rnd len went back to Fixed, so it drifted against the
+  others, and setting Bars to the value it already showed did nothing. Now Fixed takes the track back
+  to its Bars at once, and every new pattern on a Fixed track is exactly its Bars long.
+- **After loading a project:** a new pattern follows the Bars it was saved with. Before, it could
+  keep the pattern's old length, and Bars had to be turned away and back for it to take.
+
 
 Firmware identity FM-1_857. How much battery is left, on the screen.
 

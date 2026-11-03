@@ -165,7 +165,9 @@ void project_apply(void)
         ne_set(i, proj.g[i]);
     for (t = 0; t < NE_TRACKS; t++)
         for (i = 0; i < T_NPARAMS; i++)
-            if (!proj_has_state || (i != T_KIND && i != T_BARS))   /* (the saved length and kind stand) */
+            if (proj_has_state && (i == T_BARS || i == T_RANDLEN))   /* (the saved length stands) */
+                ne_tset_keep(t, i, proj.t[t][i]);
+            else if (!proj_has_state || i != T_KIND) /* (and the saved kind) */
                 ne_tset(t, i, proj.t[t][i]);
     if (proj_has_acid)
         ne_acid_restore(&proj.acid);

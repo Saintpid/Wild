@@ -109,6 +109,9 @@ int ne_pknob_target(int v);
 void ne_init(void);
 void ne_set(int param, int value);                   /* G_* */
 void ne_tset(int track, int param, int value);       /* T_* */
+/* the same, but the track keeps the length it has (T_BARS, T_RANDLEN after a restored pattern: noted
+ * for its next new one) */
+void ne_tset_keep(int track, int param, int value);
 void ne_play(int on);
 void ne_step(int track, int step, int on, int vel, int note);
 void ne_generate(int track);                         /* a new pattern; -1: every unmuted track */

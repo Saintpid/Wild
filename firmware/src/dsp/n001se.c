@@ -267,6 +267,7 @@ static void post(int op, int t, int a, int b, int c, int d)
 
 void ne_set(int p, int v) { post(C_SET, 0, p, v, 0, 0); }
 void ne_tset(int t, int p, int v) { post(C_TSET, t, p, v, 0, 0); }
+void ne_tset_keep(int t, int p, int v) { post(C_TSET, t, p, v, 1, 0); }
 void ne_play(int on) { post(C_PLAY, 0, on, 0, 0, 0); }
 void ne_step(int t, int s, int on, int vel, int note) { post(C_STEP, t, s, on, vel, note); }
 void ne_generate(int t) { post(C_GEN, t, 0, 0, 0, 0); }
@@ -770,7 +771,7 @@ static void gset(int p, int v)
     }
 }
 
-static void tset(int t, int p, int v)
+static void tset_k(int t, int p, int v, int keep)
 {
     nseq_track *tr;
     if ((unsigned)t >= NE_TRACKS || (unsigned)p >= T_NPARAMS)
@@ -779,8 +780,11 @@ static void tset(int t, int p, int v)
     tpar[t][p] = (int16_t)v;
     tr = &seq.track[t];
     switch (p) {
-    case T_BARS: nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
-    case T_RANDLEN: nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v); break;
+    case T_BARS: if (!keep) nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
+    case T_RANDLEN:                    /* back to Fixed: the length is Bars again, not the last draw */
+        nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v);
+        if (!v && !keep) nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
+        break;
     case T_HITLO: nseq_set_hits(&seq, t, v, tpar[t][T_HITHI] < v ? v : tpar[t][T_HITHI]); break;
     case T_HITHI: nseq_set_hits(&seq, t, tpar[t][T_HITLO] > v ? v : tpar[t][T_HITLO], v); break;
     case T_PITCH: nseq_set_flag(&seq, t, NSEQ_FLAG_PITCH_RANGE, v); break;
@@ -807,6 +811,17 @@ static void tset(int t, int p, int v)
     case T_DYN: nseq_set_flag(&seq, t, NSEQ_FLAG_DYN, v); break;
     }
     (void)tr;
+}
+static void tset(int t, int p, int v) { tset_k(t, p, v, 0); }
+
+/* A new pattern for a drum track: a Fixed one plays its Bars, whatever length an undo, a scene or an
+ * earlier random draw left it at */
+static void generate(int t)
+{
+    nseq_track *tr = &seq.track[t];
+    if (!tr->len_random)
+        nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
+    nseq_generate(&seq, t);
 }
 
 /* ------------------------------------------------------------ the acid line --- */
@@ -1177,7 +1192,7 @@ static void drain(void)
         q_r = q_r + 1u;
         switch (c.op) {
         case C_SET: gset(c.a, c.b); break;
-        case C_TSET: tset(c.t, c.a, c.b); break;
+        case C_TSET: tset_k(c.t, c.a, c.b, c.c); break;
         case C_PLAY:
             if (c.a && !seq.playing)
                 nseq_start(&seq);
@@ -1190,11 +1205,11 @@ static void drain(void)
                 int t;
                 for (t = 0; t < NE_TRACKS; t++)
                     if (!seq.track[t].mute)
-                        nseq_generate(&seq, t);
+                        generate(t);
                 if (!acid.mute)
                     nacid_generate(&acid);
             } else if (c.t < NE_TRACKS) {
-                nseq_generate(&seq, c.t);
+                generate(c.t);
             } else if (c.t == NE_ACID) {
                 nacid_generate(&acid);
             }
