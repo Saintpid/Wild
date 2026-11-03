@@ -1,0 +1,33 @@
+# the battery in the header: none without a reading, its % from the voltage, down as it falls, up only
+# when charged (5 % or more), red at 10 %, a bolt on USB power
+wait 100
+expect battery -1
+battery 3800
+wait 100
+expect battery 50
+shot half.png
+battery 3780
+wait 100
+expect battery 46
+battery 3800
+wait 100
+expect battery 47
+battery 4180
+wait 100
+expect battery 100
+battery 3550
+wait 100
+expect battery 7
+shot low.png
+tap PLAY
+tap GLO
+wait 100
+shot low-playing.png
+usbpower 1
+wait 100
+expect battery 101
+shot usb.png
+usbpower 0
+battery 4100
+wait 100
+expect battery 90

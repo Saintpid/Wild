@@ -377,6 +377,7 @@ static void fm1_main(void)
                 master_q12 = (k10 * k10) >> 8;           /* 0 .. ~4096 */
             }
         }
+        batt_poll();
         {   /* OCT- + OCT+ held 5 s: update mode (Felucca's, unchanged) */
             static uint32_t t0, shown;
             uint32_t both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);

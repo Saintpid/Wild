@@ -127,6 +127,7 @@ static struct {
     uint32_t beat_t;                   /* ...when it came */
     uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
     float meter[UI_TRACKS];
+    int8_t batt;                       /* the battery's % in the header (batt_shown), -1 none, 101 USB power */
 } ui;
 
 static void say(const char *a, const char *b)
@@ -1180,6 +1181,63 @@ static uint16_t mix(uint16_t a, uint16_t b, int t)   /* t 0..16: a -> b */
 /* the global step playing now (-1: stopped): the phrase counts from the start */
 static int phrase_step(void) { return playing() && ne_seq()->steps ? (int)((ne_seq()->steps - 1u) % (8u * NE_BAR)) : -1; }
 
+/* the battery's % from its voltage: a Li-ion cell's curve under a light load. An estimate: the divider's scale is
+ * not measured, though the stock firmware's bars (531 / 561 / 591 on the ADC: 3.43 / 3.62 / 3.81 V) fall on
+ * about 2, 13 and 51 % of it */
+static int batt_pct(uint32_t mv)
+{
+    static const uint16_t MV[] = {3400, 3500, 3600, 3650, 3700, 3750, 3800, 3900, 4000, 4100, 4180};
+    static const uint8_t PCT[] = {0, 4, 11, 18, 28, 40, 50, 64, 78, 90, 100};
+    int i;
+    if (mv <= MV[0])
+        return 0;
+    for (i = 1; i < (int)sizeof PCT; i++)
+        if (mv < MV[i])
+            return PCT[i - 1] + (int)((mv - MV[i - 1]) * (uint32_t)(PCT[i] - PCT[i - 1]) / (MV[i] - MV[i - 1]));
+    return 100;
+}
+
+/* what the header shows (ui.batt): the % goes down as it falls, up only by 5 or more (charged, not a sag
+ * that came back as a load let go), USB power its own */
+static void batt_shown(void)
+{
+    uint32_t mv = plat_batt_mv();
+    int p;
+    if (plat_usb_power())
+        ui.batt = 101;
+    else if (!mv)
+        ui.batt = -1;
+    else if (p = batt_pct(mv), ui.batt < 0 || ui.batt > 100 || p < ui.batt || p >= ui.batt + 5)
+        ui.batt = (int8_t)p;
+}
+
+/* the battery at x (its left), 26 x 17 with the tip: filled as far as it is, its % on it; red at 10 % and
+ * below; a bolt on USB power */
+static int32_t draw_batt(int32_t x)
+{
+    char t[4];
+    int p = ui.batt;
+    uint16_t c = p <= 10 ? K_RED : K_DIM;
+    cv_rect(x, 5, 24, 1, c);
+    cv_rect(x, 21, 24, 1, c);
+    cv_rect(x, 5, 1, 17, c);
+    cv_rect(x + 23, 5, 1, 17, c);
+    cv_rect(x + 24, 10, 2, 7, c);
+    if (p > 100) {                                  /* a bolt */
+        static const int8_t B[13][2] = {{14, 2}, {13, 2}, {12, 2}, {11, 2}, {10, 2}, {9, 6}, {12, 2}, {11, 2},
+                                        {10, 2}, {9, 2}, {8, 2}, {7, 2}, {7, 1}};
+        int i;
+        for (i = 0; i < 13; i++)
+            cv_rect(x + B[i][0], 7 + i, B[i][1], 1, K_ACC);
+        return x;
+    }
+    if (p > 0)
+        cv_rect(x + 2, 7, (p * 20 + 99) / 100, 13, p <= 10 ? mix(K_BG, K_RED, 7) : K_LINE);
+    itoa_u((uint32_t)p, t);
+    text_c(x + 12, 7, &FONT_XS, t, K_TEXT);
+    return x;
+}
+
 static void draw_header(void)
 {
     char t[24];
@@ -1187,6 +1245,8 @@ static void draw_header(void)
     uint32_t h = hash(hash(2166136261u, ui.view | (uint32_t)ui.live << 8 | (uint32_t)playing() << 9 |
                                             (uint32_t)ui.dirty << 10 | (uint32_t)msg << 11 | (uint32_t)ne_ext << 12),
                       (uint32_t)ne_bpm_x10);
+    batt_shown();
+    h = hash(h, (uint32_t)(ui.batt + 1));
     if (msg)
         h = hash(hash(h, (uint32_t)ui.msg[0][0] << 8 | ui.msg[0][1]), ui.msg_until);
     if (ui.view == V_SETUP)
@@ -1215,6 +1275,8 @@ static void draw_header(void)
             x -= text_w(&FONT_XS, "BPM") + 4;
             cv_text(x, 8, &FONT_XS, "BPM", K_DIM);
         }
+        if (ui.batt >= 0 && ui.view != V_SETUP)       /* (Setup: the audio load in its place) */
+            x = draw_batt(x - 34);
         if (ui.view == V_SETUP) {                     /* the audio load, for a check on the hardware */
             itoa_u(plat_cpu_pct(), t);
             w = s_len(t);
@@ -1771,6 +1833,7 @@ void ui_init(void)
     ui.touched = -1;
     ui.held_step = -1;
     ui.beat = -1;
+    ui.batt = -1;
     ui.voices = NFM_VOICES;
     lcd_fill(0, 0, 240, 240, K_BG);
 }

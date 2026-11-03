@@ -52,6 +52,11 @@ int plat_preset_used(int n);                            /* 1 = holds a preset */
 uint32_t plat_cpu_pct(void);
 uint32_t plat_xruns(void);
 
+/* the battery: its voltage in mV (PB1's divider, read every 2 s and smoothed; 0: none), and 1 while a USB host
+ * powers the FM-1 (and so charges it: there is no charger line, a charger alone is not seen) */
+uint32_t plat_batt_mv(void);
+int plat_usb_power(void);
+
 /* Hardware diagnostics. Memory values are linked static regions, not heap use.
  * CPU values are rendering budget percentages, not whole-chip utilization. */
 typedef struct {
