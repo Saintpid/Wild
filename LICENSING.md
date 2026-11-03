@@ -23,6 +23,7 @@ complete corresponding source under the same licence.
 | --- | --- | --- |
 | Barlow Semi Condensed (The Barlow Project Authors), the UI face | SIL OFL 1.1 | `assets/fonts/BarlowSemiCondensed-*.ttf`, `assets/fonts/Barlow-OFL.txt` |
 | Terminus (Dimitar Toshkov Zhekov), an alternative font set | SIL OFL 1.1 | `assets/fonts/ter-u*.bdf`, `assets/fonts/Terminus-LICENSE.txt` |
+| The acid line's calibration (`firmware/src/dsp/nacid.c`): the knob ranges, Env Mod's measured mapping, the VCA's envelope and de-clicker, the filters around the ladder and the 303 square, after Open303 by Robin Schmidt, by way of X0X's port (`bass303.c`, charlesvestal/fm1-x0x) | MIT (Open303), GPL-3.0-only (X0X) | <https://sourceforge.net/projects/open303/> |
 | JieLi AC79 SDK: `uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin` are read from your SDK checkout at build time and placed in the package; no SDK files are in this tree | Apache-2.0 | <https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK> |
 
 ## Trademarks

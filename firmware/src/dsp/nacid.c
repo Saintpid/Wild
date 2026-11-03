@@ -29,6 +29,12 @@ NFM_CODE NFM_HOT static float tan_pi(float x)              /* tan(pi x), up to x
     float t = x * 3.14159265f, t2 = t * t;
     return t * (1.0f + t2 * (0.33333333f + t2 * (0.13333333f + t2 * (0.05396825f + t2 * 0.02186949f))));
 }
+/* sin x for the small angles of the low filters (x < 0.2) */
+NFM_CODE static float sin_s(float x)
+{
+    float x2 = x * x;
+    return x * (1.0f - x2 * (0.16666667f - x2 * (0.0083333333f - x2 * 0.00019841270f)));
+}
 NFM_CODE NFM_HOT static inline float soft(float x)
 {
     if (x > 3.0f) return 1.0f;
@@ -79,13 +85,43 @@ NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
     a->length = NACID_BAR;
     a->bar = NACID_BAR;
     a->last = -1;
-    a->glide = 1.0f - exp2f_(-1.4427f / (0.06f * sr));    /* the slide: an RC of 60 ms on the pitch, a 303's */
+    a->glide = 1.0f - exp2f_(-1.4427f / (0.012f * sr));   /* the slide: Open303's, 60 ms (an RC of 12) */
     a->freq = 65.406f;
     a->ga = 0.1f;
     a->dk_env = a->dk_acc = 0.999f;
-    a->att_soft = 1.0f - exp2f_(-1.4427f / (0.003f * sr));  /* the VCA's attack: soft on a plain note */
-    a->att_hard = 1.0f - exp2f_(-1.4427f / (0.0003f * sr)); /* and sharp on an accent */
-    a->att = a->att_soft;
+    a->rc1 = 1.0f - exp2f_(-8.0f * 1.4427f / (0.003f * sr)); /* the envelope to the cutoff: an RC of 3 ms */
+    /* Open303's filters round the ladder (as measured on a 303): a high-pass at 44.5 Hz before it (at
+     * 2x); after it an all-pass at 14 Hz, a high-pass at 24 Hz, a notch 4.7 octaves wide at 7.5 Hz; the
+     * VCA through a low-pass at 200 Hz (12 dB), so a step in it does not click */
+    float x = exp2f_(-1.4427f * 6.2831853f * 44.486f / (2.0f * sr)), w, sn, cs, al, sc;
+    a->hp_b0 = 0.5f * (1.0f + x);
+    a->hp_a1 = x;
+    x = exp2f_(-1.4427f * 6.2831853f * 24.167f / sr);
+    a->hp2_b0 = 0.5f * (1.0f + x);
+    a->hp2_a1 = x;
+    x = tan_pi(14.008f / sr);
+    a->ap_b0 = (x - 1.0f) / (x + 1.0f);
+    w = 6.2831853f * 7.5164f / sr;
+    sn = sin_s(w);
+    x = sin_s(0.5f * w);
+    cs = 1.0f - 2.0f * x * x;
+    x = 0.5f * 0.69314718f * 4.7f * w / sn;
+    al = sn * 0.5f * (exp2f_(x * 1.4427f) - exp2f_(-x * 1.4427f));
+    sc = 1.0f / (1.0f + al);
+    a->nt_a1 = 2.0f * cs * sc;
+    a->nt_a2 = (al - 1.0f) * sc;
+    a->nt_b0 = sc;
+    a->nt_b1 = -2.0f * cs * sc;
+    w = 6.2831853f * 200.0f / sr;
+    sn = sin_s(w);
+    x = sin_s(0.5f * w);
+    cs = 1.0f - 2.0f * x * x;
+    al = sn * 0.70710678f;
+    sc = 1.0f / (1.0f + al);
+    a->dc_a1 = 2.0f * cs * sc;
+    a->dc_a2 = (al - 1.0f) * sc;
+    a->dc_b1 = (1.0f - cs) * sc;
+    a->dc_b0 = 0.5f * a->dc_b1;
     a->drng = a->rng ^ 0x9e3779b9u;
     a->db_ph = 1.0f;
     a->d_energy = 1.0f;
@@ -381,8 +417,8 @@ NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dl
  * the pitch's RC goes on from where it is, the envelopes and the VCA go on as they are. Its accent
  * starts no envelope either: as a 303's, it takes the cutoff envelope where it has decayed to, so an
  * accent on a slid note is a weak one. Any other note is a new attack: the pitch there at once, the
- * cutoff envelope and the VCA from where they are, the VCA's attack soft (3 ms) on a plain note and
- * sharp on an accent (the 303's click). The oscillator's phase is never touched. */
+ * cutoff envelope and the VCA from the top (Open303's: the VCA at once, its de-clicker rounding it).
+ * The oscillator's phase is never touched. */
 NFM_CODE void nacid_apply_event(nacid *a, const nacid_event *event)
 {
     int legato = a->gate_on && a->sounding && a->gate < 0.0f;
@@ -393,15 +429,15 @@ NFM_CODE void nacid_apply_event(nacid *a, const nacid_event *event)
     }
     a->cv_to = event->pitch;
     a->acc_gate = event->accent;
+    a->acc_rel = event->accent;                   /* (the VCA's release: 50 ms after an accent, else 1) */
+    a->accent = event->accent;                    /* (the cutoff envelope's decay: short on an accent, slid too) */
     if (a->acc_gate) a->acc_env = legato ? a->env : 1.0f;
     if (!legato) {
         a->cv = a->cv_to;
         a->freq = 65.406f * exp2f_(a->cv * (1.0f / 12.0f));
         pitch_step(a);
         a->env = 1.0f;
-        a->accent = a->acc_gate;                  /* (the cutoff envelope's decay: short on an accent) */
         a->attack = 1;
-        a->att = a->acc_gate ? a->att_hard : a->att_soft;
         /* the modulation effect: this note's chance (a slid note keeps the one before's) */
         if (a->mod.type == NFM_MOD_OFF || a->mod.chance <= 0.0f ||
             ((a->mod.type == NFM_MOD_FLANGER || a->mod.type == NFM_MOD_CHORUS) && !a->ms.line))
@@ -663,30 +699,39 @@ NFM_CODE NFM_HOT static void control(nacid *a)
         a->wmul = exp2f_(a->wd[0] * a->wander * (1.0f / 12.0f));
         pitch_step(a);
     }
-    float base = 30.0f * exp2f_(cut * 7.6f);                           /* 30 Hz .. 5.8 kHz */
-    /* Env Mod as a 303's: the more of it, the lower the sweep starts (1.5 octaves at full), its top
-     * where it was (5 octaves over the knob) */
-    float oct = em * (6.5f * a->env - 1.5f) + a->p[NACID_P_ACCENT] * 3.0f * a->acc_cap + a->wd[1] * a->wander;
-    float fc = base * exp2f_(oct), w = fc * LADDER_F / a->sr;
+    /* the knobs as Open303 measured them on a 303: the cutoff 314 Hz .. 2.4 kHz, the resonance most of
+     * the way in its first half */
+    float base = 314.0f * exp2f_(cut * 2.9306f);
+    float r = (1.0f - exp2f_(-3.0f * 1.4427f * reso)) * 1.0523956f;
+    /* Env Mod, Open303's measured mapping: how far the envelope sweeps (in octaves; more with the
+     * cutoff up) and where it rests below the knob; the envelope through its 3 ms RC */
+    float slo = 3.773996f * em + 0.736966f, shi = 4.194549f * em + 0.864345f;
+    float sc = (1.0f - cut) * slo + cut * shi, off = 0.048293f * cut + 0.294391f;
+    a->env_rc += (a->env - a->env_rc) * a->rc1;
+    float oct = sc * (a->env_rc - off) + a->p[NACID_P_ACCENT] * a->acc_cap + a->wd[1] * a->wander;
+    float fc = base * exp2f_(oct);
+    if (fc < 200.0f) fc = 200.0f;                                     /* (Open303's floor) */
+    float w = fc * LADDER_F / a->sr;
     float g = tan_pi((w > 0.3f ? 0.3f : w) * 0.5f);                    /* (at 2x; its top where it was at 1x) */
     a->ga = g / (1.0f + g);
     ladder(a, g);
-    a->dk = (reso * LADDER_K - a->k) * (1.0f / 16.0f);
+    a->dk = (r * LADDER_K - a->k) * (1.0f / 16.0f);
     /* the resonance takes the passband down by 1 + k above the feedback's high-pass: given back, the
-     * more the higher the cutoff, the envelope's too (from 280 Hz up, a fifth of k an octave; low, the
-     * resonance sits on the notes themselves) */
-    float q = 1.52f * cut - 0.65f + 0.2f * oct;     /* (log2 of fc / 280 Hz, over 5) */
-    a->dcomp = (1.0f + reso * LADDER_K * (q < 0.0f ? 0.0f : q > 0.7f ? 0.7f : q) - a->comp) * (1.0f / 16.0f);
-    /* the decay: 80 ms .. 2.5 s; an accent cuts it to 200 ms */
-    float t = a->accent ? 0.2f : 0.08f * exp2f_(dec * 5.0f);
+     * more the higher the cutoff (from 280 Hz up, a fifth of k an octave; low, the resonance sits on
+     * the notes themselves) */
+    float q = 0.2f * (0.1653f + 2.9306f * cut + oct);  /* (log2 of fc / 280 Hz, over 5) */
+    a->dcomp = (1.0f + r * LADDER_K * (q < 0.0f ? 0.0f : q > 0.7f ? 0.7f : q) - a->comp) * (1.0f / 16.0f);
+    /* the decay: Open303's 200 ms .. 2 s; an accent cuts it to 200 ms */
+    float t = a->accent ? 0.2f : 0.2f * exp2f_(dec * 3.3219281f);
     a->dk_env = exp2f_(-8.0f * 1.4427f / (t * a->sr));
     a->dk_acc = exp2f_(-1.4427f / (0.2f * a->sr));
-    /* the sweep capacitor: it charges from the accent and lets go slowly; the more resonance, the
-     * slower both, so accents in a row build up */
+    /* the sweep capacitor: it charges from the accent (Open303's 15 ms RC) and lets go slowly; the
+     * more resonance, the slower both (the 303's resonance pot is on it too), so accents in a row
+     * build up */
     float src = a->acc_gate ? a->acc_env : 0.0f;
     if (src > a->acc_cap) a->acc_cap += (src - a->acc_cap) * a->chg;
     else a->acc_cap += (src - a->acc_cap) * a->dis;
-    a->chg = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.01f + 0.06f * reso) * a->sr));
+    a->chg = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.015f + 0.05f * reso) * a->sr));
     a->dis = 1.0f - exp2f_(-8.0f * 1.4427f / ((0.08f + 0.5f * reso) * a->sr));
 }
 
@@ -713,13 +758,11 @@ NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
     switch (a->wave) {
     default:
     case NACID_SAW: x = saw303(t, dt); break;
-    case NACID_SQUARE: {                     /* a 303's: the saw through a transistor that clips it */
-        float w = saw303(t, dt);
-        float u = 2.65f * (w + 0.08f);       /* rounded on the way up, a slant on top; anti-aliased */
-        x = sat_adaa(a->sq_u1, u) * 0.95f + 0.1f * w;
-        a->sq_u1 = u;
+    case NACID_SQUARE:                       /* Open303's 303 square: the ramp through a transistor's tanh
+                                              * (36.9 dB of drive), a hard edge at the wrap, its DC off, at
+                                              * half the saw's level */
+        x = 0.5f * (soft(69.984f * (t + t - 1.0f) + 4.37f) - 0.06245f - blep(t, dt));
         break;
-    }
     case NACID_PULSE: {                      /* 20 % */
         float t2 = t + 0.8f;
         if (t2 >= 1.0f) t2 -= 1.0f;
@@ -768,6 +811,15 @@ NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float hf, fl
     return y3;
 }
 
+/* Open303's high-pass at 44.5 Hz before the ladder, at 2x */
+NFM_CODE NFM_HOT static inline float pre_hp(nacid *a, float x)
+{
+    float y = a->hp_b0 * (x - a->hp_x) + a->hp_a1 * a->hp_y;
+    a->hp_x = x;
+    a->hp_y = y;
+    return y;
+}
+
 /* two samples at 2x in (x0 first), one out: x1's on the taps, x0's on the centre (6 samples late) */
 NFM_CODE NFM_HOT static inline float halfband(nacid *a, float x0, float x1)
 {
@@ -783,12 +835,12 @@ NFM_CODE NFM_HOT static inline float halfband(nacid *a, float x0, float x1)
 #define VCA_ROOM 3.0f
 NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, float *out_r, float *rev, float *dly, int n)
 {
-    const float rel = 1.0f - exp2f_(-1.4427f / (0.006f * a->sr));
-    const float vdk = exp2f_(-1.4427f / (3.0f * a->sr));          /* the VCA's decay while the gate is held */
+    /* the VCA as Open303's: 1.23 s down while the gate is held, after it 1 ms (50 after an accent) */
+    const float vdk = exp2f_(-1.4427f / (1.23f * a->sr));
+    const float rel = exp2f_(-1.4427f / ((a->acc_rel ? 0.05f : 0.001f) * a->sr));
     const float fade = 1.0f - exp2f_(-1.4427f / (0.01f * a->sr));
-    const float sm = 1.0f - exp2f_(-1.4427f / (0.002f * a->sr));  /* the accent on the VCA, without a click */
-    const float gf = tan_pi(50.0f / a->sr), hf = 1.0f / (1.0f + gf), Gf = gf * hf;   /* 100 Hz at 2x */
-    const float ho = 1.0f - exp2f_(-1.4427f * 6.2832f * 40.0f / a->sr);   /* the output's coupling: 40 Hz */
+    const float gf = tan_pi(75.0f / a->sr), hf = 1.0f / (1.0f + gf), Gf = gf * hf;   /* 150 Hz at 2x (Open303's) */
+    const float boost = 0.45f + 4.0f * a->p[NACID_P_ACCENT];
     float lvl = a->p[NACID_P_LEVEL] * 0.6f * e->master;
     nfm_mod_block(&a->mod, a->sr, n);
     for (int i = 0; i < n; ++i, ++a->now) {
@@ -819,18 +871,26 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
         }
         --a->ctl;
         a->acc_env *= a->dk_acc;
-        a->acc_vca += ((a->acc_gate ? a->acc_env : 0.0f) - a->acc_vca) * sm;
+        /* the VCA: its envelope at once to the top, and the cutoff envelope on it while the gate is
+         * held (a little on every note, an accent's much more), through the de-clicker */
+        float vca;
         if (!a->gate_on) {
-            a->amp -= a->amp * rel;
-        } else if (a->attack) {
-            a->amp += (1.02f - a->amp) * a->att;
-            if (a->amp >= 1.0f) a->attack = 0;
+            vca = a->amp *= rel;
         } else {
-            a->amp *= vdk;
+            if (a->attack) a->amp = 1.0f, a->attack = 0;
+            else a->amp *= vdk;
+            vca = a->amp + (a->acc_gate ? boost : 0.45f) * a->env;
         }
-        if (!a->gate_on && a->amp < 0.0001f) {
+        float vd = a->dc_b0 * (vca + a->dc_x2) + a->dc_b1 * a->dc_x1 + a->dc_a1 * a->dc_y1 + a->dc_a2 * a->dc_y2;
+        a->dc_x2 = a->dc_x1;
+        a->dc_x1 = vca;
+        a->dc_y2 = a->dc_y1;
+        a->dc_y1 = vd;
+        if (!a->gate_on && a->amp < 0.0001f && vd < 0.0001f && vd > -0.0001f) {
             a->sounding = 0;
-            a->amp = a->acc_vca = 0.0f;
+            a->amp = 0.0f;
+            a->dc_x1 = a->dc_x2 = a->dc_y1 = a->dc_y2 = 0.0f;
+            a->hp_x = a->hp_y = a->ap_x = a->ap_y = a->hp2_y = a->nt_x2 = a->nt_y1 = a->nt_y2 = 0.0f;
             a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = 0.0f;
             nfm_zero(a->hb_a, sizeof a->hb_a);
             nfm_zero(a->hb_b, sizeof a->hb_b);
@@ -838,11 +898,21 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
         }
 
         /* the oscillator and the ladder twice a sample, back down through the halfband */
-        float u = ladder_tick(a, osc(a, t0, dh), hf, Gf);
-        u = halfband(a, u, ladder_tick(a, osc(a, t, dh), hf, Gf));
-        a->so += (u - a->so) * ho;
-        /* the VCA: a transistor pair, so it rounds what goes through it loud (an accent's peaks most) */
-        float o = (u - a->so) * 6.7f * a->amp * (1.0f + 0.9f * a->p[NACID_P_ACCENT] * a->acc_vca);
+        float u = ladder_tick(a, pre_hp(a, osc(a, t0, dh)), hf, Gf);
+        u = halfband(a, u, ladder_tick(a, pre_hp(a, osc(a, t, dh)), hf, Gf));
+        /* Open303's all-pass, high-pass and notch (the 303's coupling, the phase it gives the wave) */
+        float y = a->ap_b0 * (u - a->ap_y) + a->ap_x;
+        a->ap_x = u;
+        float h = a->hp2_b0 * (y - a->ap_y) + a->hp2_a1 * a->hp2_y;
+        a->ap_y = y;
+        y = a->nt_b0 * (h + a->nt_x2) + a->nt_b1 * a->hp2_y + a->nt_a1 * a->nt_y1 + a->nt_a2 * a->nt_y2;
+        a->nt_x2 = a->hp2_y;
+        a->hp2_y = h;
+        a->nt_y2 = a->nt_y1;
+        a->nt_y1 = y;
+        /* the VCA: a transistor pair, so it rounds what goes through it loud (an accent's peaks most);
+         * as loud as it was over a line (the accents louder, a plain note softer) */
+        float o = y * 2.8f * vd;
         o = VCA_ROOM * soft(o * (1.0f / VCA_ROOM)) * lvl;
 
         /* the drive, then the moving filter when the effects chose it (faded in and out) */

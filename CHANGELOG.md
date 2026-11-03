@@ -5,6 +5,26 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.18
+
+Firmware identity FM-1_852. The 303 calibrated as Open303 measured a real one.
+
+- **The 303's knobs over the 303's own ranges:** Cutoff from 314 Hz to 2.4 kHz (it was 30 Hz to
+  5.8 kHz), Decay from 200 ms to 2 s (it was 80 ms to 2.5 s), the resonance coming in mostly in the
+  knob's first half. Saved projects keep their knob positions, so they sound closer to a 303 now.
+- **Env Mod follows Open303's measured curve:** the more of it, the further the envelope sweeps and
+  the lower the filter rests, more with the cutoff up, and a little even at 0, as on a 303.
+- **The 303's slide:** 60 ms, so a slide gets there within the step, octave jumps too.
+- **The 303's VCA:** it opens at once (a de-clicker rounds it), decays slowly while the note is held
+  and closes in 1 ms, 50 ms after an accent. The filter envelope pushes it up too: a little on every
+  note, a lot on an accent, so accents stand out much more than before.
+- **The filters around the ladder** as on the 303: a high-pass before it, a 150 Hz high-pass in the
+  resonance's feedback (the bass stays), and the all-pass, high-pass and notch after it that give the
+  wave its shape.
+- **The 303 square:** Open303's, the ramp through a transistor, at half the saw's level.
+- Kept from Wild: the diode ladder, the accent sweep that builds up with the resonance, the bowed
+  saw, the drift. The 303 costs no more to run.
+
 ## 0.3.17
 
 Firmware identity FM-1_851. Calmer Tune and Pitch knobs.
