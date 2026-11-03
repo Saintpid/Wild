@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.21
+
+Firmware identity FM-1_855. Softer soft drum hits.
+
+- **Soft hits at 50:** a drum step's soft strength (the second press on its key) is velocity 50
+  instead of 64, and new patterns' soft hits start from 50 too. They show a shade dimmer than
+  before on the screen, so strong and soft are easier to tell apart.
+- Projects saved before keep their hits as they were (a soft one there stays at 64).
+
 ## 0.3.20
 
 Firmware identity FM-1_854. The 303 on Open303's own voice, with Wild's touches on top.
