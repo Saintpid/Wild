@@ -5,6 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.29
+
+Firmware identity FM-1_863. Clear all starts from nothing.
+
+- **Clear all, GLO + HOME:** bank 1 now starts empty: no hits on the drum tracks and no notes on the
+  303, every track 1 bar long with Rnd len on Fixed, and nothing left to chance: Loose, Chaos, Motion,
+  Mutate and Space at 0, each drum track's Evolve, Deviance, Dynamics and Pitch at 0, the 303's Evolve,
+  Chaos and Deviance at 0. Build it up from there with steps or new patterns. Sounds, effects and
+  levels start from the defaults as before.
+- RESET (HOME, SAVE) is unchanged: the defaults with new patterns.
+
 ## 0.3.28
 
 Firmware identity FM-1_862. Songs keep their banks; clear all for a clean start.

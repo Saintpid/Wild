@@ -129,6 +129,7 @@ void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12.
  * steps in time, bars staying bars. ne_tset(T_GRID) / ne_aset(A_GRID) set the grid alone (a restored
  * pattern is in it already). */
 void ne_regrid(int track, int triplet);
+void ne_clear(void);                                 /* every pattern empty, the 303's too (lengths stay) */
 /* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */
 
 /* ---- the whole state, for saving: the patterns, lengths and base patches (normalised x 65535) */
