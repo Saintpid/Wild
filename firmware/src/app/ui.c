@@ -24,7 +24,7 @@
  *                  chance at each press (SEL held: the bank playing lit, the others there dim)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
- *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation; saved songs stay
+ *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation, an empty start; saved songs stay
  *   GLO + REC      the selected track's automation erased
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
@@ -958,7 +958,28 @@ static void set_view(int v)
     ui.touched = -1;
 }
 
-static void reset_defaults(void)
+/* CLEAR ALL's starting point: every track 1 bar, Fixed; nothing by chance (Loose, Chaos, Motion,
+ * Mutate, Space, Evolve, Deviance, Dynamics, Pitch, the 303's Chaos and Deviance at 0) */
+static void empty_values(void)
+{
+    int t;
+    static const uint8_t G0[] = {G_LOOSE, G_CHAOS, G_MOTION, G_MUTATE, G_SPACE};
+    static const uint8_t T0[] = {T_RANDLEN, T_PITCH, T_EVOLVE, T_DEV, T_DYN};
+    static const uint8_t A0[] = {A_EVOLVE, A_CHAOS, A_DEV};
+    unsigned i;
+    for (i = 0; i < sizeof G0; i++)
+        proj.g[G0[i]] = 0;
+    for (t = 0; t < NE_TRACKS; t++) {
+        proj.t[t][T_BARS] = 1;
+        for (i = 0; i < sizeof T0; i++)
+            proj.t[t][T0[i]] = 0;
+    }
+    proj.a[A_BARS] = 1;
+    for (i = 0; i < sizeof A0; i++)
+        proj.a[A0[i]] = 0;
+}
+/* the defaults (empty: CLEAR ALL's, no patterns and nothing by chance) */
+static void reset_defaults(int empty)
 {
     int16_t keep = proj.g[G_MIDICH];
     uint8_t bank = proj.bank;
@@ -967,18 +988,24 @@ static void reset_defaults(void)
     project_defaults();
     proj.g[G_MIDICH] = keep;
     proj.bank = bank;                                /* (the bank playing: the others stay) */
+    if (empty)
+        empty_values();
     auto_erase_bank(bank);
     sel_forget();
     ne_play(0);
     project_apply();                                 /* the starting set's settings, then its sounds */
     for (t = 0; t < NE_TRACKS; t++) {
         ne_new_sound(t, proj.t[t][T_KIND]);          /* (the starting set: at their own pitch) */
-        ne_generate(t);
+        if (!empty)
+            ne_generate(t);
     }
+    if (empty)
+        ne_clear();                                  /* (after project_apply()'s new 303 line) */
     mark_dirty();
     say("RESET", "TO DEFAULTS");
 }
-/* CLEAR ALL (GLO + HOME, and again to say yes): a clean start. Every bank empty, all automation gone, bank 1 as reset; the saved songs stay */
+/* CLEAR ALL (GLO + HOME, and again to say yes): a clean start. Every bank empty, all automation gone, bank 1
+ * as reset but empty (no hits or notes, 1 bar, nothing by chance); the saved songs stay */
 static void clear_all(void)
 {
     auto_finish_all();
@@ -987,7 +1014,7 @@ static void clear_all(void)
     memset(proj_bank, 0, sizeof proj_bank);
     proj_bank_dirty = (uint8_t)((1u << ((PROJ_BANKS + 1) / 2)) - 1u);
     proj.bank = 0;
-    reset_defaults();
+    reset_defaults(1);
     undo_c = undo_n = 0;                             /* (nothing to go back to: the banks are gone) */
     undo_key = 0;
     ui.held_step = -1;
@@ -1037,7 +1064,7 @@ static void button(int b)
             if (ui.reset_all)
                 say("KEPT", 0);                      /* (clear all: GLO + HOME says yes) */
             else
-                reset_defaults();
+                reset_defaults(0);
             break;
         }
         list_open(L_SAVE);

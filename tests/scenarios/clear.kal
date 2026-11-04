@@ -1,5 +1,5 @@
 # CLEAR ALL: GLO + HOME asks, GLO + HOME again says yes (a key or SAVE keeps): every bank empty, all
-# automation gone, bank 1 as reset; the saved songs stay. GLO + REC: the selected track's automation goes.
+# automation gone, bank 1 empty (no hits or notes, 1 bar Fixed, nothing by chance); the saved songs stay. GLO + REC: the selected track's automation goes.
 wait 200
 tap FX
 spin K1 30
@@ -66,6 +66,29 @@ expect lanes 0
 tap OCT+
 tap FX
 expect tpar15 0
+# an empty start: no hits, no 303 notes, 1 bar Fixed, nothing by chance
+expect hits 0
+expect len 16
+expect tpar0 1
+expect tpar1 0
+expect tpar4 0
+expect tpar5 0
+expect tpar8 0
+expect tpar25 0
+expect gpar2 0
+expect gpar4 0
+expect gpar5 0
+expect anotes 0
+expect alen 16
+expect apar0 1
+expect apar6 0
+expect apar24 0
+expect apar25 0
+tap PLAY
+wait 3000
+expect hits 0
+expect anotes 0
+tap PLAY
 shot cleared.png
 press SEL
 tapkey w2

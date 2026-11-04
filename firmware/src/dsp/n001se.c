@@ -242,7 +242,7 @@ void ne_aparam_text(int i, int v, char *b)
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -281,6 +281,7 @@ void ne_space_shift(void) { post(C_SPACE, 0, 0, 0, 0, 0); }
 void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
 void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
 void ne_regrid(int t, int on) { post(C_REGRID, t, on, 0, 0, 0); }
+void ne_clear(void) { post(C_CLEAR, 0, 0, 0, 0, 0); }
 
 /* ------------------------------------------------------------ the state --- */
 static int16_t gpar[G_NPARAMS], tpar[NE_TRACKS][T_NPARAMS];
@@ -1234,6 +1235,15 @@ static void drain(void)
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
         case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); break;
         case C_SPACE: nfx_space_shift(&fx); break;
+        case C_CLEAR: {                /* CLEAR ALL: no hits, no notes */
+            int t, s;
+            for (t = 0; t < NE_TRACKS; t++)
+                for (s = 0; s < NE_STEPS; s++)
+                    seq.track[t].step[s].on = 0;
+            for (s = 0; s < NACID_STEPS; s++)
+                acid.step[s].flags = 0;
+            break;
+        }
         case C_REGRID:
             if (c.t == NE_ACID) {
                 nacid_regrid(&acid, c.a);

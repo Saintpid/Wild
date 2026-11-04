@@ -1,5 +1,7 @@
-# Wild 0.3.28 - experimental FM-1 firmware
+# Wild 0.3.29 - experimental FM-1 firmware
 
+**0.3.29:** clear all (GLO + HOME twice) starts from nothing: no hits or notes, every track 1 bar
+Fixed, and every chance (Loose, Chaos, Motion, Evolve, Deviance, Dynamics, the 303's Chaos) at 0.
 **0.3.28: songs keep their banks.** A preset is a song: saving it saves all its banks and their
 automation, and loading it brings exactly those, never another song's. A song with many banks takes
 more slots ("in 001" on the list). GLO + HOME clears all (asked; GLO + HOME again says yes): every bank and all
@@ -152,7 +154,7 @@ command.
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
 | **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation. GLO + REC: the selected track's automation erased |
-| **GLO + HOME** | Clear all: asks, GLO + HOME again says yes. Every bank empty, all automation gone, bank 1 from the defaults; saved songs kept |
+| **GLO + HOME** | Clear all: asks, GLO + HOME again says yes. Every bank empty, all automation gone, bank 1 empty (no hits or notes, 1 bar Fixed, nothing by chance); saved songs kept |
 | **SAVE / ARP** | Save / load a song, all its banks (64 slots) |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
