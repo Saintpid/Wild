@@ -1,5 +1,7 @@
-# Wild 0.3.29 - experimental FM-1 firmware
+# Wild 0.3.30 - experimental FM-1 firmware
 
+**0.3.30: newer FM-1s.** Units sold since autumn 2026 have another flash chip (UC25HQ80); Wild now
+saves and updates on those too, and the rescue accepts them. Not yet tried on such a unit.
 **0.3.29:** clear all (GLO + HOME twice) starts from nothing: no hits or notes, every track 1 bar
 Fixed, and every chance (Loose, Chaos, Motion, Evolve, Deviance, Dynamics, the 303's Chaos) at 0.
 **0.3.28: songs keep their banks.** A preset is a song: saving it saves all its banks and their

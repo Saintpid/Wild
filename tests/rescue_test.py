@@ -180,6 +180,14 @@ try:
 except R.Fail as e:
     ok("not writing" in str(e) and not dev.erased, "a different head (below 0x4000): refused")
 
+image, now = flashes()
+dev = FakeUboot(now, fid=0xB36014)
+ok(R.rescue(R.Uboot(dev), image, LOADER, True, tmp, say=lambda *a, **k: None) and bytes(dev.flash) == image + now[R.APP_END:],
+   "the newer FM-1s' flash (UC25HQ80, B36014): rescued like the first")
+for f in os.listdir(tmp):
+    if f.startswith("fm1-backup-"):
+        os.remove(os.path.join(tmp, f))
+
 dev = FakeUboot(now, fid=0x854015)
 try:
     R.rescue(R.Uboot(dev), image, LOADER, True, tmp, say=lambda *a, **k: None)

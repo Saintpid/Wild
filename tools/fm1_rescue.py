@@ -22,7 +22,8 @@ on hardware:
 
   1. JieLi's flash loader (wl82loader.bin, from github.com/kagaimiq/jl-uboot-tool, downloaded
      and checked against its hash) is loaded into RAM and started;
-  2. the chip key must be 980F and the flash 856014 (1 MiB), or nothing is done;
+  2. the chip key must be 980F and the flash 856014 (Puya, the first units) or B36014 (UCUN,
+     those sold since autumn 2026; both 1 MiB), or nothing is done;
   3. the whole flash is read and saved as a backup before anything else;
   4. only 4 KiB sectors in [0x4000, 0x93000) that differ from V15 are written (the bootloader below
      0x4000 and the device data above 0x93000 are never touched; a difference below 0x4000 stops
@@ -38,6 +39,7 @@ import time
 import urllib.request
 
 VID, PID = 0x4C4A, 0x8057
+FLASH_IDS = (0x856014, 0xB36014)   # Puya P25Q80H, UCUN UC25HQ80 (newer units): 1 MiB, same commands
 STOCK_SHA256 = "db1642b2b6fa5c2cccb11ffd13878068bb28601678d3644049f99dc40e7edb8a"
 STOCK_URL = "https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc"
 STOCK_NAME = "FM-1-V15.fwsc"
@@ -390,8 +392,8 @@ def rescue(dev, image, loader, write, backup_dir, say=print, confirm=None, step=
     dev.start_loader(loader)
     key, typ, fid = dev.chip()
     say(f"  chip key {key:04X}, flash type {typ}, id {fid:06X}")
-    if (key, typ, fid) != (0x980F, 3, 0x856014):
-        raise Fail("this is not the FM-1's chip and flash (expected key 980F, type 3, id 856014); nothing written")
+    if (key, typ) != (0x980F, 3) or fid not in FLASH_IDS:
+        raise Fail("this is not the FM-1's chip and flash (expected key 980F, type 3, id 856014 or B36014); nothing written")
     say("  reading the whole flash ...")
     t0 = time.time()
     now = dev.read(0, FLASH_SIZE)

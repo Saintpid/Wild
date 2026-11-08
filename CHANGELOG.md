@@ -5,6 +5,18 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.30
+
+Firmware identity FM-1_864. The newer FM-1s.
+
+- **Newer FM-1s:** units sold since autumn 2026 (mostly through AliExpress) have a UCUN UC25HQ80
+  flash in place of the Puya P25Q80H. Wild knew only the Puya: on a newer unit nothing was saved
+  ("flash error", everything in RAM) and no update could start. Now both are accepted: saving,
+  presets and songs, and updates with M-UPGRADE or FM-1 Switch work on either. Any other chip is
+  still left alone, RAM only.
+- **Rescue:** the chip's own update mode rescue (FM-1 Switch's tools) accepts the newer flash too.
+- Not yet tried on a newer unit: if you have one, tell us whether a save survives a power cycle.
+
 ## 0.3.29
 
 Firmware identity FM-1_863. Clear all starts from nothing.
