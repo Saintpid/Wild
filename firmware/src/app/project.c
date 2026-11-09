@@ -283,9 +283,28 @@ static int auto_any(void)
             return 1;
     return 0;
 }
+/* free: no song, and no part of one (a part whose song is gone, after a save or a delete torn by power
+ * off, is free too) */
 int project_slot_free(int n)
 {
-    return n >= 0 && n < PLAT_PRESETS && !plat_preset_used(n) && plat_part_of(n) < 0;
+    int c;
+    if (n < 0 || n >= PLAT_PRESETS || plat_preset_used(n))
+        return 0;
+    c = plat_part_of(n);
+    return c < 0 || !plat_preset_used(c / 8);
+}
+/* ...and not one of song s's own (its parts are found by song_parts, even with s not there yet) */
+static int slot_free_for(int i, int s)
+{
+    int c = plat_part_of(i);
+    return i != s && project_slot_free(i) && (c < 0 || c / 8 != s);
+}
+static int slots_free_for(int s)
+{
+    int i, n = 0;
+    for (i = 0; i < PLAT_PRESETS; i++)
+        n += slot_free_for(i, s);
+    return n;
 }
 
 int project_preset_save(int n)
@@ -295,7 +314,7 @@ int project_preset_save(int n)
     int need[SONG_PARTS], p, i, more = 0, rc = 0, next = PLAT_PRESETS - 1;
     if (n < 0 || n >= PLAT_PRESETS)
         return -1;
-    if (plat_part_of(n) >= 0)
+    if (!plat_preset_used(n) && !project_slot_free(n))
         return -2;                                   /* (a part of another song) */
     if (project_legacy) return -4;
     song_parts(n, at);
@@ -310,9 +329,7 @@ int project_preset_save(int n)
         need[p] = p == SONG_AUTO ? auto_any() : proj_bank_has(2 * p + 2) || proj_bank_has(2 * p + 3);
         more += need[p] && at[p] < 0;
     }
-    for (i = 0; i < PLAT_PRESETS && more > 0; i++)
-        more -= i != n && project_slot_free(i);
-    if (more > 0)
+    if (more > slots_free_for(n))
         return -3;                                   /* (no room) */
     for (p = 0; p < SONG_PARTS; p++) {
         int at_p = at[p];
@@ -322,8 +339,10 @@ int project_preset_save(int n)
             continue;
         }
         if (at_p < 0) {
-            while (next == n || !project_slot_free(next))
+            while (next >= 0 && !slot_free_for(next, n))
                 next--;
+            if (next < 0)
+                return -3;
             at_p = next--;
         }
         if (p == SONG_AUTO ? plat_part_save(at_p, n * 8 + p, proj_auto, sizeof proj_auto)
@@ -336,6 +355,56 @@ int project_preset_save(int n)
             proj_bank[i].preset = (uint8_t)n;
     if (plat_preset_save(n, &proj_bank[0], proj_bank_has(1) ? 2u * sz : sz))   /* (last: the song is there) */
         rc = -1;
+    return rc;
+}
+
+/* a song deleted: its own slot first (gone at once), then its parts; 0 deleted, -1 no song there */
+int project_song_delete(int n)
+{
+    int i, c, rc = 0;
+    if (n < 0 || n >= PLAT_PRESETS || !plat_preset_used(n))
+        return -1;
+    if (plat_part_free(n))
+        rc = -1;
+    for (i = 0; i < PLAT_PRESETS; i++)
+        if ((c = plat_part_of(i)) >= 0 && c / 8 == n && plat_part_free(i))
+            rc = -1;
+    return rc;
+}
+
+/* song from copied whole into the free slot to, its parts into free slots from the top down, its own slot
+ * last (the copy is there once it is whole): 0 copied, -1 no song / slot taken, -3 no room */
+int project_song_copy(int from, int to)
+{
+    int i, c, need = 0, next = PLAT_PRESETS - 1, rc = 0;
+    if (from < 0 || from >= PLAT_PRESETS || !plat_preset_used(from) || !project_slot_free(to))
+        return -1;
+    for (i = 0; i < PLAT_PRESETS; i++)
+        need += (c = plat_part_of(i)) >= 0 && c / 8 == from;
+    if (need > slots_free_for(to))
+        return -3;
+    for (i = 0; i < PLAT_PRESETS; i++) {
+        if ((c = plat_part_of(i)) < 0 || c / 8 != from)
+            continue;
+        while (next >= 0 && !slot_free_for(next, to))
+            next--;
+        if (next < 0)
+            return -3;
+        if (plat_part_copy(i, c, next--, to * 8 + c % 8))
+            rc = -1;
+    }
+    if (rc || plat_preset_copy(from, to))
+        return -1;
+    return 0;
+}
+
+/* every song and every part gone (the banks playing stay): 0 erased */
+int project_songs_erase(void)
+{
+    int i, rc = 0;
+    for (i = 0; i < PLAT_PRESETS; i++)
+        if ((plat_preset_used(i) || plat_part_of(i) >= 0) && plat_part_free(i))
+            rc = -1;
     return rc;
 }
 

@@ -1,4 +1,9 @@
-# Wild 0.3.32 - experimental FM-1 firmware
+# Wild 0.3.33 - experimental FM-1 firmware
+
+**0.3.33: the song list keeps itself.** The slots a song's extra banks and automation take are no
+longer on the list, so nothing can be saved over them and they don't look like free places; the
+header counts the free slots. On the list, SEL copies a song (SEL again on a free slot), HOME deletes
+it (HOME again: yes), and GLO + HOME erases every saved song (GLO + HOME again: yes).
 
 **0.3.32: eight banks with undoable copying.** Tap and release SEL, then white key 1-8:
 switch banks (an empty bank becomes a copy). Hold SEL while pressing the key: copy the playing
@@ -167,7 +172,7 @@ command.
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
 | **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation. GLO + REC: the selected track's automation erased |
 | **GLO + HOME** | Clear all: asks, GLO + HOME again says yes. Every bank empty, all automation gone, bank 1 empty (no hits or notes, 1 bar Fixed, nothing by chance); saved songs kept |
-| **SAVE / ARP** | Save / load a song, all its banks (64 slots) |
+| **SAVE / ARP** | Save / load a song, all its banks (64 slots). On the list: SEL copies the song (SEL again on a free slot), HOME deletes it (HOME again: yes), GLO + HOME erases all songs (GLO + HOME again: yes); any other button cancels that |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
 | **SEL + white 1–12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |

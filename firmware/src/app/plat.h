@@ -51,7 +51,9 @@ int plat_preset_used(int n);                            /* 1 = holds a preset */
 int plat_part_of(int n);                                /* the code, < 0: not a part */
 int plat_part_load(int n, int code, void *dst, uint32_t max);
 int plat_part_save(int n, int code, const void *src, uint32_t len);
-int plat_part_free(int n);                              /* 0 = ok */
+int plat_part_free(int n);                              /* any slot erased (a part or a preset): 0 = ok */
+int plat_preset_copy(int from, int to);                 /* preset from into slot to: 0 = ok */
+int plat_part_copy(int from, int code, int to, int code_to);   /* a part, as another song's: 0 = ok */
 /* the banks (Wild): PLAT_BANK_SECTORS slots like the presets', two banks each (flash 0xD7000.., 0xDE000..);
  * the last one holds the automation */
 #define PLAT_BANK_SECTORS 7

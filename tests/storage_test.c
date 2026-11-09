@@ -150,6 +150,19 @@ int main(void)
         bad += check("the preset in slot 5 is no part", st_part_of(5) < 0 && st_preset_used(5));
         bad += check("a part freed: nothing", st_part_free(62) == 0 && st_part_of(62) < 0 && !st_preset_used(62));
     }
+    {   /* a song copied: its preset and its parts, a part as the new song's */
+        bad += check("preset 5 copied into slot 9", st_preset_copy(5, 9) == 0 && st_preset_used(9) && st_part_of(9) < 0);
+        n = st_preset_load(9, got, sizeof got);
+        bad += check("the copy loads A", n == (int)sizeof a && !memcmp(got, a, sizeof a));
+        bad += check("an empty slot is not copied", st_preset_copy(40, 41) < 0 && !st_preset_used(41));
+        bad += check("song 5's part 1 into slot 60", st_part_save(60, 5 * 8 + 1, b, sizeof b) == 0);
+        bad += check("...copied as song 9's into 59", st_part_copy(60, 5 * 8 + 1, 59, 9 * 8 + 1) == 0 &&
+                                                      st_part_of(59) == 9 * 8 + 1 && st_part_of(60) == 5 * 8 + 1);
+        n = st_part_load(59, 9 * 8 + 1, got, sizeof got);
+        bad += check("the copied part loads B", n == (int)sizeof b && !memcmp(got, b, sizeof b));
+        bad += check("not a part of another code", st_part_copy(60, 4 * 8 + 1, 58, 9 * 8 + 2) < 0 && st_part_of(58) < 0);
+        bad += check("a preset freed like a part", st_part_free(9) == 0 && !st_preset_used(9));
+    }
     printf("%s\n", bad ? "STORAGE TEST FAILED" : "storage test passed");
     return bad != 0;
 }

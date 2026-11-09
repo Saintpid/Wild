@@ -80,10 +80,10 @@ expect slot 12
 tap ARP
 wait 20
 expect tpar14 5
-# any other button closes the list
+# any other button closes the list (HOME, SEL and GLO + HOME are the list's own: songs.kal)
 tap SAVE
 expect list 1
-tap HOME
+tap FX
 expect list 0
 expect view 4
 # Program Change 3 (slot 003 is 2), on channel 1, while playing
