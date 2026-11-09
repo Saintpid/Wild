@@ -1,5 +1,7 @@
-# Wild 0.3.30 - experimental FM-1 firmware
+# Wild 0.3.31 - experimental FM-1 firmware
 
+**0.3.31:** Drive on the acid line no longer clicks at the start of every note (clearest on a
+clean bass, such as a sine).
 **0.3.30: newer FM-1s.** Units sold since autumn 2026 have another flash chip (UC25HQ80); Wild now
 saves and updates on those too, and the rescue accepts them. Not yet tried on such a unit.
 **0.3.29:** clear all (GLO + HOME twice) starts from nothing: no hits or notes, every track 1 bar

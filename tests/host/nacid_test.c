@@ -843,6 +843,42 @@ static void test_rest(void)
     CHECK(!calm_rests, "rest: %d rests with calm drums", calm_rests);
 }
 
+/* a sine bass, notes with rests between: with a little drive no step at a note's start or end (the
+ * drive's DC filter took a share of the note and, frozen while the line was quiet, let it out at the
+ * next note: a click at every note from Drive 1). The sharpest bend (second difference) against dry
+ * (up to where the curve starts to flatten the sine: there it bends it, as it should). */
+static float sine_bend(float drive)
+{
+    const int sl = (int)(SR * 0.125f);
+    float x0 = 0.0f, x1 = 0.0f, worst = 0.0f;
+    fresh(0.0f);
+    ac.wave = NACID_SINE;
+    ac.p[NACID_P_CUTOFF] = 1.0f;
+    ac.p[NACID_P_ENVMOD] = 0.0f;
+    ac.still = 1;
+    for (int s = 0; s < 16; s += 2) nacid_set_step(&ac, s, NACID_ON, s == 4 ? 12 : 0);
+    nacid_route(&ac, 0, drive, 0.0f, 0.0f);
+    for (int s = 0; s < 32; ++s) {
+        nacid_step(&ac, 0.0f, (float)sl);
+        for (int i = 0; i < sl; ++i) {
+            float x = tick().out, b = fabsf(x - 2.0f * x1 + x0);
+            if (b > worst) worst = b;
+            x0 = x1;
+            x1 = x;
+        }
+    }
+    return worst;
+}
+static void test_drive_clicks(void)
+{
+    float dry = sine_bend(0.0f);
+    for (int k = 0; k < 3; ++k) {
+        float d = k == 0 ? 0.01f : k == 1 ? 0.1f : 0.3f, wet = sine_bend(d);
+        CHECK(wet < dry * 2.0f, "drive %.2f: a sine's notes bend %.5f, dry %.5f (a click)", (double)d, (double)wet, (double)dry);
+        printf("drive %.2f: a sine's notes bend at most %.5f (dry %.5f)\n", (double)d, (double)wet, (double)dry);
+    }
+}
+
 int main(void)
 {
     nfm_init(&eng, SR, 1u);
@@ -859,6 +895,7 @@ int main(void)
     test_major();
     test_deviance();
     test_rest();
+    test_drive_clicks();
     printf(fails ? "nacid: %d FAILED\n" : "nacid: all ok\n", fails);
     return fails != 0;
 }

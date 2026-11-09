@@ -125,6 +125,7 @@ typedef struct {
     nfm_mod mod;
     nfm_mod_state ms;              /* ms.line: set by the owner (NFM_MOD_LEN frames), else no flanger / chorus */
     float mod_mix, mod_to;
+    uint16_t tail;                 /* samples the effects still run after the voice went quiet */
     float peak;                    /* the level now, for a meter */
     /* Deviance (nacid_feel): offsets on the cutoff, the resonance, Env Mod and Decay (in that order) */
     float dv[4];                   /* the offsets now, glided (dsm) */

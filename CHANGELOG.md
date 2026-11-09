@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.31
+
+Firmware identity FM-1_865. Drive without clicks.
+
+- **Drive on the 303:** with any Drive on the acid line (from 1), a clean bass (a sine, say) clicked
+  at the start of every note. The drive's DC filter took a little of the note itself, was left where
+  it was when the line went quiet, and came back as a step at the next note. Now it follows only
+  what the drive adds, and the drive (and the moving filter and the mod effect after it) runs out
+  after each note. With a little drive a sine sounds as clean as without it; turned up it still warms.
+
 ## 0.3.30
 
 Firmware identity FM-1_864. The newer FM-1s.
