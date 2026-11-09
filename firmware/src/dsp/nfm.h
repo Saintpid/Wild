@@ -222,7 +222,7 @@ typedef struct {
     uint16_t clap_t, clap_gap;
     float clap_amp, clap_k;
     /* a rumble: high-passed into its own drive, low-passed after, the sub held off, ducked by a kick */
-    uint8_t rumble;
+    uint8_t rumble, r_down;   /* r_down: a kick came, the duck falls */
     float r_pre, r_comp, r_hpk, r_hp, r_x1, r_g, r_kg, r_h, r_s1, r_s2, r_dc, r_dck, r_duck, r_duck_k;
     float fold, crush, crush_rate, crush_acc, crush_hold, crush_q;
     float fade, fade_k;

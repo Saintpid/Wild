@@ -101,11 +101,12 @@ int main(int argc, char **argv)
             }
             low_ok += hi < lo * 1e-6f;              /* (low-passed at 8 kHz instead: 7e-6 and up) */
             kv = nfm_trigger(&re, 0, 1.0f, 0.0f);
-            for (j = 0; j < 3; j++) {             /* the next 4 ms: the rumble alone, ducked */
+            for (j = 0; j < 10; j++) {            /* 10..15 ms on: the rumble alone, ducked */
                 int i;
                 re.voice[kv].gain_l = 0.0f;
                 nfm_render(&re, rl, rr, 64);
-                for (i = 0; i < 64; i++) after += rl[i] * rl[i];
+                if (j >= 7)
+                    for (i = 0; i < 64; i++) after += rl[i] * rl[i];
             }
             duck_ok += re.voice[v].slot == 3 && after < before * (192.0f / (0.05f * NE_SR)) * 0.05f;
             nfm_stop_all(&re);
@@ -121,6 +122,36 @@ int main(int argc, char **argv)
         CHECK(low_ok == 20, "rumble: %d of 20 draws low", low_ok);
         CHECK(duck_ok == 20, "rumble: %d of 20 ducked by a kick", duck_ok);
         CHECK(same_ok == 20, "rumble: %d of 20 ducked by a kick on its step", same_ok);
+        /* and no clicks: a rumble on every sixteenth but the beats, cut by the next (choke), a kick on
+         * every beat ducking it (heard alone): its largest second difference stays near its own (no
+         * jump). Cut in 12 ms and ducked at once it was 0.6..1.3 x its RMS; now about 0.02 */
+        for (d = 1; d <= 6; d++) {
+            int st, j, i, step = (int)(NE_SR * 60.0f / 132.0f / 4.0f), t = 0;
+            float x1 = 0.0f, x2 = 0.0f, mx = 0.0f, ss = 0.0f;
+            nfm_init(&re, NE_SR, (uint32_t)d);
+            nfm_randomize(&re, 3, NFM_KIND_RUMBLE);
+            for (st = 0; st < 32; st++) {
+                if (st % 4 == 0) {
+                    int kv = nfm_trigger(&re, 0, 1.0f, 0.0f);
+                    re.voice[kv].gain_l = 0.0f;
+                } else
+                    nfm_trigger(&re, 3, 1.0f, 0.0f);
+                for (j = 0; j < step; j += 64) {
+                    nfm_render(&re, rl, rr, 64);
+                    for (i = 0; i < 64; i++, t++) {
+                        float dd = rl[i] - 2.0f * x1 + x2;
+                        x2 = x1;
+                        x1 = rl[i];
+                        if (t < 2000) continue;
+                        dd = dd < 0.0f ? -dd : dd;
+                        if (dd > mx) mx = dd;
+                        ss += rl[i] * rl[i];
+                    }
+                }
+            }
+            ss /= (float)(t - 2000);
+            CHECK(mx * mx < ss * 0.1f * 0.1f, "rumble %d: a click, (its jump / RMS)^2 %f", d, (double)(mx * mx / (ss > 0.0f ? ss : 1.0f)));
+        }
     }
     ne_init();
     if (argc > 1) {
