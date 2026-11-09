@@ -5,6 +5,28 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.30
+
+Firmware identity FM-1_864. Eight live banks, explicit copy, bank-aware undo.
+
+- Tap/release SEL then white 1-8 selects a bank; an empty bank copies the current one.
+  Hold SEL with white 1-8 to overwrite and switch, without a confirmation menu or hold timer.
+  Tap SEL again to cancel selection. Same-bank copy does nothing. White 16 still makes Chance;
+  selecting the current bank exits Chance. Copying Chance captures the audible scene while its
+  source keeps the original. Tempo and device-wide settings remain shared.
+- Copies include automation. If the shared 28-lane pool cannot fit a complete copy, the operation
+  is refused before changing anything (COPY NOT MADE / AUTOMATION FULL).
+- A bounded 17,760-byte undo journal replaces the old six-step buffer. It restores navigation,
+  overwritten bank contents, empty-bank status, Chance state and automation, with redo. It keeps
+  up to 9 ordinary edits without automation, 3 with automation, or 2 full copy operations. Oldest
+  operations expire as space is needed; an edit after undo discards redo. Song load and Clear All
+  start a new history. No flash writes are added during playback.
+- Existing project format and song part IDs stay unchanged. Songs containing banks 9-12 are
+  refused on load and save, without changing them. If active startup storage uses those banks,
+  it is protected from autosave and manual save; use 0.3.29 to reorganise/save it first. Explicit
+  Clear All or loading a compatible song starts an eight-bank workspace. Saved legacy songs remain.
+- BUILD_ID corrected to exceed the 863 documented for 0.3.29 (the repository file still said 857).
+
 ## 0.3.29
 
 Firmware identity FM-1_863. Clear all starts from nothing.

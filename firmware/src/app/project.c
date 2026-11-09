@@ -8,6 +8,7 @@ static uint8_t proj_has_state;           /* the project carries patterns and sou
 static uint8_t proj_has_acid;            /* ...and an acid pattern (not from before format 3) */
 project_t proj_bank[PROJ_BANKS];
 uint8_t proj_bank_dirty;
+static uint8_t project_legacy, project_legacy_cleanup;
 auto_lane_t proj_auto[AUTO_LANES] OM_POOL;
 uint8_t proj_auto_dirty;
 static project_t proj_tmp;               /* an older project's layout, as it moves into this one */
@@ -148,6 +149,14 @@ static void banks_take(int first, int n)
 static void project_banks_load(void)
 {
     int s;
+    project_legacy = project_legacy_cleanup = 0;
+    /* Probe old banks 9-12 before reusing the first pair as the normal load buffer. */
+    for (s = PROJ_BANKS / 2; s < PLAT_BANK_SECTORS - 1; s++) {
+        memset(proj_bank, 0, 2u * sizeof(project_t));
+        if (plat_bank_load(s, proj_bank, 2u * sizeof(project_t)) > 0 &&
+            (proj_bank[0].magic == PROJ_MAGIC || proj_bank[1].magic == PROJ_MAGIC))
+            project_legacy = 1;
+    }
     memset(proj_bank, 0, sizeof proj_bank);
     proj_bank_dirty = 0;
     for (s = 0; 2 * s < PROJ_BANKS; s++)
@@ -194,6 +203,13 @@ void project_bank_keep(int n)
 int project_banks_save(void)
 {
     int s, rc = 0;
+    if (project_legacy) return -4;
+    if (project_legacy_cleanup) {
+        memset(&proj_tmp, 0, sizeof proj_tmp);
+        for (s = PROJ_BANKS / 2; s < PLAT_BANK_SECTORS - 1; s++)
+            if (plat_bank_save(s, &proj_tmp, sizeof proj_tmp)) rc = -1;
+        if (!rc) project_legacy_cleanup = 0;
+    }
     if (proj_auto_dirty) {
         if (plat_bank_save(PLAT_BANK_SECTORS - 1, proj_auto, sizeof proj_auto) == 0)
             proj_auto_dirty = 0;
@@ -220,6 +236,14 @@ int project_load(void)
     project_auto_load();
     memset(&proj, 0, sizeof proj);
     n = plat_store_load(OBJ_PROJ, &proj, sizeof proj);
+    if (n >= 8 && proj.magic == PROJ_MAGIC && proj.bank >= PROJ_BANKS) project_legacy = 1;
+    if (project_legacy) {
+        /* Keep ALL flash untouched until an explicit compatible song load or clear. */
+        memset(proj_bank, 0, sizeof proj_bank);
+        memset(proj_auto, 0, sizeof proj_auto);
+        project_defaults();
+        return -4;
+    }
     if (n >= 8 && project_valid(n)) {
         proj_has_state = 1;
         return 0;
@@ -230,6 +254,7 @@ int project_load(void)
 
 int project_save(void)
 {
+    if (project_legacy) return -4;
     ne_snapshot(&proj.st);
     ne_acid_snapshot(&proj.acid);
     proj_has_state = proj_has_acid = 1;
@@ -272,6 +297,10 @@ int project_preset_save(int n)
         return -1;
     if (plat_part_of(n) >= 0)
         return -2;                                   /* (a part of another song) */
+    if (project_legacy) return -4;
+    song_parts(n, at);
+    /* Old song part IDs stay fixed: 3/4 are banks 9-12, 5 is automation. */
+    if (at[3] >= 0 || at[4] >= 0) return -4;
     proj.preset = (uint8_t)n;
     project_bank_keep(proj.bank);
     if (!proj_bank_has(0))                           /* (bank 1 is always there: the one playing, if none) */
@@ -318,6 +347,8 @@ int project_preset_load(int n)
     project_t *keep = &proj_bank[proj.bank];         /* (the bank playing: its place is free) */
     int8_t at[SONG_PARTS];
     int got, p;
+    song_parts(n, at);
+    if (at[3] >= 0 || at[4] >= 0) return -4;
     *keep = proj;
     memset(&proj, 0, sizeof proj);
     got = plat_preset_load(n, &proj, sizeof proj);
@@ -329,7 +360,7 @@ int project_preset_load(int n)
     memset(proj_auto, 0, sizeof proj_auto);
     song_parts(n, at);
     banks_take(0, plat_preset_load(n, &proj_bank[0], 2u * sz));
-    for (p = 0; p < SONG_AUTO; p++)
+    for (p = 0; 2 * p + 2 < PROJ_BANKS; p++)
         if (at[p] >= 0)
             banks_take(2 * p + 2, plat_part_load(at[p], n * 8 + p, &proj_bank[2 * p + 2], 2u * sz));
     if (at[SONG_AUTO] >= 0 &&
@@ -337,6 +368,8 @@ int project_preset_load(int n)
         auto_check();
     else
         memset(proj_auto, 0, sizeof proj_auto);
+    project_legacy = 0;
+    project_legacy_cleanup = 1;
     proj_bank_dirty = (uint8_t)((1u << ((PROJ_BANKS + 1) / 2)) - 1u);
     proj_auto_dirty = 1;
     memset(&proj, 0, sizeof proj);

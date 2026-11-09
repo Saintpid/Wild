@@ -30,9 +30,9 @@ release GLO
 expect lanes 1
 tap PLAY
 # a bank 3 and a saved song
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 expect banks 5
 tap SAVE
 tapkey w0
@@ -90,9 +90,9 @@ expect hits 0
 expect anotes 0
 tap PLAY
 shot cleared.png
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 expect lanes 0
 # the saved song still has it all
 tap ARP

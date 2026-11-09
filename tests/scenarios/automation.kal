@@ -24,18 +24,22 @@ expect tpar15 90
 wait 1500
 expect tpar15 <21
 shot automated.png
-# in another bank: none; back: it plays again
-press SEL
+# an empty bank copies automation too; erase its lane, leaving the source untouched
+tap SEL
 tapkey w1
-release SEL
+
 wait 50
+expect lanes 1
+press REC
+spin K1 1
+release REC
 expect lanes 0
 spin K1 100
 wait 2500
 expect tpar15 100
-press SEL
+tap SEL
 tapkey w0
-release SEL
+
 wait 2500
 expect lanes 1
 expect tpar15 <21

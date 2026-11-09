@@ -69,6 +69,7 @@ else
     echo "  skip update-path tests (no build/Wild.fwsc: run ./build.sh)"
 fi
 run host-build sh host/build_host.sh
+run bank-undo sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen -o $OUT/bank_test tests/host/bank_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/bank_test"
 if false && command -v emcc >/dev/null 2>&1; then   # the web emulator is not ported to n001se yet
     run emu sh -c "sh web/emu/build.sh >/dev/null 2>&1 && node tests/host/emu_test.mjs build/emu/kalimba.wasm"
     CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"

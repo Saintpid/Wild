@@ -1,3 +1,28 @@
+# Wild 0.3.30 - eight banks and reversible live copying
+
+The active bank array is eight project_t records (1776 B each). White key 16 remains
+Chance. Tap/release SEL selects a bank; holding SEL while choosing copies onto it.
+An empty selection also copies. Automation is copied only if the whole operation fits.
+
+Undo uses a fixed 17760-byte, four-byte-aligned journal with variable-size records.
+Each record stores a project and Chance metadata; bank copies additionally store the
+destination and the 3696-byte automation pool. Records swap with live state for redo,
+without allocating a second snapshot or writing flash. Ordinary records with automation
+also save the pool, so subsequent edits can be unwound before undoing a bank copy.
+Oldest complete records expire to make room; nine small edits, three automation edits
+or two full copies fit. Bank changes retain tempo and shared device settings.
+
+Version 0.3.30 / FM-1_864: image 186608 B, data/BSS 80548/90112 B, RAM code
+35692/40960 B, pool 335364/344064 B. The resource guards remain enabled.
+Host tests cannot establish real-device audio continuity during snapshots/restores.
+
+Project format 16 and stored song-part IDs remain compatible for banks 1-8. Old songs
+with parts for banks 9-12 are refused before replacement. Legacy active storage is
+protected from all saves until explicit Clear All or a compatible song load. Return to
+0.3.29 to reorganise that material; no silent truncation of saved songs is performed.
+
+The following sections describe earlier releases.
+
 # Wild 0.1.4 - Mixer and encoder update
 
 GLO + OCT- toggles the five-channel mixer; Audio Load is now GLO + OCT+.
