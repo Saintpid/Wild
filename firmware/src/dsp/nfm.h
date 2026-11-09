@@ -127,6 +127,7 @@ typedef struct {
     float pre, bias, off, comp;
     float dc, ein, eout, adapt;
     float u1, gain;           /* the curve's last input; the loudness match as it glides to adapt */
+    float x1, thru;           /* the last sample in; 1: the DC followed in what the curve added only */
 } nfm_sat;
 /* A sound's modulation effect: phaser, flanger, chorus, ring modulator or tremolo, on a share of its
  * hits (chance), with its own LFO that runs on between hits. The settings and the LFO are the sound's
@@ -190,7 +191,11 @@ NFM_CODE NFM_HOT static inline float nfm_sat_tick(nfm_sat *s, float x)
     float u = x * s->pre + s->bias;
     float y = (sat_adaa(s->u1, u) - s->off) * s->comp;
     s->u1 = u;
-    s->dc += 0.0015f * (y - s->dc);
+    /* the DC the bias makes. With thru, followed in what the curve added only (the input as it came
+     * through, half a sample late by the ADAA, taken out): followed in all of it, the DC filter takes a
+     * share of a bass note itself, and lets it out when the note stops */
+    s->dc += 0.0015f * (y - s->thru * 0.5f * (x + s->x1) - s->dc);
+    s->x1 = x;
     y -= s->dc;
     s->ein += 0.004f * (x * x - s->ein);
     s->eout += 0.004f * (y * y - s->eout);

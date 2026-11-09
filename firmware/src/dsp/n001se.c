@@ -421,6 +421,7 @@ static void glue_sat(nfm_sat *s, float amount)
         return;
     s->u1 = (k.u1 - k.bias) * (s->pre / k.pre) + s->bias;
     s->dc = k.dc;
+    s->x1 = k.x1;
     s->ein = k.ein;
     s->eout = k.eout;
     s->adapt = k.adapt;

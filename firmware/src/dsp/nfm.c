@@ -707,6 +707,7 @@ NFM_CODE void nfm_sat_set(nfm_sat *s, float amount)
     s->off = sat_curve(s->bias);
     s->comp = 1.0f / (s->pre * (1.0f - 0.444444f * s->bias * s->bias));
     s->u1 = s->bias;
+    s->x1 = 0.0f;
     s->dc = 0.0f;
     s->ein = s->eout = 0.0f;
     s->adapt = s->gain = 1.0f;

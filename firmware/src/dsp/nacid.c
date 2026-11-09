@@ -407,6 +407,7 @@ NFM_CODE void nacid_route(nacid *a, int filter, float drive, float rev, float dl
         float dc = a->sat.dc, g = a->sat.gain;    /* the DC and the gain gliding on from where they were) */
         a->drive_to = drive;
         nfm_sat_set(&a->sat, drive);
+        a->sat.thru = 1.0f;                       /* (a bass note's own lows not in its DC) */
         if (a->sat.amount > 0.0f && dc != 0.0f) a->sat.dc = dc, a->sat.gain = g;
     }
     a->rev_to = rev;
@@ -758,6 +759,7 @@ NFM_CODE NFM_HOT static inline float osc(nacid *a, float t, float dt)
 
 #define DIODE_V 1.2f                        /* the diodes' knee: soft (0.6 is hard) */
 #define VCA_ROOM 3.0f
+#define TAIL 16384u   /* the effects run on after a note: 0.37 s (the drive's DC filter down 50 dB, the mod's line through) */
 NFM_CODE NFM_HOT static inline float ladder_tick(nacid *a, float x, float fb0, float fa1)
 {
     /* Open303's TeeBeeFilter: the feedback through its high-pass, four stages (the first twice as
@@ -824,64 +826,70 @@ NFM_CODE NFM_HOT void nacid_render(nacid *a, const nfm_engine *e, float *out_l, 
         if (t0 >= 1.0f) t0 -= 1.0f;
         if (t >= 1.0f) t -= 1.0f;
         a->phase = t;
+        float o = 0.0f;
         if (!a->sounding) {                      /* (the oscillator runs on, unheard) */
             if (a->wave == NACID_DUO && (a->phase2 += dh * 2.01392f) >= 1.0f) a->phase2 -= 1.0f;
-            continue;
-        }
-        if (a->gate > 0.0f && (a->gate -= 1.0f) <= 0.0f) a->gate_on = 0;
-        if (a->ctl == 0) {
-            control(a);
-            a->ctl = 8;
-            a->env *= a->dk_env;
-        }
-        --a->ctl;
-        a->b0 += a->d_b0;
-        a->k += a->d_k;
-        a->g2 += a->d_g2;
-        a->acc_env *= a->dk_acc;
-        /* the VCA: its envelope at once to the top, and the cutoff envelope on it while the gate is
-         * held (a little on every note, an accent's much more), through the de-clicker */
-        float vca;
-        if (!a->gate_on) {
-            vca = a->amp *= rel;
+            if (!a->tail) continue;
+            /* the effects run out on silence: the drive's DC filter, the moving filter and the mod's
+             * line left where the note stopped would come back as a step at the next note's start */
+            --a->tail;
         } else {
-            if (a->attack) a->amp = 1.0f, a->attack = 0;
-            else a->amp *= vdk;
-            vca = a->amp + (a->acc_gate ? boost : 0.45f) * a->env;
+            if (a->gate > 0.0f && (a->gate -= 1.0f) <= 0.0f) a->gate_on = 0;
+            if (a->ctl == 0) {
+                control(a);
+                a->ctl = 8;
+                a->env *= a->dk_env;
+            }
+            --a->ctl;
+            a->b0 += a->d_b0;
+            a->k += a->d_k;
+            a->g2 += a->d_g2;
+            a->acc_env *= a->dk_acc;
+            /* the VCA: its envelope at once to the top, and the cutoff envelope on it while the gate is
+             * held (a little on every note, an accent's much more), through the de-clicker */
+            float vca;
+            if (!a->gate_on) {
+                vca = a->amp *= rel;
+            } else {
+                if (a->attack) a->amp = 1.0f, a->attack = 0;
+                else a->amp *= vdk;
+                vca = a->amp + (a->acc_gate ? boost : 0.45f) * a->env;
+            }
+            float vd = a->dc_b0 * (vca + a->dc_x2) + a->dc_b1 * a->dc_x1 + a->dc_a1 * a->dc_y1 + a->dc_a2 * a->dc_y2;
+            a->dc_x2 = a->dc_x1;
+            a->dc_x1 = vca;
+            a->dc_y2 = a->dc_y1;
+            a->dc_y1 = vd;
+            if (!a->gate_on && a->amp < 0.0001f && vd < 0.0001f && vd > -0.0001f) {
+                a->sounding = 0;
+                a->amp = 0.0f;
+                a->dc_x1 = a->dc_x2 = a->dc_y1 = a->dc_y2 = 0.0f;
+                a->hp_x = a->hp_y = a->ap_x = a->ap_y = a->hp2_y = a->nt_x2 = a->nt_y1 = a->nt_y2 = 0.0f;
+                a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = a->fbx = a->b0 = 0.0f;
+                nfm_zero(a->hb_a, sizeof a->hb_a);
+                nfm_zero(a->hb_b, sizeof a->hb_b);
+                a->tail = TAIL;
+            }
+            if (a->sounding) {
+                /* the oscillator and the ladder twice a sample, back down through the halfband */
+                float u = ladder_tick(a, pre_hp(a, osc(a, t0, dh)), hf, Gf);
+                u = halfband(a, u, ladder_tick(a, pre_hp(a, osc(a, t, dh)), hf, Gf));
+                /* Open303's all-pass, high-pass and notch (the 303's coupling, the phase it gives the wave) */
+                float y = a->ap_b0 * (u - a->ap_y) + a->ap_x;
+                a->ap_x = u;
+                float h = a->hp2_b0 * (y - a->ap_y) + a->hp2_a1 * a->hp2_y;
+                a->ap_y = y;
+                y = a->nt_b0 * (h + a->nt_x2) + a->nt_b1 * a->hp2_y + a->nt_a1 * a->nt_y1 + a->nt_a2 * a->nt_y2;
+                a->nt_x2 = a->hp2_y;
+                a->hp2_y = h;
+                a->nt_y2 = a->nt_y1;
+                a->nt_y1 = y;
+                /* the VCA, Open303's (a line's loudness about as before, its accents' peaks the 303's); a
+                 * transistor pair, so it rounds what goes through it loud (Wild's) */
+                o = y * 0.6f * vd;
+                o = VCA_ROOM * soft(o * (1.0f / VCA_ROOM)) * lvl;
+            }
         }
-        float vd = a->dc_b0 * (vca + a->dc_x2) + a->dc_b1 * a->dc_x1 + a->dc_a1 * a->dc_y1 + a->dc_a2 * a->dc_y2;
-        a->dc_x2 = a->dc_x1;
-        a->dc_x1 = vca;
-        a->dc_y2 = a->dc_y1;
-        a->dc_y1 = vd;
-        if (!a->gate_on && a->amp < 0.0001f && vd < 0.0001f && vd > -0.0001f) {
-            a->sounding = 0;
-            a->amp = 0.0f;
-            a->dc_x1 = a->dc_x2 = a->dc_y1 = a->dc_y2 = 0.0f;
-            a->hp_x = a->hp_y = a->ap_x = a->ap_y = a->hp2_y = a->nt_x2 = a->nt_y1 = a->nt_y2 = 0.0f;
-            a->s[0] = a->s[1] = a->s[2] = a->s[3] = a->sf = a->fbx = a->b0 = 0.0f;
-            nfm_zero(a->hb_a, sizeof a->hb_a);
-            nfm_zero(a->hb_b, sizeof a->hb_b);
-            continue;
-        }
-
-        /* the oscillator and the ladder twice a sample, back down through the halfband */
-        float u = ladder_tick(a, pre_hp(a, osc(a, t0, dh)), hf, Gf);
-        u = halfband(a, u, ladder_tick(a, pre_hp(a, osc(a, t, dh)), hf, Gf));
-        /* Open303's all-pass, high-pass and notch (the 303's coupling, the phase it gives the wave) */
-        float y = a->ap_b0 * (u - a->ap_y) + a->ap_x;
-        a->ap_x = u;
-        float h = a->hp2_b0 * (y - a->ap_y) + a->hp2_a1 * a->hp2_y;
-        a->ap_y = y;
-        y = a->nt_b0 * (h + a->nt_x2) + a->nt_b1 * a->hp2_y + a->nt_a1 * a->nt_y1 + a->nt_a2 * a->nt_y2;
-        a->nt_x2 = a->hp2_y;
-        a->hp2_y = h;
-        a->nt_y2 = a->nt_y1;
-        a->nt_y1 = y;
-        /* the VCA, Open303's (a line's loudness about as before, its accents' peaks the 303's); a
-         * transistor pair, so it rounds what goes through it loud (Wild's) */
-        float o = y * 0.6f * vd;
-        o = VCA_ROOM * soft(o * (1.0f / VCA_ROOM)) * lvl;
 
         /* the drive, then the moving filter when the effects chose it (faded in and out) */
         a->ins_f += (a->ins_f_to - a->ins_f) * fade;
