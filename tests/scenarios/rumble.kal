@@ -1,0 +1,26 @@
+# the seventh kind: Rumble (the Sound page's KNOB 1, Kind), on track 4: a new sound of it with NEW SOUND,
+# a new pattern between the kick's beats, and the kick ducking it
+wait 200
+tap OCT+
+tap OCT+
+tap OCT+
+expect track 3
+expect kind3 3
+tap ENV
+tap ENV
+expect view 4
+spin K1 9
+expect tpar6 7
+# the kind changes with the next new sound
+expect kind3 3
+tapkey b10
+wait 50
+expect kind3 7
+tapkey b9
+wait 50
+shot rumble.png
+wav rumble.wav
+tap PLAY
+wait 6000
+tap PLAY
+wavstop

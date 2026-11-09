@@ -5,6 +5,18 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.34
+
+Firmware identity FM-1_868. A new kind of sound: Rumble.
+
+- **Rumble**, the eighth kind for the four drum tracks (Sound page, KNOB 1 Kind, then NEW SOUND):
+  a techno rumble, heavy but not muddy. A low sine that swells in rather than strikes, a little FM
+  grit, low noise and a low ring under it, through its own drive between a high-pass (no sub smeared
+  into the distortion) and a low-pass (no fizz). It is drawn at the kick's pitch when a kick plays
+  on another track, and every kick ducks it, so it pumps in between the beats, as a side-chained
+  reverb would. Its patterns land between the kicks. Spike drives it harder and opens it up.
+- Songs saved before keep their sounds; it costs no more than any other sound.
+
 ## 0.3.33
 
 Firmware identity FM-1_867. The song list keeps itself.
