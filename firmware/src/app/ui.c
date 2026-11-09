@@ -86,6 +86,7 @@ static const uint8_t WHITE_K[NWHITE] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19
 static const uint8_t BLACK_K[NBLACK] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25};
 enum { BK_BARDN, BK_BARUP, BK_UNDO, BK_REDO, BK_MUTE1, BK_MUTE5 = BK_MUTE1 + 4, BK_PATTERN, BK_SOUND };
 enum { L_NONE, L_SAVE, L_LOAD };       /* the preset list open */
+enum { LA_NONE, LA_DELETE, LA_ERASE }; /* ...what it asks */
 static const int8_t LIVE_NOTE[4] = {0, 3, 7, 10};   /* LIVE: the four keys of a sound, up its scale */
 
 /* colours: near black, grey ink, one colour per track; red is only the phrase's last bar */
@@ -125,6 +126,8 @@ static struct {
     uint8_t held_flags;                /* ...an acid step's accent and slide */
     uint8_t voices;                    /* the CPU guard's voice limit now */
     uint8_t list, list_slot;           /* the preset list (L_*) and the slot on it */
+    uint8_t list_ask;                  /* ...asked: LA_DELETE the song on it, LA_ERASE all songs */
+    int8_t copy_from;                  /* ...a song being copied (SEL): its slot, -1 none */
     uint8_t bank_select;               /* tap SEL: next white key selects */
     uint8_t chance;                    /* a scene by chance plays (what was before: sc_*) */
     uint8_t rec;                       /* REC: the knobs turned are recorded (auto_*) */
@@ -135,6 +138,8 @@ static struct {
     uint32_t used[(PLAT_PRESETS + 31) / 32];   /* the slots holding a preset (read as the list opens) */
     int8_t part_of[PLAT_PRESETS];      /* ...and the song whose part a slot holds (-1: none) */
     uint8_t parts[PLAT_PRESETS];       /* ...and how many a song has */
+    uint8_t vis[PLAT_PRESETS], nvis;   /* ...the slots on the list (a song's parts are not), how many */
+    uint8_t nfree;                     /* ...and the free ones (room for songs and their parts) */
     float meter[UI_TRACKS];
     int8_t batt;                       /* the battery's % in the header (batt_shown), -1 none, 101 USB power */
 } ui;
@@ -549,6 +554,7 @@ static void select_track(int t)
 
 static void bank_key(int w);
 static int sel_held(void);
+static void list_key(int w);
 static void white_down(int w)
 {
     int t = ui.track, s;
@@ -557,7 +563,7 @@ static void white_down(int w)
         return;
     }
     if (ui.list) {                                   /* the list: a slot of its page of 16 */
-        ui.list_slot = (uint8_t)(ui.list_slot / NWHITE * NWHITE + w);
+        list_key(w);
         return;
     }
     if (ui.live) {
@@ -976,8 +982,11 @@ static void black_down(int b)
 }
 
 /* ------------------------------------------------------------ presets --- */
-/* SAVE or ARP opens the list on the last slot used; the same key again saves / loads the slot on it,
- * any other button closes it. A save erases a flash sector for each slot of the song: the sound stops a moment. */
+/* SAVE or ARP opens the list on the last slot used; the same key again saves / loads the slot on it.
+ * SEL copies the song on it (SEL again on a free slot: there), HOME deletes it (HOME again: yes), GLO + HOME
+ * erases every song (GLO + HOME again: yes); any other button cancels that, or closes the list. A song's
+ * parts (its banks 3-8, its automation) are in slots of their own, from the top down: not on the list. A
+ * save erases a flash sector for each slot of the song: the sound stops a moment. */
 static int slot_used(int n) { return (int)(ui.used[n >> 5] >> (n & 31) & 1u); }
 static void slot_name(int n, char *b)               /* "005" */
 {
@@ -986,7 +995,8 @@ static void slot_name(int n, char *b)               /* "005" */
     b[2] = (char)('0' + (n + 1) % 10);
     b[3] = 0;
 }
-static void list_open(int which)
+/* the slots from flash: songs, their parts (a part whose song is gone: free), what is on the list */
+static void list_scan(void)
 {
     int n;
     for (n = 0; n < PLAT_PRESETS; n++) {
@@ -996,18 +1006,55 @@ static void list_open(int which)
     }
     for (n = 0; n < PLAT_PRESETS; n++) {
         int c = plat_part_of(n);
+        if (c >= 0 && !slot_used(c / 8))
+            c = -1;
         ui.part_of[n] = (int8_t)(c < 0 ? -1 : c / 8);
         if (c >= 0)
             ui.parts[c / 8]++;
     }
+    ui.nvis = ui.nfree = 0;
+    for (n = 0; n < PLAT_PRESETS; n++)
+        if (ui.part_of[n] < 0) {
+            ui.vis[ui.nvis++] = (uint8_t)n;
+            ui.nfree += !slot_used(n);
+        }
+}
+static int list_pos(void)                           /* where the slot chosen is on the list */
+{
+    int i;
+    for (i = 0; i < ui.nvis; i++)
+        if (ui.vis[i] >= ui.list_slot)
+            return i;
+    return ui.nvis ? ui.nvis - 1 : 0;
+}
+static void list_at(int i)
+{
+    if (!ui.nvis)
+        return;
+    i = i < 0 ? 0 : i >= ui.nvis ? ui.nvis - 1 : i;
+    ui.list_slot = ui.vis[i];
+}
+static void list_open(int which)
+{
+    list_scan();
     ui.list = (uint8_t)which;
+    ui.list_ask = LA_NONE;
+    ui.copy_from = -1;
     ui.list_slot = proj.preset < PLAT_PRESETS ? proj.preset : 0;
+    list_at(list_pos());                             /* (on the list: a part's slot is not) */
     ui.held_step = -1;
 }
 static void list_move(int d)
 {
-    int n = ui.list_slot + d;
-    ui.list_slot = (uint8_t)(n < 0 ? 0 : n >= PLAT_PRESETS ? PLAT_PRESETS - 1 : n);
+    ui.list_ask = LA_NONE;
+    list_at(list_pos() + d);
+}
+static void list_key(int w)                          /* a white key: that place of its page of 16 */
+{
+    int i = list_pos() / NWHITE * NWHITE + w;
+    ui.list_ask = LA_NONE;
+    if (i < ui.nvis)
+        list_at(i);
 }
 static int preset_load(int n)
 {
@@ -1059,6 +1106,80 @@ static void list_go(void)
         preset_load(n);
     }
     ui.list = L_NONE;
+}
+/* HOME on the list: the song on it deleted, asked first */
+static void list_delete(void)
+{
+    char b[16] = "DELETE ";
+    int n = ui.list_slot;
+    slot_name(n, b + 7);
+    if (!slot_used(n)) {
+        ui.list_ask = LA_NONE;
+        say("NOTHING", "TO DELETE");
+    } else if (ui.list_ask != LA_DELETE) {
+        ui.list_ask = LA_DELETE;
+        s_cpy(b + 10, "?");
+        say(b, "HOME AGAIN: YES");
+        ui.msg_until = plat_ms() + RESET_ASK_MS;
+    } else {
+        int rc = project_song_delete(n);
+        ui.list_ask = LA_NONE;
+        say(rc ? "DELETE" : "DELETED", rc ? "FAILED" : b + 7);
+        list_scan();
+    }
+}
+/* SEL on the list: the song on it is the one to copy; SEL again, on a free slot, copies it there */
+static void list_copy(void)
+{
+    char b[16] = "COPY ";
+    int n = ui.list_slot, rc;
+    ui.list_ask = LA_NONE;
+    if (ui.copy_from < 0) {
+        if (!slot_used(n)) {
+            say("NOTHING", "TO COPY");
+            return;
+        }
+        ui.copy_from = (int8_t)n;
+        slot_name(n, b + 5);
+        say(b, "TO? SEL ON A FREE ONE");
+        ui.msg_until = plat_ms() + RESET_ASK_MS;
+        return;
+    }
+    if (n == ui.copy_from) {
+        ui.copy_from = -1;
+        say("COPY", "CANCELLED");
+        return;
+    }
+    if (slot_used(n)) {
+        say("SLOT HAS A SONG", "DELETE IT FIRST");
+        return;
+    }
+    rc = project_song_copy(ui.copy_from, n);
+    s_cpy(b, "COPIED TO ");
+    slot_name(n, b + 10);
+    if (rc == 0)
+        say(b, 0);
+    else
+        say(rc == -3 ? "COPY: NO ROOM" : "COPY", rc == -3 ? "FOR ITS BANKS" : "FAILED");
+    ui.copy_from = -1;
+    list_scan();
+}
+/* GLO + HOME on the list: every song erased, asked first */
+static void list_erase_all(void)
+{
+    int rc;
+    if (ui.list_ask != LA_ERASE) {
+        ui.list_ask = LA_ERASE;
+        ui.copy_from = -1;
+        say("ERASE ALL SONGS?", "GLO+HOME AGAIN: YES");
+        ui.msg_until = plat_ms() + RESET_ASK_MS;
+        return;
+    }
+    ui.list_ask = LA_NONE;
+    rc = project_songs_erase();
+    say(rc ? "ERASE" : "ALL SONGS", rc ? "FAILED" : "ERASED");
+    list_scan();
+    list_at(0);
 }
 
 static void set_view(int v)
@@ -1148,10 +1269,18 @@ static void button(int b)
 {
     int v;
     if (b != B_PLAY && b != B_SEL) ui.bank_select = 0;
-    if (ui.list && b != B_PLAY) {                    /* the list: its arrows, SAVE; anything else closes it */
+    if (ui.list && b != B_PLAY) {                    /* the list: its arrows, SAVE / ARP, SEL, HOME */
         if (b == B_OCTDN || b == B_OCTUP)
             list_move(b == B_OCTUP ? 1 : -1);
-        else if ((b == B_SAVE && ui.list == L_SAVE) || (b == B_ARP && ui.list == L_LOAD))
+        else if (b == B_SEL)
+            list_copy();
+        else if (b == B_HOME)
+            list_delete();
+        else if (ui.list_ask || ui.copy_from >= 0) {  /* (anything else: that cancelled, the list stays) */
+            ui.list_ask = LA_NONE;
+            ui.copy_from = -1;
+            say("CANCELLED", 0);
+        } else if ((b == B_SAVE && ui.list == L_SAVE) || (b == B_ARP && ui.list == L_LOAD))
             list_go();
         else
             ui.list = L_NONE;
@@ -1316,7 +1445,9 @@ static void input(void)
             if (i != B_SEL && i != B_PLAY) ui.bank_select = 0;
             if ((i == B_HOME || i == B_REC) && (btn >> B_GLO & 1u)) {
                 ui.btn_used |= m | 1u << B_GLO;     /* GLO + HOME: clear all (asked); GLO + REC: the track's automation */
-                if (i == B_HOME && ui.reset_ask && ui.reset_all) {
+                if (i == B_HOME && ui.list) {
+                    list_erase_all();                /* (on the list: all songs, asked) */
+                } else if (i == B_HOME && ui.reset_ask && ui.reset_all) {
                     ui.reset_ask = 0;                /* asked, and GLO + HOME again: yes */
                     clear_all();
                 } else if (i == B_HOME) {
@@ -1992,43 +2123,52 @@ static void draw_phrase(int32_t y)
     }
 }
 
-/* the preset list: five slots around the one chosen, "used" or "empty"; at the foot, how to go on */
+/* the song list: five places around the one chosen, a song ("song", or how many slots it takes), "empty";
+ * how many are free; at the foot, the keys */
 static void draw_list(void)
 {
-    uint32_t h = hash(hash(2166136261u, (uint32_t)ui.list << 20 | (uint32_t)ui.list_slot << 4), ui.used[0] ^ ui.used[1]);
-    int i;
+    uint32_t h = hash(hash(2166136261u, (uint32_t)ui.list << 20 | (uint32_t)ui.list_slot << 4 | ui.list_ask),
+                      ui.used[0] ^ ui.used[1] ^ (uint32_t)ui.nvis << 8 ^ (uint32_t)(uint8_t)ui.copy_from << 16);
+    int i, p = list_pos();
+    char f[16];
     if (h == ui.sig[1])
         return;
     ui.sig[1] = h;
     cv_begin(240, MAIN_H, K_BG);
-    cv_text(10, 2, &FONT_S, ui.list == L_SAVE ? "SAVE TO PRESET" : "LOAD PRESET", K_ACC);
+    cv_text(10, 2, &FONT_S, ui.list == L_SAVE ? "SAVE SONG" : "LOAD SONG", K_ACC);
+    itoa_u(ui.nfree, f);
+    s_cpy(f + s_len(f), " free");
+    cv_text(230 - text_w(&FONT_XS, f), 6, &FONT_XS, f, K_DIM);
     for (i = -2; i <= 2; i++) {
-        int n = ui.list_slot + i, used;
-        int32_t y = 24 + (i + 2) * 21;
+        int n, used;
+        int32_t y = 22 + (i + 2) * 20;
         char b[8];
-        if (n < 0 || n >= PLAT_PRESETS)
+        if (p + i < 0 || p + i >= ui.nvis)
             continue;
+        n = ui.vis[p + i];
         used = slot_used(n);
         slot_name(n, b);
         if (!i)
-            cv_round(4, y - 2, 232, 21, 5, K_PANEL);
+            cv_round(4, y - 2, 232, 20, 5, K_PANEL);
         cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
-        if (used && ui.parts[n]) {                   /* a song: the slots it takes more */
-            char m[12] = "used +";
-            itoa_u(ui.parts[n], m + 6);
+        if (n == ui.copy_from) {
+            cv_text(64, y + 2, &FONT_XS, "copy from here", K_ACC);
+        } else if (used && ui.parts[n]) {            /* a song: the slots it takes */
+            char m[16] = "song, ";
+            itoa_u(1u + ui.parts[n], m + 6);
+            s_cpy(m + s_len(m), " slots");
             cv_text(64, y + 2, &FONT_XS, m, i ? K_DIM : K_ACC);
-        } else if (ui.part_of[n] >= 0) {             /* a part of a song */
-            char m[12] = "in ";
-            slot_name(ui.part_of[n], m + 3);
-            cv_text(64, y + 2, &FONT_XS, m, K_LINE);
         } else {
-            cv_text(64, y + 2, &FONT_XS, used ? "used" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+            cv_text(64, y + 2, &FONT_XS, used ? "song" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
         }
         if (n == proj.preset)
             cv_round(222, y + 6, 6, 6, 3, K_DIM);
     }
-    cv_text(10, 128, &FONT_XS, ui.list == L_SAVE ? "SAVE again: save   other: cancel" : "ARP again: load   other: cancel",
-            K_DIM);
+    if (ui.copy_from >= 0)
+        cv_text(10, 124, &FONT_XS, "SEL on a free slot: copy  other: cancel", K_DIM);
+    else
+        cv_text(10, 124, &FONT_XS, ui.list == L_SAVE ? "SAVE: save  SEL: copy  HOME: delete" :
+                                                       "ARP: load  SEL: copy  HOME: delete", K_DIM);
     cv_blit(0, MAIN_Y);
 }
 
@@ -2212,8 +2352,8 @@ static void leds(void)
         b |= 1u << B_PLAY;
     if (!ui.live)
         b |= 1u << B_SEQ;
-    if (ui.chance || ui.bank_select || sel_held())
-        b |= 1u << B_SEL;
+    if (ui.chance || ui.bank_select || sel_held() || (ui.list && ui.copy_from >= 0 && blink))
+        b |= 1u << B_SEL;                            /* (a song to copy: blinking) */
     if (ui.rec && (!rec_n || blink))                 /* REC: lit, blinking while it records */
         b |= 1u << B_REC;
     if ((sel_held() || ui.bank_select) && !ui.list) {                    /* SEL held: the banks (lit: playing, dim: one there) */

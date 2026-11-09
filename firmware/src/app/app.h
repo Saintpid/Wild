@@ -74,6 +74,9 @@ int project_save(void);                  /* 0 = saved and verified */
 int project_preset_save(int n);          /* the song now, all banks, into slot n: 0 = saved, -2 a part, -3 no room, -4 legacy banks */
 int project_preset_load(int n);          /* preset slot n becomes the project and plays: 0 loaded, -4 legacy banks */
 int project_slot_free(int n);            /* 1: slot n holds neither a song nor a part of one */
+int project_song_delete(int n);          /* song n and its parts gone: 0 deleted, -1 none there */
+int project_song_copy(int from, int to); /* song from, whole, into the free slot to: 0, -1 can't, -3 no room */
+int project_songs_erase(void);           /* every saved song gone (the banks playing stay): 0 erased */
 void project_apply(void);                /* every value to the engine (boot, load) */
 
 void ui_init(void);

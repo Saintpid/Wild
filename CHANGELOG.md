@@ -17,6 +17,23 @@ Firmware identity FM-1_868. A new kind of sound: Rumble.
   reverb would. Its patterns land between the kicks. Spike drives it harder and opens it up.
 - Songs saved before keep their sounds; it costs no more than any other sound.
 
+## 0.3.33
+
+Firmware identity FM-1_867. The song list keeps itself.
+
+- **Only songs on the list:** a song with more than two banks, or with automation, keeps the rest in
+  slots of its own, from the top down. Those slots are no longer on the save and load lists (the list
+  ends before them), so they can't be picked, saved over or mistaken for free places. A song reads
+  "song, 4 slots", and the top of the list says how many slots are free. Saving a song never touches
+  another song or its slots.
+- **Copy a song:** on the list, SEL on a song, then SEL again on a free slot. The copy takes all its
+  banks and automation along.
+- **Delete a song:** on the list, HOME on a song, HOME again to say yes. Its extra slots go with it.
+- **Erase all songs:** on the list, GLO + HOME, and GLO + HOME again to say yes. What plays now stays
+  (clear all, GLO + HOME away from the list, empties that).
+- Any other button cancels a copy or a question; the list stays open. A delete cut short by power off
+  leaves no lost slots: they count as free again.
+
 ## 0.3.32
 
 Firmware identity FM-1_866. Eight live banks, explicit copy, bank-aware undo.

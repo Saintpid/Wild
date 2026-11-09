@@ -42,10 +42,16 @@ expect partof63 0
 expect partof62 0
 expect partof61 0
 expect partof60 -1
+# the list: no parts on it (its last place is 061), how many are free
 tap SAVE
+expect listlen 61
+expect listfree 59
 turn SELECT 63
+expect slot 60
+turn SELECT -60
 shot songlist.png
-tap HOME
+tap FX
+expect list 0
 # song 002: its bank 1 alone, no automation
 tap ARP
 tapkey w1
@@ -78,11 +84,11 @@ tap SEL
 tapkey w7
 
 expect lanes 1
-# a song's part is not a slot to save to
+# a song's part is not a slot to save to: the list stops before them
 tap SAVE
 turn SELECT 63
-expect slot 63
-tap SAVE
+expect slot 60
+tap FX
 expect partof63 0
 expect parts 3
 # it starts the device: saved when quiet, back after a restart
