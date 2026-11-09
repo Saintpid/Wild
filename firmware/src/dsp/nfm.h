@@ -105,6 +105,7 @@ enum nfm_kind {
     NFM_KIND_CLICK,   /* blips, ticks, zaps */
     NFM_KIND_METAL,   /* bells, cowbells, clangs: the tonal end */
     NFM_KIND_CLAP,    /* hand claps: a few quick bursts of noise, then its tail */
+    NFM_KIND_RUMBLE,  /* techno rumble: a kick's tail, smeared, driven and kept low, ducked by the kicks */
     NFM_KINDS
 };
 
@@ -220,6 +221,9 @@ typedef struct {
     uint8_t bursts;           /* a clap: bursts still to come, each clap_gap apart, then the tail */
     uint16_t clap_t, clap_gap;
     float clap_amp, clap_k;
+    /* a rumble: high-passed into its own drive, low-passed after, the sub held off, ducked by a kick */
+    uint8_t rumble;
+    float r_pre, r_comp, r_hpk, r_hp, r_x1, r_g, r_kg, r_h, r_s1, r_s2, r_dc, r_dck, r_duck, r_duck_k;
     float fold, crush, crush_rate, crush_acc, crush_hold, crush_q;
     float fade, fade_k;
     /* resonator: TPT state variable bandpass per mode */

@@ -1,4 +1,8 @@
-# Wild 0.3.32 - experimental FM-1 firmware
+# Wild 0.3.34 - experimental FM-1 firmware
+
+**0.3.34: a new kind of sound, Rumble.** A techno rumble for any of the four drum tracks (Sound
+page, Kind, then NEW SOUND): heavy but not muddy, at the kick's pitch, ducked by every kick so it
+pumps in between the beats.
 
 **0.3.32: eight banks with undoable copying.** Tap and release SEL, then white key 1-8:
 switch banks (an empty bank becomes a copy). Hold SEL while pressing the key: copy the playing
@@ -75,8 +79,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.32.fwsc, identity FM-1_866.
-- USB name: Wild FM-1. Screen: Wild 0.3.32.
+- Installable package: build/Wild-0.3.34.fwsc, identity FM-1_868.
+- USB name: Wild FM-1. Screen: Wild 0.3.34.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -84,7 +88,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.32 --id 866
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.34 --id 868
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -117,7 +121,9 @@ command.
 - **Four FM drums** (tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4): four operators in eight algorithms, noise and a resonator. Every
   hit varies around the sound's base (Deviance); from 90 the base itself wanders off, slowly, into
   something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
-  perc, click, metal or clap, and perc, click and metal land in a random octave.
+  perc, click, metal, clap or rumble, and perc, click and metal land in a random octave. A rumble is a
+  techno rumble: a kick's tail, driven and kept low (high-passed into its drive, low-passed after),
+  at the kick's pitch, ducked by every kick so it pumps in between.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter (Open303's TeeBeeFilter, its diodes bending a little), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a
   real 303: the knobs over the 303's ranges, Env Mod's measured curve, the 303's gate, slide (60 ms),

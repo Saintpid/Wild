@@ -166,7 +166,7 @@ NFM_CODE static float param_unmap(int i, float v)
 }
 
 static const char *const macro_names[NFM_MACROS] = { "deviance", "stress", "spike", "bleed", "fluid" };
-static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap" };
+static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap", "rumble" };
 
 /* Carriers per algorithm, bit k = op k+1 (see nfm.h). */
 NFM_DATA static const uint8_t algo_carriers[NFM_ALGOS] = { 1, 1, 1 | 4, 1 | 2 | 4, 1, 1, 1 | 2, 15 };
@@ -277,6 +277,21 @@ NFM_DATA static const recipe recipes[NFM_KINDS] = {
         .noise = { 0.75f, 1 }, .ndecay = { 0.07f, 0.35f }, .ncolor = { 800, 2600 }, .nband = { 0.45f, 0.9f }, .nfm = { 0, 0.1f },
         .res_freq = { 600, 2200 }, .res_spread = { 1.2f, 2.2f }, .res_decay = { 0.03f, 0.15f }, .res_mix = { 0, 0.3f },
         .level = { 0.76f, 0.9f }, .pan = { 0.4f, 0.6f }, .fold_chance = 0.15f, .crush_chance = 0.05f },
+    /* a kick's tail as a techno track's rumble: a low sine that swells in rather than strikes, a little
+     * FM grit, low noise shaking its phase and a low resonator ringing on (the "reverb"); then its own
+     * drive (the fold's amount, see nfm_trigger) between a high-pass and a low-pass at the noise's colour,
+     * so it is heavy, not muddy */
+    [NFM_KIND_RUMBLE] = {
+        .algos = 1 << 0 | 1 << 1 | 1 << 4,
+        .pitch = { 40, 56 }, .penv = { 3, 10 }, .pdecay = { 0.03f, 0.12f }, .sweep = { 0.3f, 0.8f },
+        .feedback = { 0.1f, 0.45f }, .attack = { 0.008f, 0.025f },
+        .car_decay = { 0.3f, 0.9f }, .car2_level = { 0.2f, 0.45f }, .n_car = 2, .car_ratio = { 1, 2 },
+        .mod_level = { 0.15f, 0.4f }, .mod_decay = { 0.1f, 0.6f },
+        .n_mod = 4, .mod_ratio = { 0.5f, 1, 1.5f, 2 }, .free_chance = 0.1f, .mod_free = { 0.7f, 3 },
+        .click_chance = 0,
+        .noise = { 0.35f, 0.65f }, .ndecay = { 0.2f, 0.6f }, .ncolor = { 150, 380 }, .nband = { 0.1f, 0.5f }, .nfm = { 0.1f, 0.35f },
+        .res_freq = { 45, 120 }, .res_spread = { 1.2f, 1.9f }, .res_decay = { 0.3f, 1.0f }, .res_mix = { 0.3f, 0.6f },
+        .level = { 0.72f, 0.85f }, .pan = { 0.5f, 0.5f }, .fold_chance = 1, .crush_chance = 0 },
 };
 
 /* ---- slots -------------------------------------------------------------- */
@@ -328,7 +343,7 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     uint32_t *r = &e->rng;
     if (kind < 0 || kind >= NFM_KINDS) {
         /* Rhythm first: drums are drawn more often than the tonal kinds. */
-        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2 };
+        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1 };
         unsigned total = 0, pick;
         for (int k = 0; k < NFM_KINDS; ++k) total += weights[k];
         pick = rng_next(r) % total;
@@ -404,6 +419,13 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     /* Occasional character: a folded edge or an aliased crunch. */
     sl->p[NFM_FOLD] = rng_uni(r) < rc->fold_chance ? rng_range(r, 0.15f, 0.5f) : 0.0f;
     sl->p[NFM_CRUSH] = rng_uni(r) < rc->crush_chance ? rng_range(r, 0.15f, 0.6f) : 0.0f;
+    /* a rumble is the kick's tail: at a kick's pitch when one plays beside it */
+    if (kind == NFM_KIND_RUMBLE)
+        for (int o = 0; o < NFM_SLOTS; ++o)
+            if (o != s && e->slot[o].kind == NFM_KIND_KICK) {
+                sl->p[NFM_PITCH] = clamp01(e->slot[o].p[NFM_PITCH] + rng_range(r, -0.004f, 0.004f));
+                break;
+            }
     sl->kind = (int8_t)kind;
 }
 
@@ -630,6 +652,32 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     }
     v->fold = val[NFM_FOLD];
     v->crush = val[NFM_CRUSH];
+    v->rumble = e->slot[s].kind == NFM_KIND_RUMBLE;
+    if (v->rumble) {
+        /* its drive from the fold (Spike pushes both), 2.4..10; a high-pass a little under the note into
+         * it (no sub to smear), a low-pass at 1.1 x the noise's colour after (none of the fizz), the
+         * DC and the deepest sub (25 Hz) taken out last */
+        float f = v->f0 * 1.4f, fl = val[NFM_NOISE_COLOR] * 1.4f * tr;
+        v->r_pre = 2.0f + 8.0f * v->fold;
+        v->r_comp = 1.0f / (0.4f + 0.25f * v->r_pre);
+        v->fold = 0.0f;
+        v->r_hpk = 1.0f - 6.2831853f * f * e->inv_sr;
+        v->r_dck = 6.2831853f * 0.9f * v->f0 * e->inv_sr;
+        v->r_hp = v->r_x1 = v->r_s1 = v->r_s2 = v->r_dc = 0.0f;
+        v->r_g = svf_g(e, fl > 900.0f ? 900.0f : fl);
+        v->r_kg = 1.2f + v->r_g;
+        v->r_h = 1.0f / (1.0f + v->r_g * v->r_kg);
+        v->r_duck = 1.0f;
+        v->r_duck_k = e->inv_sr * (1.0f / 0.06f);
+        /* a kick on the same step: in under it */
+        for (int o = 0; o < NFM_VOICES; ++o) {
+            const nfm_voice *k = &e->voice[o];
+            if (k != v && k->slot >= 0 && !k->fading && e->slot[k->slot].kind == NFM_KIND_KICK && k->pitch_env >= 1.0f)
+                v->r_duck = 0.0f;
+        }
+    } else if (e->slot[s].kind == NFM_KIND_KICK)
+        for (int o = 0; o < NFM_VOICES; ++o)   /* the side-chain: a kick ducks the rumbles playing */
+            if (e->voice[o].slot >= 0 && e->voice[o].rumble) e->voice[o].r_duck = 0.0f;
     v->crush_rate = exp2_approx(-val[NFM_CRUSH] * 5.0f);
     v->crush_q = exp2_approx(14.0f - val[NFM_CRUSH] * 11.0f);
     v->crush_acc = 1.0f;
@@ -1058,6 +1106,22 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
             r += bp * v->ramp[m];
         }
         x = x * (1.0f - 0.6f * v->res_mix) + r * v->res_mix;
+    }
+
+    /* A rumble's own chain (see nfm_trigger): its swell back under a kick squared, so it pumps. */
+    if (v->rumble) {
+        float hp = v->r_hpk * (v->r_hp + x - v->r_x1);
+        v->r_x1 = x;
+        v->r_hp = hp;
+        float y = sat_curve(hp * v->r_pre) * v->r_comp, g = v->r_g;
+        float h = (y - v->r_kg * v->r_s1 - v->r_s2) * v->r_h;
+        float bp = g * h + v->r_s1;
+        v->r_s1 = g * h + bp;
+        float lp = g * bp + v->r_s2;
+        v->r_s2 = g * bp + lp;
+        v->r_dc += v->r_dck * (lp - v->r_dc);
+        v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
+        x = (lp - v->r_dc) * v->r_duck * v->r_duck;
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */

@@ -73,6 +73,55 @@ int main(int argc, char **argv)
         }
         CHECK(bursts_ok == 20, "clap: %d of 20 draws with 3-4 bursts", bursts_ok);
     }
+    /* a rumble: low (next to no highs: its low-pass, below 900 Hz), at the kick's
+     * pitch, and ducked by a kick, whichever of the two a step plays first */
+    {
+        static nfm_engine re;
+        static float rl[64], rr[64];
+        int d, low_ok = 0, duck_ok = 0, same_ok = 0, pitch_ok = 0;
+        nfm_init(&re, NE_SR, 7u);                 /* (slot 0: a kick) */
+        for (d = 0; d < 20; d++) {
+            int j, v, kv;
+            float lo = 0.0f, hi = 0.0f, x1 = 0.0f, x2 = 0.0f, h1, before = 0.0f, after = 0.0f;
+            nfm_randomize(&re, 3, NFM_KIND_RUMBLE);
+            pitch_ok += re.slot[3].p[NFM_PITCH] > re.slot[0].p[NFM_PITCH] - 0.005f &&
+                        re.slot[3].p[NFM_PITCH] < re.slot[0].p[NFM_PITCH] + 0.005f;
+            v = nfm_trigger(&re, 3, 1.0f, 0.0f);
+            for (j = 0; j < (int)(0.2f * NE_SR) / 64; j++) {
+                int i;
+                nfm_render(&re, rl, rr, 64);
+                for (i = 0; i < 64; i++) {       /* its second difference: the highs, +12 dB an octave */
+                    h1 = rl[i] - 2.0f * x1 + x2;
+                    x2 = x1;
+                    x1 = rl[i];
+                    lo += rl[i] * rl[i];
+                    hi += h1 * h1;
+                    if (j >= (int)(0.15f * NE_SR) / 64) before += rl[i] * rl[i];
+                }
+            }
+            low_ok += hi < lo * 1e-6f;              /* (low-passed at 8 kHz instead: 7e-6 and up) */
+            kv = nfm_trigger(&re, 0, 1.0f, 0.0f);
+            for (j = 0; j < 3; j++) {             /* the next 4 ms: the rumble alone, ducked */
+                int i;
+                re.voice[kv].gain_l = 0.0f;
+                nfm_render(&re, rl, rr, 64);
+                for (i = 0; i < 64; i++) after += rl[i] * rl[i];
+            }
+            duck_ok += re.voice[v].slot == 3 && after < before * (192.0f / (0.05f * NE_SR)) * 0.05f;
+            nfm_stop_all(&re);
+            for (j = 0; j < 40; j++) nfm_render(&re, rl, rr, 64);
+            kv = nfm_trigger(&re, 0, 1.0f, 0.0f);     /* the kick first, the rumble after it */
+            v = nfm_trigger(&re, 3, 1.0f, 0.0f);
+            same_ok += re.voice[v].r_duck == 0.0f;
+            (void)kv;
+            nfm_stop_all(&re);
+            for (j = 0; j < 40; j++) nfm_render(&re, rl, rr, 64);
+        }
+        CHECK(pitch_ok == 20, "rumble: %d of 20 draws at the kick's pitch", pitch_ok);
+        CHECK(low_ok == 20, "rumble: %d of 20 draws low", low_ok);
+        CHECK(duck_ok == 20, "rumble: %d of 20 ducked by a kick", duck_ok);
+        CHECK(same_ok == 20, "rumble: %d of 20 ducked by a kick on its step", same_ok);
+    }
     ne_init();
     if (argc > 1) {
         snprintf(path, sizeof path, "%s/n001se_16bars.wav", argv[1]);
