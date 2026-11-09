@@ -516,7 +516,8 @@ NFM_CODE static nfm_voice *pick_voice(nfm_engine *e, int s)
             if (vo->slot == s && !vo->fading) {
                 vo->fading = 1;
                 vo->fade = 1.0f;
-                vo->fade_k = t60_coef(0.012f, e->sr);
+                /* (a rumble's low wave cut in 12 ms clicked: it hands over in 60, under the new one's swell) */
+                vo->fade_k = t60_coef(e->slot[s].kind == NFM_KIND_RUMBLE ? 0.06f : 0.012f, e->sr);
             }
         }
     }
@@ -668,6 +669,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
         v->r_kg = 1.2f + v->r_g;
         v->r_h = 1.0f / (1.0f + v->r_g * v->r_kg);
         v->r_duck = 1.0f;
+        v->r_down = 0;
         v->r_duck_k = e->inv_sr * (1.0f / 0.06f);
         /* a kick on the same step: in under it */
         for (int o = 0; o < NFM_VOICES; ++o) {
@@ -677,7 +679,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
         }
     } else if (e->slot[s].kind == NFM_KIND_KICK)
         for (int o = 0; o < NFM_VOICES; ++o)   /* the side-chain: a kick ducks the rumbles playing */
-            if (e->voice[o].slot >= 0 && e->voice[o].rumble) e->voice[o].r_duck = 0.0f;
+            if (e->voice[o].slot >= 0 && e->voice[o].rumble) e->voice[o].r_down = 1;
     v->crush_rate = exp2_approx(-val[NFM_CRUSH] * 5.0f);
     v->crush_q = exp2_approx(14.0f - val[NFM_CRUSH] * 11.0f);
     v->crush_acc = 1.0f;
@@ -1120,7 +1122,12 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
         float lp = g * bp + v->r_s2;
         v->r_s2 = g * bp + lp;
         v->r_dc += v->r_dck * (lp - v->r_dc);
-        v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
+        /* ducked in ~12 ms (4 ms a pole, to 5 %), not at once: a jump to nothing clicked */
+        if (v->r_down) {
+            v->r_duck -= v->r_duck * 0.0057f;
+            if (v->r_duck < 0.05f) v->r_down = 0;
+        } else
+            v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
         x = (lp - v->r_dc) * v->r_duck * v->r_duck;
     }
 

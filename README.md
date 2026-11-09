@@ -1,4 +1,6 @@
-# Wild 0.3.34 - experimental FM-1 firmware
+# Wild 0.3.35 - experimental FM-1 firmware
+
+**0.3.35:** Rumble no longer clicks when a new note or a kick cuts it off.
 
 **0.3.34: a new kind of sound, Rumble.** A techno rumble for any of the four drum tracks (Sound
 page, Kind, then NEW SOUND): heavy but not muddy, at the kick's pitch, ducked by every kick so it
@@ -84,8 +86,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.34.fwsc, identity FM-1_868.
-- USB name: Wild FM-1. Screen: Wild 0.3.34.
+- Installable package: build/Wild-0.3.35.fwsc, identity FM-1_869.
+- USB name: Wild FM-1. Screen: Wild 0.3.35.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -93,7 +95,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.34 --id 868
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.35 --id 869
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 

@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.35
+
+Firmware identity FM-1_869. Rumble without clicks.
+
+- **Rumble:** it clicked whenever something cut it off. A new rumble note cut the one before in
+  12 ms, too quick for so low a wave, and a kick ducked it to nothing at once. Now the old note
+  fades out over 60 ms under the new one's swell, and a kick ducks it over about 12 ms. It still
+  pumps between the beats, only without the clicks.
+
 ## 0.3.34
 
 Firmware identity FM-1_868. A new kind of sound: Rumble.
