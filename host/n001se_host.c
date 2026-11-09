@@ -519,6 +519,8 @@ static int expect(const char *what, const char *val)
         got |= (ne_acid()->mute != proj.a[A_MUTE]) << NE_TRACKS;
     } else if (!strcmp(what, "scene"))
         got = ui.chance;
+    else if (!strcmp(what, "bankselect"))
+        got = ui.bank_select;
     else if (!strcmp(what, "bank"))              /* the bank playing (0..) */
         got = proj.bank;
     else if (!strcmp(what, "banks")) {           /* the banks holding a project (bits) */

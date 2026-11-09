@@ -1,0 +1,96 @@
+# Tap SEL selects; held SEL copies, including occupied banks. No long-press timer.
+wait 200
+tap FX
+spin K1 20
+tap PLAY
+tap SEL
+expect bankselect 1
+expect bank 0
+shot bank-select.png
+# PLAY does not consume selection. A second SEL cancels without a bank change.
+tap PLAY
+expect bankselect 1
+tap SEL
+expect bankselect 0
+expect bank 0
+tap PLAY
+# A held chord copies and its release does not start selection.
+press SEL
+tapkey w7
+release SEL
+expect bank 7
+expect bankselect 0
+expect banks 129
+expect tpar15 20
+spin K1 50
+expect tpar15 70
+tap SEL
+tapkey w0
+expect bank 0
+expect tpar15 20
+press SEL
+tapkey w7
+release SEL
+expect bank 7
+expect bankselect 0
+expect tpar15 20
+wait 50
+shot bank-replaced.png
+# Undo one operation restores destination 8 and returns to source 1.
+tapkey b2
+expect bank 0
+expect tpar15 20
+tapkey b3
+expect bank 7
+expect tpar15 20
+tapkey b2
+tap SEL
+tapkey w7
+expect tpar15 70
+# Same bank: no accidental overwrite or step edit.
+expect patkeep0 0
+press SEL
+tapkey w7
+release SEL
+expect patmoved0 0
+expect tpar15 70
+# Keys 9-15 cannot become banks (and cannot play/edit notes during selection).
+tap SEL
+tapkey w8
+expect bankselect 1
+expect bank 7
+expect patmoved0 0
+tapkey w14
+expect bank 7
+tap SEL
+expect bankselect 0
+# Highest key still creates a new Chance scene. Select current bank to leave it.
+press SEL
+tapkey w15
+release SEL
+expect scene 1
+tap SEL
+tapkey w7
+expect scene 0
+expect tpar15 70
+# Copy into a new bank can be undone back to empty; redo brings it back.
+tap SEL
+tapkey w2
+expect banks 133
+tapkey b2
+expect bank 7
+expect banks 129
+tapkey b3
+expect bank 2
+expect banks 133
+expect store_writes 0
+tap PLAY
+wait 6000
+expect dirty 0
+reboot
+wait 200
+expect bank 2
+expect banks 133
+expect bankselect 0
+expect tpar15 70
+expect dropped 0

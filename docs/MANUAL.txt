@@ -97,9 +97,9 @@ SAVE       Opens the preset list to save (see PRESETS).
            Hold SAVE for 1.5 s: asks "RESET?". Press SAVE again within 5 s to reset everything to the defaults (the MIDI channel is kept). Anything else keeps everything.
 ARP        Opens the preset list to load. Press ARP again to load the selected preset.
 OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot.
-SEL        Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene, everything as before it).
-SEL + white 1-12  The banks: each key a whole setup of its own (patterns, sounds, effects, settings, automation). It comes in at once; the tempo, level and the Setup and Scene pages stay the same for all. The bank you leave keeps what you did in it. An empty bank starts as a copy of the one playing. While SEL is held the keys show the banks: lit the one playing, dim the ones with something in them. Undo starts afresh in each bank. Swapping banks gives a very short break in the sound.
-SEL + white 16  Chance: a new scene by chance at every press. Which tracks play (at least two) and how much effect each sound gets (reverb, delay, filter, drive and Mod) are drawn at random. While the scene plays, the mute keys (black 5-9) set the original's mutes; SEL alone (or another bank) ends it, and the bank keeps how it was before the scene. SEL is lit while a scene plays.
+SEL        Tap and release: select a bank with white key 1-8. Tap SEL again to cancel. Music continues while choosing. A filled bank opens; an empty bank becomes a copy of the playing bank, including automation. PLAY keeps selection open; another ordinary button leaves selection.
+SEL held + white 1-8  Copy the playing bank onto that bank and switch to it, even if occupied. No waiting for a long press and no confirmation menu. The same bank is unchanged. Tempo, level, Setup and Scene settings stay shared. While choosing, the current bank is lit, occupied banks dim; keys 9-15 have no bank. Swapping banks gives a very short break in sound. If automation will not fit, COPY NOT MADE / AUTOMATION FULL means nothing was replaced.
+SEL + white 16  Chance: a new scene on every press, whether SEL is held or tapped first. Select the current bank to return to its original, or select another bank to leave the scene. Copying to another bank captures the scene you hear as an ordinary bank; its source keeps its original. Mute keys during Chance choose the original's mutes.
 
 Page buttons (another press goes to the button's next page):
 HOME       Pattern → Rhythm
@@ -161,7 +161,7 @@ BLACK KEYS (11, from the left)
       (GLO held for these keeps its page: GLO is not pressed as a page button)
 
 UNDO/REDO:
-  Up to 6 steps back, within the bank playing. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes (loading a song starts undo afresh). Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
+  Undo crosses bank changes and restores overwritten banks, their automation and your previous bank as one operation. Redo repeats it. The memory budget holds up to 9 ordinary edits without automation, 3 with automation, or 2 complete bank copies; mixed history varies. Oldest steps expire when space runs out. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes (loading a song starts undo afresh). Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
 
 ====================================================================
 
@@ -282,7 +282,7 @@ DRIFT (LFO)
   Motion     How fast the effects glide and move over time
   Mutate     In bars 4 and 8 of the phrase a different set of tracks plays by chance, a quarter at a time: muted tracks may come in and playing ones drop out. It happens most often in the last quarter. At the next quarter it is back to your mutes (or a new set), and after the bar it is always back. 0 = off (the default).
   Space      The reverb and the delay move between places of their own. The reverb: a small room, a room, the usual one, a larger room and a big hall (length and tone). The delay: a dotted eighth (the usual one), an eighth, a sixteenth and a quarter, still ping-pong. 0 = still, as before (the default). The higher, the more often they move, but always slowly: a glide takes 1 to 4 bars, and a place is held at least 4 bars (at 100) or 10 (at 50). At 100 they move about every 8 bars. The delay glides its time like an analog delay, so the repeats bend in pitch on the way (up when it gets shorter, down when it gets longer), more the shorter the glide. Back at 0, both go home over 2 bars.
-             With Space up, SEL also moves them, by the same chance as Space (at 100 every time), over one bar.
+             With Space up, a new Chance scene also moves them, by the same chance as Space (at 100 every time), over one bar.
 
 ROUTING (LFO, page 2): the selected track's way through Drift
   Drift      In (the default): the track goes through Chaos, Motion and Mutate as above.
@@ -337,7 +337,7 @@ Any other button closes the list without doing anything. Loading an empty slot k
 
 A preset is a song: it saves everything, all its banks (patterns, sounds, the acid line and all settings of each) and their automation. Loading a song brings exactly its banks, never another song's, and starts on its bank 1.
 
-A song's own slot holds banks 1 and 2. More banks and the automation take more slots, from the top of the list down (064, 063 ...): one slot for each further two banks, one for the automation. On the list those read "in 001" (part of song 001), and the song's own slot "used +3" (three more slots). A part can't be saved over; a song with all 12 banks and automation takes 7 slots. If there is no room left the save says so and nothing is saved. Older presets load as songs of one bank.
+A song's own slot holds banks 1 and 2. More banks and the automation take more slots, from the top of the list down (064, 063 ...): one slot for each further two banks, one for the automation. On the list those read "in 001" (part of song 001), and the song's own slot "used +3" (three more slots). A part can't be saved over; a song with all 8 banks and automation takes 5 slots. If there is no room left the save says so and nothing is saved. Older presets load as songs of one bank.
 
 Note that saving mutes the sound for a moment, because the flash memory is being written.
 
@@ -404,5 +404,13 @@ TIPS FOR LIVE SETS
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
 - Mutate at 30â€“50 builds tension before every round without touching the mutes yourself.
-- Hold SEL and press white 16 for a new scene in the middle of a set, and SEL alone to land back in bank 1. Build the next part of the set in another bank (SEL + white 2) and switch to it for a big change.
+- Hold SEL and press white 16 for Chance. Tap/release SEL, then the current bank key to return. Hold SEL with another bank key to copy; tap/release SEL then its key to switch.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).
+
+UPGRADING FROM TWELVE BANKS
+Songs with occupied banks 9-12 cannot be loaded or overwritten by this eight-bank version.
+Use Wild 0.3.29 to move their material into banks 1-8 and save a compatible song first.
+If startup storage contains banks 9-12, OLD BANKS / USE 0.3.29 protects it: autosave and
+manual save are disabled, and the temporary starting sound is not the stored song.
+Return to 0.3.29 to recover it. Explicit Clear All or loading a compatible song replaces the
+active workspace; saved twelve-bank songs are still protected. Undo is RAM-only, lost at restart.

@@ -1,6 +1,6 @@
-# BANKS: SEL held and a white key. Keys 1-12 a bank each, a whole project (patterns, sounds, effects,
+# BANKS: SEL held and a white key. Keys 1-8 a bank each, a whole project (patterns, sounds, effects,
 # settings) with the tempo shared; an empty one starts as a copy. Key 16: a new scene by chance at each
-# press. SEL let go after a bank key does nothing else; SEL alone goes back to bank 1. Saved when quiet.
+# press. SEL let go after a bank key does nothing else; tap SEL then key 1 goes back to bank 1. Saved when quiet.
 wait 200
 expect bank 0
 expect banks 1
@@ -9,10 +9,9 @@ spin K4 -100
 tap PLAY
 expect patkeep0 0
 # bank 2: new, a copy of bank 1
-press SEL
+tap SEL
 tapkey w1
-leds
-release SEL
+
 expect bank 1
 expect banks 3
 expect scene 0
@@ -32,23 +31,26 @@ spin K1 8
 expect gpar0 120
 shot bank2.png
 # back to bank 1: its own reverb and pattern, the tempo stays
-press SEL
+tap SEL
 tapkey w0
-release SEL
+
 wait 50
 expect bank 0
 expect scene 0
 expect tpar15 0
 expect patmoved0 1
 expect gpar0 120
-# undo stays in its bank
+# bank navigation is undoable as one operation
 tapkey b2
+expect bank 1
+expect tpar15 30
+tapkey b3
 expect bank 0
 expect tpar15 0
 # to bank 2 again: as it was left
-press SEL
+tap SEL
 tapkey w1
-release SEL
+
 wait 50
 expect bank 1
 expect tpar15 30
@@ -59,30 +61,33 @@ tapkey w15
 expect scene 1
 tapkey w15
 expect scene 1
-tapkey w0
 release SEL
+tap SEL
+tapkey w0
 wait 50
 expect scene 0
 expect bank 0
-press SEL
+tap SEL
 tapkey w1
-release SEL
+
 wait 50
 expect tpar15 30
 expect patmoved0 0
-# no bank on keys 13-15
-press SEL
-tapkey w12
-release SEL
-expect bank 1
-# SEL alone: back to bank 1
+# no bank on keys 9-15
 tap SEL
+tapkey w12
+
+expect bank 1
+tap SEL
+# tap SEL then key 1: back to bank 1
+tap SEL
+tapkey w0
 expect scene 0
 expect bank 0
 expect tpar15 0
-press SEL
+tap SEL
 tapkey w1
-release SEL
+
 expect tpar15 30
 # playing: nothing saved; stopped and quiet: the project and the banks
 expect store_writes 0
@@ -96,9 +101,9 @@ wait 200
 expect bank 1
 expect banks 3
 expect tpar15 30
-press SEL
+tap SEL
 tapkey w0
-release SEL
+
 wait 50
 expect tpar15 0
 expect gpar0 120

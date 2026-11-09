@@ -11,17 +11,17 @@ tapkey w1
 tap SAVE
 expect preset 1
 expect parts 0
-# song 001: banks 1, 3 and 12 (reverb 10, 40, 70), automation in 12
+# song 001: banks 1, 3 and 8 (reverb 10, 40, 70), automation in 8
 spin K1 -10
 expect tpar15 10
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 spin K1 30
 expect tpar15 40
-press SEL
-tapkey w11
-release SEL
+tap SEL
+tapkey w7
+
 spin K1 30
 expect tpar15 70
 tap PLAY
@@ -31,12 +31,12 @@ tap REC
 expect lanes 1
 tap PLAY
 wait 50
-expect banks 2053
+expect banks 133
 tap SAVE
 tapkey w0
 tap SAVE
 expect preset 0
-# its parts: banks 3-4, 11-12 and the automation, in 064, 063, 062
+# its parts: banks 3-4, 7-8 and the automation, in 064, 063, 062
 expect parts 3
 expect partof63 0
 expect partof62 0
@@ -55,10 +55,10 @@ expect preset 1
 expect bank 0
 expect banks 1
 expect tpar15 20
-press SEL
-tapkey w11
-release SEL
-expect banks 2049
+tap SEL
+tapkey w7
+
+expect banks 129
 expect lanes 0
 # song 001 again: all its banks, on bank 1
 tap ARP
@@ -67,16 +67,16 @@ tap ARP
 wait 20
 expect preset 0
 expect bank 0
-expect banks 2053
+expect banks 133
 tap FX
 expect tpar15 10
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 expect tpar15 40
-press SEL
-tapkey w11
-release SEL
+tap SEL
+tapkey w7
+
 expect lanes 1
 # a song's part is not a slot to save to
 tap SAVE
@@ -90,7 +90,7 @@ wait 6000
 expect bankdirty 0
 reboot
 wait 200
-expect banks 2053
+expect banks 133
 expect preset 0
 # song 002 saved again with one bank only: still no parts; song 001 keeps its own
 tap ARP

@@ -44,6 +44,7 @@ wait 20
 expect mixer 1
 expect scene 1
 tap SEL
+tapkey w0
 wait 20
 expect scene 0
 tap REC
