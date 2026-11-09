@@ -25,7 +25,8 @@
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
  *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
- *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty parts partofN;
+ *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty parts partofN
+ *                                 songs listfree listlen copyfrom;
  *                                 rec lanes lanebarsN autodirty)
  *   reboot                       re-run boot from the simulated flash (persistence test)
  */
@@ -211,6 +212,21 @@ int plat_part_free(int n)
     preset_len[n] = part_code[n] = -1;
     store_writes++;
     return 0;
+}
+
+int plat_preset_copy(int from, int to)
+{
+    presets_init();
+    if ((unsigned)from >= PLAT_PRESETS || (unsigned)to >= PLAT_PRESETS || from == to || preset_len[from] < 0)
+        return -1;
+    return plat_preset_save(to, preset[from], (uint32_t)preset_len[from]);
+}
+int plat_part_copy(int from, int code, int to, int code_to)
+{
+    presets_init();
+    if ((unsigned)from >= PLAT_PRESETS || (unsigned)to >= PLAT_PRESETS || from == to || part_code[from] != code || code < 0)
+        return -1;
+    return plat_part_save(to, code_to, preset[from], (uint32_t)part_len[from]);
 }
 
 /* the banks' sectors, the same way */
@@ -531,7 +547,17 @@ static int expect(const char *what, const char *val)
         int n;
         for (got = 0, n = 0; n < PLAT_PRESETS; n++)
             got += plat_part_of(n) >= 0;
-    } else if (!strncmp(what, "partof", 6)) {    /* slot N: the song it is a part of (-1: none) */
+    } else if (!strcmp(what, "songs")) {         /* the preset slots holding a song */
+        int n;
+        for (got = 0, n = 0; n < PLAT_PRESETS; n++)
+            got += plat_preset_used(n);
+    } else if (!strcmp(what, "listfree"))        /* the list: its free slots, */
+        got = ui.nfree;
+    else if (!strcmp(what, "listlen"))           /* ...its places (no parts), */
+        got = ui.nvis;
+    else if (!strcmp(what, "copyfrom"))          /* ...the song to copy (-1: none) */
+        got = ui.copy_from;
+    else if (!strncmp(what, "partof", 6)) {    /* slot N: the song it is a part of (-1: none) */
         int c = plat_part_of(atoi(what + 6));
         got = c < 0 ? -1 : c / 8;
     } else if (!strcmp(what, "bankdirty"))       /* the bank sectors not saved yet (bits) */

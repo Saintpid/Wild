@@ -1,0 +1,113 @@
+# The song list keeps itself: a song's parts (banks 3-8, automation) are never on it, so nothing saved goes
+# over them; SEL copies a song (SEL again on a free slot), HOME deletes one (HOME again: yes), GLO + HOME
+# erases them all (GLO + HOME again: yes). Anything else cancels, the list stays.
+wait 200
+tap FX
+spin K1 20
+expect tpar15 20
+# song 001: banks 1 and 3 (reverb 20, 50): its bank 3 in a part, 064
+tap SEL
+tapkey w2
+
+spin K1 30
+expect tpar15 50
+expect banks 5
+tap SAVE
+tapkey w0
+tap SAVE
+expect preset 0
+expect parts 1
+expect partof63 0
+# song 002 right after it, the same banks: its part in the next one down, 063
+tap SEL
+tapkey w0
+
+tap SAVE
+tapkey w1
+tap SAVE
+expect songs 2
+expect parts 2
+expect partof62 1
+# 001 saved again: 002 and its slot untouched, the part the same
+tap SAVE
+tapkey w0
+tap SAVE
+expect songs 2
+expect parts 2
+expect partof63 0
+expect partof62 1
+expect partof1 -1
+# copy 001 into 003: SEL on it, SEL on a slot with a song is refused, SEL on a free one copies
+tap SAVE
+tapkey w0
+tap SEL
+expect copyfrom 0
+expect list 1
+tapkey w1
+tap SEL
+expect copyfrom 0
+expect songs 2
+tapkey w2
+tap SEL
+expect copyfrom -1
+expect songs 3
+expect parts 3
+expect partof61 2
+expect listlen 61
+expect listfree 58
+shot songcopy.png
+tap FX
+expect list 0
+# the copy loads whole: bank 3 with it
+tap ARP
+tapkey w2
+tap ARP
+wait 20
+expect preset 2
+expect banks 5
+tap FX
+expect tpar15 20
+tap SEL
+tapkey w2
+
+expect tpar15 50
+# delete 001: asked, HOME again; its part goes with it, the copy's stays
+tap SAVE
+tapkey w0
+tap HOME
+expect songs 3
+expect list 1
+shot songdelete.png
+tap HOME
+expect songs 2
+expect parts 2
+expect partof63 -1
+expect partof62 1
+expect partof61 2
+# delete asked, then another button: cancelled, nothing gone, the list stays
+tapkey w1
+tap HOME
+tap FX
+expect list 1
+expect songs 2
+# erase all: asked, GLO + HOME again
+press GLO
+tap HOME
+release GLO
+expect songs 2
+expect list 1
+press GLO
+tap HOME
+release GLO
+expect songs 0
+expect parts 0
+expect listlen 64
+expect listfree 64
+expect list 1
+tap FX
+expect list 0
+# the banks playing are not songs: they stay
+expect banks 5
+reboot
+wait 200
+expect songs 0

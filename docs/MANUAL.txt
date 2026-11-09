@@ -335,9 +335,15 @@ Load:
 
 Any other button closes the list without doing anything. Loading an empty slot keeps what you have.
 
+Copy a song: open the list (SAVE or ARP), pick the song, press SEL ("copy from here", SEL blinks), pick a free slot, press SEL again. The copy takes all its banks and automation along. SEL on the same song again cancels; a slot that holds a song is refused (delete it first).
+
+Delete a song: pick it on the list, press HOME ("DELETE 001?"), HOME again deletes it, with all its banks and automation. Any other button cancels.
+
+Erase all songs: on the list, hold GLO and press HOME ("ERASE ALL SONGS?"), then GLO + HOME again. Every saved song goes; what is playing (the banks in the FM-1) stays. To empty those too: GLO + HOME away from the list (clear all).
+
 A preset is a song: it saves everything, all its banks (patterns, sounds, the acid line and all settings of each) and their automation. Loading a song brings exactly its banks, never another song's, and starts on its bank 1.
 
-A song's own slot holds banks 1 and 2. More banks and the automation take more slots, from the top of the list down (064, 063 ...): one slot for each further two banks, one for the automation. On the list those read "in 001" (part of song 001), and the song's own slot "used +3" (three more slots). A part can't be saved over; a song with all 8 banks and automation takes 5 slots. If there is no room left the save says so and nothing is saved. Older presets load as songs of one bank.
+A song's own slot holds banks 1 and 2. More banks and the automation take more slots, from the top down (064, 063 ...): one slot for each further two banks, one for the automation. Those slots are not on the list (it ends before them), so they can't be picked or saved over; the song itself reads "song, 4 slots", and the top of the list how many slots are free. A song with all 8 banks and automation takes 5 slots. Saving a song never touches another song or its slots. If there is no room left the save says so and nothing is saved. Older presets load as songs of one bank.
 
 Note that saving mutes the sound for a moment, because the flash memory is being written.
 

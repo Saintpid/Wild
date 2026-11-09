@@ -124,6 +124,21 @@ int main(void)
     clear_all(); assert(!project_legacy);
     assert(project_save() == 0 && project_banks_save() == 0);
     boot(); assert(!project_legacy);
+    /* Songs kept: a part whose song is gone (a delete torn by power off) is free again; a copy goes only
+     * to a free slot and takes its parts along; erase all leaves nothing, the legacy part too. */
+    assert(project_songs_erase() == 0);
+    for (i = 0; i < PLAT_PRESETS; i++) assert(project_slot_free(i));
+    bank_go(7, 1);
+    assert(project_preset_save(5) == 0 && plat_part_of(63) == 5 * 8 + 2 && !project_slot_free(63));
+    assert(project_song_copy(5, 5) == -1 && project_song_copy(4, 6) == -1);
+    assert(project_song_copy(5, 6) == 0 && plat_part_of(62) == 6 * 8 + 2 && plat_preset_used(6));
+    assert(project_song_copy(5, 63) == -1);              /* (a part's slot: not free) */
+    assert(plat_part_free(5) == 0 && project_slot_free(63) && !project_slot_free(62));
+    assert(project_preset_save(7) == 0 && plat_part_of(63) == 7 * 8 + 2);   /* (the orphan reused) */
+    assert(project_song_delete(6) == 0 && !plat_preset_used(6) && plat_part_of(62) < 0);
+    assert(project_song_delete(6) == -1);
+    assert(plat_part_save(50, 7 * 8 + 4, legacy, sizeof legacy) == 0 && project_songs_erase() == 0);
+    for (i = 0; i < PLAT_PRESETS; i++) assert(!plat_preset_used(i) && plat_part_of(i) < 0);
     puts("bank tests passed");
     return 0;
 }

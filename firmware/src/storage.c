@@ -253,6 +253,21 @@ static int st_part_free(uint32_t n)             /* (erased: no longer anything) 
 {
     return n < ST_PRESETS ? st_erase(ST_PRESET_BASE + n * ST_SECTOR) : -1;
 }
+/* slot from (type ft) into slot to as type tt, through st_buf: no copy in RAM besides */
+static int st_slot_copy(uint32_t from, uint32_t ft, uint32_t to, uint32_t tt)
+{
+    int n;
+    if (from >= ST_PRESETS || to >= ST_PRESETS || from == to)
+        return -1;
+    if ((n = st_slot_load(ST_PRESET_BASE + from * ST_SECTOR, ft, st_buf, ST_PAYLOAD_MAX)) < 0)
+        return -1;
+    return st_slot_save(ST_PRESET_BASE + to * ST_SECTOR, tt, st_buf, (uint32_t)n);
+}
+static int st_preset_copy(uint32_t from, uint32_t to) { return st_slot_copy(from, 0x100u + from, to, 0x100u + to); }
+static int st_part_copy(uint32_t from, uint32_t code, uint32_t to, uint32_t code_to)
+{
+    return st_slot_copy(from, ST_PART(0, 0) + code, to, ST_PART(0, 0) + code_to);
+}
 static int st_bank_load(uint32_t n, void *dst, uint32_t max)
 {
     return n < ST_BANK_SECTORS ? st_slot_load(st_bank_off(n), 0x200u + n, dst, max) : -1;
