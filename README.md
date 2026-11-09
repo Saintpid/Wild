@@ -1,4 +1,12 @@
-# Wild 0.3.31 - experimental FM-1 firmware
+# Wild 0.3.32 - experimental FM-1 firmware
+
+**0.3.32: eight banks with undoable copying.** Tap and release SEL, then white key 1-8:
+switch banks (an empty bank becomes a copy). Hold SEL while pressing the key: copy the playing
+bank there, replacing its contents, and switch to it. Copies include automation. White key 16
+still creates Chance; select the current bank to leave Chance. Tap SEL again to cancel selection.
+Bank switches and overwrites are undoable together with edits. The bounded journal holds up to
+9 ordinary edits without automation, 3 with automation, or 2 full bank copies; mixed history varies.
+Old songs using banks 9-12 are protected from loading/overwriting: use 0.3.29 to reorganise those first.
 
 **0.3.31:** Drive on the acid line no longer clicks at the start of every note (clearest on a
 clean bass, such as a sine).
@@ -67,8 +75,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.5.fwsc, identity FM-1_839.
-- USB name: Wild FM-1. Screen: Wild 0.3.5.
+- Installable package: build/Wild-0.3.32.fwsc, identity FM-1_866.
+- USB name: Wild FM-1. Screen: Wild 0.3.32.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -76,7 +84,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.5 --id 839
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.32 --id 866
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 

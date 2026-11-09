@@ -23,7 +23,7 @@ shot modfx.png
 tap FX
 expect view 8
 shot fxbus.png
-# SEL + white 16: a scene by chance (the kick's reverb is 40 before it); SEL again: back
+# SEL + white 16: a scene by chance (the kick's reverb is 40 before it); select current bank: back
 press SEL
 tapkey w15
 release SEL
@@ -31,6 +31,7 @@ expect scene 1
 # in the scene, the mute keys set the original's mutes: the kick muted after it
 tapkey b4
 tap SEL
+tapkey w0
 expect scene 0
 expect mute 1
 tapkey b4

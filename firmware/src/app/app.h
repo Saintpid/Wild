@@ -7,7 +7,7 @@
 #include "../dsp/n001se.h"
 
 #ifndef OM_VERSION                       /* a release build passes its own (tools/build.py --release) */
-#define OM_VERSION "Wild 0.3.1"
+#define OM_VERSION "Wild 0.3.30"
 #endif
 #define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
 /* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value
@@ -47,7 +47,7 @@ extern project_t proj;
 /* The banks: whole projects (patterns, sounds, settings) to switch between, SEL + a white key. The one
  * playing is proj (proj.bank); its own place here is stale meanwhile, and the UI uses it as scratch. Two to
  * a flash sector, saved like the project: once stopped and quiet. */
-#define PROJ_BANKS 12
+#define PROJ_BANKS 8
 _Static_assert(PROJ_BANKS <= 2 * (PLAT_BANK_SECTORS - 1), "two banks a sector (the last: the automation)");
 _Static_assert(2 * sizeof(project_t) <= PLAT_STORE_MAX, "two banks must fit a sector");
 extern project_t proj_bank[PROJ_BANKS];
@@ -71,8 +71,8 @@ extern uint8_t proj_auto_dirty;
 void project_defaults(void);
 int project_load(void);                  /* 0 = loaded; else defaults are in place */
 int project_save(void);                  /* 0 = saved and verified */
-int project_preset_save(int n);          /* the song now, all banks, into slot n: 0 = saved, -2 a part, -3 no room */
-int project_preset_load(int n);          /* preset slot n becomes the project and plays: 0 = loaded */
+int project_preset_save(int n);          /* the song now, all banks, into slot n: 0 = saved, -2 a part, -3 no room, -4 legacy banks */
+int project_preset_load(int n);          /* preset slot n becomes the project and plays: 0 loaded, -4 legacy banks */
 int project_slot_free(int n);            /* 1: slot n holds neither a song nor a part of one */
 void project_apply(void);                /* every value to the engine (boot, load) */
 

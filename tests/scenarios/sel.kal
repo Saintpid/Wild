@@ -1,4 +1,4 @@
-# SEL alone: back to bank 1 (in bank 1: out of a scene by chance, SEL + white 16). The Scene page has
+# tap SEL then key 1: back to bank 1 (in bank 1: out of a scene by chance, SEL + white 16). The Scene page has
 # no SEL mode any more (A/B and Copy went with the banks): KNOB 1 is 303 waves.
 wait 200
 tap GLO
@@ -19,38 +19,42 @@ tap SEL
 expect scene 0
 expect tpar15 30
 expect bank 0
-# SEL + white 16: a scene; SEL alone: back, as it was
-press SEL
+tap SEL
+# SEL + white 16: a scene; select current bank: back, as it was
+tap SEL
 tapkey w15
-release SEL
+
 expect scene 1
 shot scene_chance.png
 tap SEL
+tapkey w0
 wait 50
 expect scene 0
 expect tpar15 30
 # from bank 3, in a scene: SEL alone, back to bank 1 as it was; bank 3 keeps its original
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 expect bank 2
 spin K1 20
 expect tpar15 50
-press SEL
+tap SEL
 tapkey w15
-release SEL
+
 expect scene 1
 tap SEL
+tapkey w0
 wait 50
 expect bank 0
 expect scene 0
 expect tpar15 30
-press SEL
+tap SEL
 tapkey w2
-release SEL
+
 wait 50
 expect tpar15 50
 tap SEL
+tapkey w0
 wait 50
 expect bank 0
 expect dropped 0

@@ -1,4 +1,41 @@
-# Wild v001 - 2026-10-30
+# Wild 0.3.30 / 864 - 2026-11-04
+
+- Canonical local workspace: C:/Projects/M-Vave FM1 n001se/Wild, branch wild.
+  Updated from Saintpid/Wild main 89356a7 (0.3.29), remote wild-source.
+  origin still points to the inherited n001se repository: do not push there.
+- Previous local 0.1.4 work preserved in stash "Wild local 0.1.4 before bank update
+  2026-11-04" and backup/wild-before-bank-update-20261104. Do not apply that stash
+  over current work without reconciling versions. No publishing or device flashing.
+- User chose eight banks plus Chance on white 16. Tap/release SEL then white 1-8
+  selects (empty: copy); held SEL + white overwrites and switches. Same-bank copy
+  does nothing. Second SEL cancels selection. Select current bank to exit Chance.
+  Copies capture the audible Chance scene; source keeps its pre-Chance values.
+- Copies include automation; reject atomically if the shared 28-lane pool is full.
+  17,760-byte variable-size swapping undo journal: at most nine ordinary edits
+  without automation, three with automation, two full copies. Undo/redo crosses
+  banks and restores destination contents/empty status, automation and Chance.
+  Recording/deleting automation also participates. Load/Clear All/reboot reset undo.
+- Project format remains 16; old song part IDs unchanged (automation still part 5).
+  Reject loading/overwriting saved songs with bank 9-12 parts (-4). If active flash
+  uses bank 9-12, show OLD BANKS / USE 0.3.29 and protect ALL saves; temporary defaults
+  do not replace stored data. Explicit Clear All or compatible song load starts a new
+  active workspace; saved legacy songs stay intact. Reorganise in 0.3.29 first.
+- BUILD_ID in upstream was stale (857); CHANGELOG documented 0.3.29 as 863, so new
+  identity is 864. README build commands and current version updated accordingly.
+- Resource-checked build: image 186608 B; data/BSS 80548/90112 B (9564 spare),
+  RAM code 35692/40960 B, pool 335364/344064 B (8700 spare; guard kept).
+- Bank tests cover overwrite/empty copy, undo/redo, edits across banks, autosave and
+  reboot, history eviction and redo truncation, Chance, automation exhaustion and
+  recording, compatible songs and protection of legacy songs/startup flash.
+  Physical FM-1 audio continuity and gestures still require hardware QA.
+- Final firmware build, complete host/UBSan/package/loader/installer suite and all
+  scenarios pass (build/wild-0.3.30-build.log, build/wild-0.3.30-tests.log).
+  Bank unit tests also passed with AddressSanitizer; selection/replacement screenshots
+  visually inspected. Delivered to ../Firmware Wild/Wild-0.3.30.fwsc with matching
+  SHA256 5345f0d111ed37f66c86d0421b8b4c61dfc7c2ee4eecf5d5745412d62977a9d7.
+  Versioned .elf/.dis/.bin retained in build for crash lookup. Changes remain local.
+
+# Historical memory: Wild v001 - 2026-10-30
 
 - User requested Wild as a separate experimental firmware based on n001se.
 - Source: Saintpid/n001se commit b3a4ac2, branch claude/project-thread-uvgf52,
