@@ -1,4 +1,8 @@
-# Wild 0.3.35 - experimental FM-1 firmware
+# Wild 0.3.36 - experimental FM-1 firmware
+
+**0.3.36: Rumble plays on.** A bed under the track, one tone with no hits, that every kick ducks.
+A step says how strong it is from there; a quarter without a step and it fades out (120 ms).
+Deviance lets its level, colour, noise, drive and FM grit drift; at 0 it is still.
 
 **0.3.35:** Rumble no longer clicks when a new note or a kick cuts it off.
 
@@ -86,8 +90,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.35.fwsc, identity FM-1_869.
-- USB name: Wild FM-1. Screen: Wild 0.3.35.
+- Installable package: build/Wild-0.3.36.fwsc, identity FM-1_870.
+- USB name: Wild FM-1. Screen: Wild 0.3.36.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -95,7 +99,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.35 --id 869
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.36 --id 870
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -129,8 +133,10 @@ command.
   hit varies around the sound's base (Deviance); from 90 the base itself wanders off, slowly, into
   something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal, clap or rumble, and perc, click and metal land in a random octave. A rumble is a
-  techno rumble: a kick's tail, driven and kept low (high-passed into its drive, low-passed after),
-  at the kick's pitch, ducked by every kick so it pumps in between.
+  techno rumble, a bed under the track rather than hits: driven and kept low (high-passed into its
+  drive, low-passed after), at the kick's pitch, ducked by every kick so it pumps in between. A step
+  says how strong it is from there; a quarter without one and it fades out. With Deviance its level,
+  colour, noise, drive and FM grit drift slowly.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter (Open303's TeeBeeFilter, its diodes bending a little), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a
   real 303: the knobs over the 303's ranges, Env Mod's measured curve, the 303's gate, slide (60 ms),

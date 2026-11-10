@@ -233,6 +233,8 @@ NFM_CODE void nseq_start(nseq *q)
 NFM_CODE void nseq_stop(nseq *q)
 {
     q->playing = 0;
+    for (int t = 0; t < NSEQ_TRACKS; ++t)       /* a rumble playing on: out in 120 ms */
+        if (nfm_drone(q->engine, t) >= 0) nfm_release(q->engine, t, 0.12f);
     for (int e = 0; e < NSEQ_QUEUE; ++e) q->queue[e].used = 0;
     for (int t = 0; t < NSEQ_TRACKS; ++t) q->track[t].last = -1;
 }
@@ -368,6 +370,14 @@ NFM_CODE static void global_step(nseq *q, float step_len)
         int s = tr->pos;
         tr->last = (int16_t)s;
         if (tr->step[s].on && !tr->mute) cand[n++] = t;
+        /* a rumble plays on (nfm_trigger: a step is how strong it is from there): a quarter without
+         * one, or muted, and it fades out in 120 ms */
+        if (nfm_slot_kind(q->engine, t) == NFM_KIND_RUMBLE) {
+            if (tr->step[s].on && !tr->mute) q->quiet[t] = 0;
+            else if (q->quiet[t] < 255) ++q->quiet[t];
+            if ((tr->mute || q->quiet[t] >= (tr->triplet ? 3 : 4)) && nfm_drone(q->engine, t) >= 0)
+                nfm_release(q->engine, t, 0.12f);
+        }
         if (++tr->pos >= tr->length) {
             tr->pos = 0;
             ++tr->loops;
@@ -378,7 +388,7 @@ NFM_CODE static void global_step(nseq *q, float step_len)
     while (n > q->max_poly) {
         int weakest = -1;
         for (int i = 0; i < n; ++i) {
-            if (cand[i] == 0) continue;
+            if (cand[i] == 0 || nfm_slot_kind(q->engine, cand[i]) == NFM_KIND_RUMBLE) continue;   /* (a bed, not a hit) */
             const nseq_track *a = &q->track[cand[i]];
             if (weakest < 0) { weakest = i; continue; }
             const nseq_track *b = &q->track[cand[weakest]];

@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.36
+
+Firmware identity FM-1_870. Rumble plays on: a bed, not hits.
+
+- **Rumble** is one tone that plays on, with no hits in it. Every kick ducks it, softly, and it
+  swells back; Stress sets how fast (30..150 ms).
+- **Its steps are how strong it is,** not on/off: from a step it glides (~50 ms) to that step's
+  strength and its note. A quarter without a step, a mute or STOP, and it fades out in 120 ms; the
+  next step brings it in again. So the pattern says where it plays and how much.
+- **Deviance makes it live:** its level, its colour, how much noise is in it, its drive and its FM
+  grit drift slowly, each to a new place every 0.3..1.2 s. At 0 it stays still: only the kicks move it.
+- It sits 5 dB lower than before, as it plays on. A new sound on its track hands over in 150 ms.
+
 ## 0.3.35
 
 Firmware identity FM-1_869. Rumble without clicks.

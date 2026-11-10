@@ -210,7 +210,7 @@ SOUND (ENV, page 1)
   Ring       Resonance and ring
 
 TONE (ENV, page 2)
-  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble. A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble: a low, driven tail at the kick's pitch that swells in, is ducked by every kick and plays between the beats (Spike drives it harder and opens it up). Takes effect with the next new sound (black 11).
+  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble. A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble, a bed under the track: one tone that plays on, low and driven, at the kick's pitch, ducked by every kick. Its steps are not hits: each says how strong it is from there (it glides to the step's strength, and to its note); a quarter without a step (or a mute, or STOP) and it fades out in 120 ms. Deviance lets its level, colour (its low-pass), noise, drive and FM grit drift slowly (0: still, only the kicks move it); Stress sets how fast it comes back after a kick (30..150 ms); Spike drives it harder and opens it up. Takes effect with the next new sound (black 11).
   Ring tone  The resonance's pitch
   Tune       Tuning, âˆ’24 to +24 semitones
 

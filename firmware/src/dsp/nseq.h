@@ -89,6 +89,7 @@ typedef struct {
      * in samples, the step's length */
     void (*on_step)(void *ctx, uint32_t step, float delay, float step_len);
     void *step_ctx;
+    uint8_t quiet[NSEQ_TRACKS];   /* a rumble's steps since its last: a quarter of none, it goes */
 } nseq;
 
 void nseq_init(nseq *q, nfm_engine *engine, uint32_t seed);
