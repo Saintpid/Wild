@@ -284,6 +284,35 @@ int main(int argc, char **argv)
         ne_play(0);
         render(80, 0);
     }
+    /* a rumble sings in the acid line's key: major on D, its minor third (3) sung as the major second, E */
+    {
+        static const int8_t pcs[] = { 2, 4, 2, 4 };     /* the root, D; and 3 -> 2 above it, E */
+        static const float ratio[12] = { 1.0f, 1.0594631f, 1.1224620f, 1.1892071f, 1.2599210f };
+        int st, bad = 0, k;
+        float last = 0.0f;
+        ne_init();
+        ne_clear();
+        ne_aset(A_SCALE, 6);
+        ne_aset(A_TUNE, 2);
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        ne_tset(3, T_BARS, 1);
+        for (st = 0; st < 16; st += 4)
+            ne_step(3, st, 1, 100, st % 8 ? 3 : 0);
+        ne_play(1);
+        for (k = 0; k < 4; k++) {
+            float r;
+            int dv;
+            render(k ? 92 : 70, 0);              /* late in each quarter at 112 (92 blocks) */
+            dv = nfm_drone(ne_fm(), 3);
+            r = dv >= 0 ? ne_fm()->voice[dv].f0 / 32.703196f : 0.0f;
+            while (r >= 2.0f) r *= 0.5f;
+            while (r > 0.0f && r < 1.0f) r *= 2.0f;
+            if (r < ratio[pcs[k]] * 0.995f || r > ratio[pcs[k]] * 1.005f) bad++, last = r;
+        }
+        CHECK(bad == 0, "rumble key: %d of 4 quarters off D major (last %f)", bad, (double)last);
+        ne_play(0);
+        render(80, 0);
+    }
     ne_init();
     if (argc > 1) {
         snprintf(path, sizeof path, "%s/n001se_16bars.wav", argv[1]);

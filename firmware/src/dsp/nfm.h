@@ -276,6 +276,10 @@ typedef struct {
     /* This slot's hits are never stolen by another's (-1: none): a kick that never drops out. */
     int priority_slot;
     nfm_mod mod[NFM_SLOTS];  /* each sound's modulation effect (type 0: none) */
+    /* The key a rumble sings in (the acid line's): its root, a pitch class above C (-1: none, the
+     * rumble at its own pitch), and its scale, bit n for each pitch class n above the root. */
+    int key;
+    uint16_t key_scale;
 } nfm_engine;
 /* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
  * NFM_MOD_LEN]); without them those two are not played. */

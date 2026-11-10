@@ -475,6 +475,8 @@ NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)
     nfm_ins_set(e);
     e->voice_limit = NFM_VOICES;
     e->priority_slot = -1;
+    e->key = -1;
+    e->key_scale = 0x0fffu;
     for (int v = 0; v < NFM_VOICES; ++v) e->voice[v].slot = -1;
     NFM_DATA static const int8_t start_kit[NFM_SLOTS > 8 ? NFM_SLOTS : 8] = {
         NFM_KIND_KICK, NFM_KIND_SNARE, NFM_KIND_HAT, NFM_KIND_PERC,
@@ -589,6 +591,26 @@ NFM_CODE static float svf_g(nfm_engine *e, float f) /* tan(pi f / sr) */
     return sin_cyc(x) / sin_cyc(x + 0.25f);
 }
 
+/* a rumble's pitch for a note: in the key, when there is one. Its own pitch to the nearest root
+ * (within half an octave), the note to the nearest in the scale (towards the root on a tie), then
+ * its Tune on top. */
+NFM_CODE static float rumble_hz(const nfm_engine *e, const nfm_slot *sl, float hz, float transpose)
+{
+    if (e->key >= 0) {
+        float st = 12.0f * log2_approx(hz * (1.0f / 32.703196f)) - (float)e->key;
+        int o = (int)(st * (1.0f / 12.0f) + (st >= 0.0f ? 0.5f : -0.5f));
+        int n = (int)(transpose + (transpose >= 0.0f ? 0.5f : -0.5f)), best = n;
+        for (int d = 0; d <= 6; ++d) {
+            int a = n > 0 ? n - d : n + d, b = n > 0 ? n + d : n - d;
+            if (e->key_scale >> (((a % 12) + 12) % 12) & 1) { best = a; break; }
+            if (e->key_scale >> (((b % 12) + 12) % 12) & 1) { best = b; break; }
+        }
+        hz = 32.703196f * exp2_approx((float)(e->key + 12 * o) * (1.0f / 12.0f));
+        transpose = (float)best;
+    }
+    return hz * exp2_approx((transpose + sl->tune) * (1.0f / 12.0f));
+}
+
 NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
 {
     if (!slot_ok(s)) return -1;
@@ -601,7 +623,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
             velocity = clamp01(velocity);
             v->r_lvg = velocity * (0.4f + 0.6f * velocity);
             v->r_pup = 1;                  /* and a lift: a rhythm in it, no new tone */
-            v->r_f0t = param_map(NFM_PITCH, sl->p[NFM_PITCH]) * exp2_approx((transpose + sl->tune) * (1.0f / 12.0f));
+            v->r_f0t = rumble_hz(e, sl, param_map(NFM_PITCH, sl->p[NFM_PITCH]), transpose);
             return d;
         }
     }
@@ -701,7 +723,8 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     if (v->rumble) {
         /* its drive from the fold (Spike pushes both), 2.4..10; a high-pass a little under the note into
          * it (no sub to smear), a low-pass at 1.1 x the noise's colour after (none of the fizz), the
-         * DC and the deepest sub (25 Hz) taken out last */
+         * DC and the deepest sub (25 Hz) taken out last; in the key, when there is one */
+        v->f0 = rumble_hz(e, sl, val[NFM_PITCH], transpose);
         float f = v->f0 * 1.4f, fl = val[NFM_NOISE_COLOR] * 1.4f * tr;
         v->r_pre = 2.0f + 8.0f * v->fold;
         v->r_comp = 0.55f / (0.4f + 0.25f * v->r_pre);   /* (playing on: 5 dB under a hit) */

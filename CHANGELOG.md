@@ -19,7 +19,10 @@ Firmware identity FM-1_870. Rumble plays on: a bed, not hits.
   grit drift slowly, each to a new place every 0.3..1.2 s. At 0 it stays still: only the kicks move it.
 - **It sings a line:** a new pattern gives its steps notes, a small walk on a minor pentatonic
   (from a fifth below to a minor third above its pitch), mostly one scale step at a time, never more
-  than a fourth, and pulled back to its root. It glides from note to note (90 ms), never a jump. Hold a
+  than a fourth, and pulled back to its root. It glides from note to note (90 ms), never a jump.
+- **It sings in the acid line's key,** so the two never fight: its root is the 303's (with its Tune),
+  the nearest one to its own pitch, and its notes land on the 303's Scale as it plays. Change the
+  Scale and the rumble follows at once, its line kept. Hold a
   step and turn KNOB 2 to change its note. A track turned into a rumble gets a line if its steps were all
   on the root; turned back into a drum, its steps go back to the root.
 - It sits 5 dB lower than before, as it plays on. A new sound on its track hands over in 150 ms.

@@ -70,6 +70,14 @@ NFM_DATA static const int8_t scales[NACID_SCALES][8] = {
     { 7, 0, 2, 4, 5, 7, 9, 11 },
 };
 
+NFM_CODE unsigned nacid_scale_mask(const nacid *a)
+{
+    const int8_t *sc = scales[a->scale < NACID_SCALES ? a->scale : 0];
+    unsigned m = 0;
+    for (int i = 0; i < sc[0]; ++i) m |= 1u << sc[1 + i];
+    return m;
+}
+
 NFM_CODE void nacid_init(nacid *a, float sr, uint32_t seed)
 {
     NFM_DATA static const float def[NACID_PARAMS] = {

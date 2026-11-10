@@ -1276,6 +1276,8 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         return;
     }
     drain();
+    fm.key = ((seq.root + (int)acid.tune) % 12 + 12) % 12;   /* a rumble sings in the acid line's key */
+    fm.key_scale = (uint16_t)nacid_scale_mask(&acid);
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
     if (!seq.playing) {
