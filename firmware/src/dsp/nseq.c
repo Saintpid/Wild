@@ -63,6 +63,45 @@ NFM_CODE static int8_t pick_note(nseq *q, int range)
     return n ? cand[rnd(&q->rng) % (unsigned)n] : 0;
 }
 
+/* A rumble's line: a walk over a minor pentatonic from a fifth below to a minor third above the
+ * root, in step order. Mostly one scale step at a time (2..3 semitones), at most two (5), pulled home,
+ * and every bar's first hit on the root half the time. The engine glides between them. */
+NFM_DATA static const int8_t rumble_scale[] = { -7, -5, -2, 0, 3 };
+#define RUMBLE_ROOT 3
+
+NFM_CODE static void rumble_line(nseq *q, nseq_track *tr)
+{
+    int i = RUMBLE_ROOT, bar = nseq_bar(tr), last = -1;
+    for (int s = 0; s < tr->length; ++s) {
+        if (!tr->step[s].on) continue;
+        float u = rndf(&q->rng);
+        if (last < 0 || (s / bar != last / bar && u < 0.5f)) {
+            i = RUMBLE_ROOT;
+        } else {
+            int d = u < 0.35f ? 0 : u < 0.9f ? 1 : 2;
+            int dir = rndf(&q->rng) < 0.5f ? -1 : 1;
+            if (i + dir * d < 0 || i + dir * d >= (int)sizeof rumble_scale) dir = -dir;
+            if (i != RUMBLE_ROOT && rndf(&q->rng) < 0.4f) dir = i < RUMBLE_ROOT ? 1 : -1;
+            i += dir * d;
+            i = i < 0 ? 0 : i >= (int)sizeof rumble_scale ? (int)sizeof rumble_scale - 1 : i;
+        }
+        tr->step[s].note = rumble_scale[i];
+        last = s;
+    }
+}
+
+NFM_CODE void nseq_retone(nseq *q, int t, int rumble)
+{
+    if (!track_ok(t)) return;
+    nseq_track *tr = &q->track[t];
+    for (int s = 0; s < NSEQ_MAX_STEPS; ++s)
+        if (tr->step[s].note) {
+            if (rumble) return;                  /* a line of its own: kept */
+            tr->step[s].note = 0;
+        }
+    if (rumble) rumble_line(q, tr);
+}
+
 /* A new length of 1..len_random bars. Even bar counts are likelier, and
  * sometimes the last bar is cut short so the track drifts against the rest. */
 /* Step weights for generate and evolve. Static, not on the stack: on the FM1
@@ -151,6 +190,7 @@ NFM_CODE void nseq_generate(nseq *q, int t)
         for (int b = s % bar; b < len; b += bar)
             if (b != s) w[b] *= 1.6f;
     }
+    if (nfm_slot_kind(q->engine, t) == NFM_KIND_RUMBLE) rumble_line(q, tr);
 }
 
 NFM_CODE void nseq_generate_all(nseq *q)
@@ -233,6 +273,8 @@ NFM_CODE void nseq_start(nseq *q)
 NFM_CODE void nseq_stop(nseq *q)
 {
     q->playing = 0;
+    for (int t = 0; t < NSEQ_TRACKS; ++t)       /* a rumble playing on: out in 120 ms */
+        if (nfm_drone(q->engine, t) >= 0) nfm_release(q->engine, t, 0.12f);
     for (int e = 0; e < NSEQ_QUEUE; ++e) q->queue[e].used = 0;
     for (int t = 0; t < NSEQ_TRACKS; ++t) q->track[t].last = -1;
 }
@@ -368,6 +410,14 @@ NFM_CODE static void global_step(nseq *q, float step_len)
         int s = tr->pos;
         tr->last = (int16_t)s;
         if (tr->step[s].on && !tr->mute) cand[n++] = t;
+        /* a rumble plays on (nfm_trigger: a step is how strong it is from there): a quarter without
+         * one, or muted, and it fades out in 120 ms */
+        if (nfm_slot_kind(q->engine, t) == NFM_KIND_RUMBLE) {
+            if (tr->step[s].on && !tr->mute) q->quiet[t] = 0;
+            else if (q->quiet[t] < 255) ++q->quiet[t];
+            if ((tr->mute || q->quiet[t] >= (tr->triplet ? 3 : 4)) && nfm_drone(q->engine, t) >= 0)
+                nfm_release(q->engine, t, 0.12f);
+        }
         if (++tr->pos >= tr->length) {
             tr->pos = 0;
             ++tr->loops;
@@ -378,7 +428,7 @@ NFM_CODE static void global_step(nseq *q, float step_len)
     while (n > q->max_poly) {
         int weakest = -1;
         for (int i = 0; i < n; ++i) {
-            if (cand[i] == 0) continue;
+            if (cand[i] == 0 || nfm_slot_kind(q->engine, cand[i]) == NFM_KIND_RUMBLE) continue;   /* (a bed, not a hit) */
             const nseq_track *a = &q->track[cand[i]];
             if (weakest < 0) { weakest = i; continue; }
             const nseq_track *b = &q->track[cand[weakest]];

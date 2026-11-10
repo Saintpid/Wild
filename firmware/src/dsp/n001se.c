@@ -1017,9 +1017,12 @@ static void new_sound(int t, int kind)
 {
     if ((unsigned)t >= NE_TRACKS)
         return;
+    int was = tpar[t][T_KIND];
     if (kind < 0)
-        kind = tpar[t][T_KIND];
+        kind = was;
     tpar[t][T_KIND] = (int16_t)kind;
+    if ((kind == NFM_KIND_RUMBLE) != (was == NFM_KIND_RUMBLE))
+        nseq_retone(&seq, t, kind == NFM_KIND_RUMBLE);   /* a rumble sings a line, a drum its root */
     tset(t, T_TUNE, 0);                          /* a new sound starts at its own pitch */
     nfm_randomize(&fm, t, kind);
     lvl_base[t] = nfm_get_param(&fm, t, NFM_LEVEL);
@@ -1273,6 +1276,8 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         return;
     }
     drain();
+    fm.key = ((seq.root + (int)acid.tune) % 12 + 12) % 12;   /* a rumble sings in the acid line's key */
+    fm.key_scale = (uint16_t)nacid_scale_mask(&acid);
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
     if (!seq.playing) {

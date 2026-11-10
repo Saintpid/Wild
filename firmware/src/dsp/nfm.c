@@ -341,6 +341,7 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     if (!slot_ok(s)) return;
     nfm_slot *sl = &e->slot[s];
     uint32_t *r = &e->rng;
+    if (nfm_drone(e, s) >= 0) nfm_release(e, s, 0.15f);   /* a rumble playing on: the new one comes in */
     if (kind < 0 || kind >= NFM_KINDS) {
         /* Rhythm first: drums are drawn more often than the tonal kinds. */
         NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1 };
@@ -474,6 +475,8 @@ NFM_CODE void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed)
     nfm_ins_set(e);
     e->voice_limit = NFM_VOICES;
     e->priority_slot = -1;
+    e->key = -1;
+    e->key_scale = 0x0fffu;
     for (int v = 0; v < NFM_VOICES; ++v) e->voice[v].slot = -1;
     NFM_DATA static const int8_t start_kit[NFM_SLOTS > 8 ? NFM_SLOTS : 8] = {
         NFM_KIND_KICK, NFM_KIND_SNARE, NFM_KIND_HAT, NFM_KIND_PERC,
@@ -499,6 +502,35 @@ NFM_CODE void nfm_stop_all(nfm_engine *e)
         }
     }
 }
+
+NFM_CODE int nfm_drone(const nfm_engine *e, int s)
+{
+    for (int v = 0; v < NFM_VOICES; ++v)
+        if (e->voice[v].slot == s && e->voice[v].rumble && !e->voice[v].fading) return v;
+    return -1;
+}
+
+NFM_CODE void nfm_release(nfm_engine *e, int s, float t)
+{
+    for (int v = 0; v < NFM_VOICES; ++v) {
+        nfm_voice *vo = &e->voice[v];
+        if (vo->slot == s && !vo->fading) {
+            vo->fading = 1;
+            vo->fade = 1.0f;
+            vo->fade_k = t60_coef(t, e->sr);
+        }
+    }
+}
+
+/* a rumble's duck down to floor (0..1, squared when heard), back up over tau s */
+NFM_CODE static void rumble_dip(nfm_engine *e, nfm_voice *v, float floor, float tau)
+{
+    if (!v->r_down || floor < v->r_floor) v->r_floor = floor;
+    v->r_down = v->r_duck > v->r_floor;
+    v->r_duck_k = e->inv_sr / tau;
+}
+/* a kick's duck: Stress sets how long it takes to come back, 30..150 ms */
+NFM_CODE static float kick_tau(const nfm_slot *sl) { return 0.03f * exp2_approx(sl->macro[NFM_STRESS] * 2.3f); }
 
 NFM_CODE int nfm_active_voices(const nfm_engine *e)
 {
@@ -528,6 +560,7 @@ NFM_CODE static nfm_voice *pick_voice(nfm_engine *e, int s)
     for (int v = 0; v < lim; ++v) {
         nfm_voice *vo = &e->voice[v];
         if (vo->slot == e->priority_slot && s != e->priority_slot && !vo->fading) continue;
+        if (vo->rumble && !vo->fading) continue;   /* (a rumble playing on: cut, it clicked) */
         if (!best) best = vo;
         else if (vo->fading != best->fading) { if (vo->fading) best = vo; }
         else if (vo->fading ? vo->fade < best->fade : vo->age < best->age) best = vo;
@@ -558,10 +591,42 @@ NFM_CODE static float svf_g(nfm_engine *e, float f) /* tan(pi f / sr) */
     return sin_cyc(x) / sin_cyc(x + 0.25f);
 }
 
+/* a rumble's pitch for a note: in the key, when there is one. Its own pitch to the nearest root
+ * (within half an octave), the note to the nearest in the scale (towards the root on a tie), then
+ * its Tune on top. */
+NFM_CODE static float rumble_hz(const nfm_engine *e, const nfm_slot *sl, float hz, float transpose)
+{
+    if (e->key >= 0) {
+        float st = 12.0f * log2_approx(hz * (1.0f / 32.703196f)) - (float)e->key;
+        int o = (int)(st * (1.0f / 12.0f) + (st >= 0.0f ? 0.5f : -0.5f));
+        int n = (int)(transpose + (transpose >= 0.0f ? 0.5f : -0.5f)), best = n;
+        for (int d = 0; d <= 6; ++d) {
+            int a = n > 0 ? n - d : n + d, b = n > 0 ? n + d : n - d;
+            if (e->key_scale >> (((a % 12) + 12) % 12) & 1) { best = a; break; }
+            if (e->key_scale >> (((b % 12) + 12) % 12) & 1) { best = b; break; }
+        }
+        hz = 32.703196f * exp2_approx((float)(e->key + 12 * o) * (1.0f / 12.0f));
+        transpose = (float)best;
+    }
+    return hz * exp2_approx((transpose + sl->tune) * (1.0f / 12.0f));
+}
+
 NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
 {
     if (!slot_ok(s)) return -1;
     nfm_slot *sl = &e->slot[s];
+    if (sl->kind == NFM_KIND_RUMBLE) {
+        /* a rumble playing: a step says how strong it is from here (glided to, no hit), and the note */
+        int d = nfm_drone(e, s);
+        if (d >= 0) {
+            nfm_voice *v = &e->voice[d];
+            velocity = clamp01(velocity);
+            v->r_lvg = velocity * (0.4f + 0.6f * velocity);
+            v->r_pup = 1;                  /* and a lift: a rhythm in it, no new tone */
+            v->r_f0t = rumble_hz(e, sl, param_map(NFM_PITCH, sl->p[NFM_PITCH]), transpose);
+            return d;
+        }
+    }
     float n[NFM_PARAMS], val[NFM_PARAMS];
     velocity = clamp01(velocity);
 
@@ -601,7 +666,8 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     nfm_voice *v = pick_voice(e, s);
     float sr = e->sr, tr = exp2_approx((transpose + e->slot[s].tune) * (1.0f / 12.0f));
     float vel_amp = velocity * (0.4f + 0.6f * velocity);
-    float vel_idx = 0.55f + 0.45f * velocity;
+    float vel_idx = 0.55f + 0.45f * velocity, r_lvg = vel_amp;
+    if (sl->kind == NFM_KIND_RUMBLE) vel_amp = vel_idx = 1.0f;   /* (its level by step: r_lv, below) */
 
     v->slot = (int8_t)s;
     v->fading = 0;
@@ -657,10 +723,11 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     if (v->rumble) {
         /* its drive from the fold (Spike pushes both), 2.4..10; a high-pass a little under the note into
          * it (no sub to smear), a low-pass at 1.1 x the noise's colour after (none of the fizz), the
-         * DC and the deepest sub (25 Hz) taken out last */
+         * DC and the deepest sub (25 Hz) taken out last; in the key, when there is one */
+        v->f0 = rumble_hz(e, sl, val[NFM_PITCH], transpose);
         float f = v->f0 * 1.4f, fl = val[NFM_NOISE_COLOR] * 1.4f * tr;
         v->r_pre = 2.0f + 8.0f * v->fold;
-        v->r_comp = 1.0f / (0.4f + 0.25f * v->r_pre);
+        v->r_comp = 0.55f / (0.4f + 0.25f * v->r_pre);   /* (playing on: 5 dB under a hit) */
         v->fold = 0.0f;
         v->r_hpk = 1.0f - 6.2831853f * f * e->inv_sr;
         v->r_dck = 6.2831853f * 0.9f * v->f0 * e->inv_sr;
@@ -670,7 +737,29 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
         v->r_h = 1.0f / (1.0f + v->r_g * v->r_kg);
         v->r_duck = 1.0f;
         v->r_down = 0;
+        v->r_floor = 1.0f;
         v->r_duck_k = e->inv_sr * (1.0f / 0.06f);
+        v->r_routed = 0;
+        /* it plays on: every envelope held, no dive in pitch, 150 ms to come in */
+        for (int k = 0; k < NFM_OPS; ++k) v->env_k[k] = 1.0f;
+        v->noise_k = 1.0f;
+        v->pitch_depth = 0.0f;
+        v->att = 1.0f;                     /* (it comes in by r_lv: ~50 ms, no hit) */
+        v->r_lv = 0.0f;
+        v->r_lvg = r_lvg;
+        v->r_lvk = e->inv_sr * (1.0f / 0.05f);
+        v->r_pu = 0.0f;
+        v->r_pup = 1;
+        v->r_pre0 = v->r_pre;
+        for (int k = 0; k < NFM_OPS; ++k) v->r_mb[k] = (v->carriers >> k & 1) ? 0.0f : v->env[k];
+        v->r_f0t = v->f0;
+        v->r_fl = fl > 900.0f ? 900.0f : fl;
+        v->r_dev = sl->macro[NFM_DEVIANCE];
+        v->r_lvl = v->r_col = v->r_lvt = v->r_cot = 0.0f;
+        v->r_nz0 = v->noise;
+        v->r_nzm = v->r_nzt = v->r_dr = v->r_drt = v->r_gr = v->r_grt = 0.0f;
+        v->r_mk = 0.0f;
+        v->r_mn = 0;
         /* a kick on the same step: in under it */
         for (int o = 0; o < NFM_VOICES; ++o) {
             const nfm_voice *k = &e->voice[o];
@@ -678,8 +767,10 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
                 v->r_duck = 0.0f;
         }
     } else if (e->slot[s].kind == NFM_KIND_KICK)
-        for (int o = 0; o < NFM_VOICES; ++o)   /* the side-chain: a kick ducks the rumbles playing */
-            if (e->voice[o].slot >= 0 && e->voice[o].rumble) e->voice[o].r_down = 1;
+        for (int o = 0; o < NFM_VOICES; ++o) {  /* the side-chain: a kick ducks the rumbles playing */
+            nfm_voice *r = &e->voice[o];
+            if (r->slot >= 0 && r->rumble) rumble_dip(e, r, 0.05f, kick_tau(&e->slot[r->slot]));
+        }
     v->crush_rate = exp2_approx(-val[NFM_CRUSH] * 5.0f);
     v->crush_q = exp2_approx(14.0f - val[NFM_CRUSH] * 11.0f);
     v->crush_acc = 1.0f;
@@ -739,6 +830,10 @@ NFM_CODE void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float
 {
     if (voice < 0 || voice >= NFM_VOICES) return;
     nfm_voice *v = &e->voice[voice];
+    if (v->rumble) {                       /* a breath on a rumble playing on: as it was routed */
+        if (v->r_routed) return;
+        v->r_routed = 1;
+    }
     v->ins = (uint8_t)ins;
     v->send_rev = clamp01(send_rev);
     v->send_dly = clamp01(send_dly);
@@ -985,8 +1080,50 @@ NFM_CODE uint32_t nfm_voice_age(const nfm_engine *e, int voice)
 
 #define CTL_STEP 8
 
+/* a rumble playing on, every 8 frames: its glide to the note (90 ms, a sung slide, never a jump),
+ * and its drift by Deviance (0:
+ * still): its level +-30 %, its low-pass +-0.8 octave, its noise 0.1..1.9 x, its drive +-40 % and its
+ * FM grit (the modulators) +-60 %, each to a target of its own drawn every 0.3..1.2 s */
+NFM_CODE NFM_HOT static void rumble_control(nfm_engine *e, nfm_voice *v)
+{
+    float dev = e->slot[v->slot].macro[NFM_DEVIANCE];
+    v->f0 += (v->r_f0t - v->f0) * ((float)CTL_STEP * (1.0f / 0.09f) * e->inv_sr);
+    if (dev <= 0.0f && v->r_lvl == 0.0f && v->r_col == 0.0f && v->r_nzm == 0.0f && v->r_dr == 0.0f && v->r_gr == 0.0f)
+        return;
+    if (v->r_mn == 0) {
+        uint32_t *r = &e->rng;
+        v->r_lvt = (rng_uni(r) * 2.0f - 1.0f) * 0.3f * dev;
+        v->r_cot = (rng_uni(r) * 2.0f - 1.0f) * 0.8f * dev;
+        v->r_nzt = (rng_uni(r) * 2.0f - 1.0f) * 0.9f * dev;
+        v->r_drt = (rng_uni(r) * 2.0f - 1.0f) * 0.4f * dev;
+        v->r_grt = (rng_uni(r) * 2.0f - 1.0f) * 0.6f * dev;
+        v->r_mn = (uint16_t)(e->sr * (1.0f / 8.0f) * (0.3f + 0.9f * rng_uni(r)));
+        v->r_mk = 3.0f / (float)v->r_mn;
+    }
+    --v->r_mn;
+    float k = v->r_mk;
+    v->r_lvl += (v->r_lvt - v->r_lvl) * k;
+    v->r_col += (v->r_cot - v->r_col) * k;
+    v->r_nzm += (v->r_nzt - v->r_nzm) * k;
+    v->r_dr += (v->r_drt - v->r_dr) * k;
+    v->r_gr += (v->r_grt - v->r_gr) * k;
+    if (dev <= 0.0f && v->r_lvl * v->r_lvl + v->r_col * v->r_col + v->r_nzm * v->r_nzm + v->r_dr * v->r_dr +
+                       v->r_gr * v->r_gr < 1e-6f)
+        v->r_lvl = v->r_col = v->r_nzm = v->r_dr = v->r_gr = 0.0f;   /* (back where it was drawn: still) */
+    v->noise = v->r_nz0 * (1.0f + v->r_nzm);
+    v->r_pre = v->r_pre0 * (1.0f + v->r_dr);
+    v->r_comp = 0.55f / (0.4f + 0.25f * v->r_pre);
+    for (int m = 0; m < NFM_OPS; ++m)
+        if (v->r_mb[m] > 0.0f) v->env[m] = v->r_mb[m] * (1.0f + v->r_gr);
+    float fl = v->r_fl * exp2_approx(v->r_col);
+    v->r_g = svf_g(e, fl > 900.0f ? 900.0f : fl);
+    v->r_kg = 1.2f + v->r_g;
+    v->r_h = 1.0f / (1.0f + v->r_g * v->r_kg);
+}
+
 NFM_CODE NFM_HOT static void voice_control(nfm_engine *e, nfm_voice *v)
 {
+    if (v->rumble && !v->fading) rumble_control(e, v);
     float pk = v->pitch_k, k8 = pk * pk;
     k8 *= k8;
     k8 *= k8;
@@ -1125,10 +1262,23 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
         /* ducked in ~12 ms (4 ms a pole, to 5 %), not at once: a jump to nothing clicked */
         if (v->r_down) {
             v->r_duck -= v->r_duck * 0.0057f;
-            if (v->r_duck < 0.05f) v->r_down = 0;
+            if (v->r_duck <= v->r_floor) {
+                v->r_down = 0;
+                v->r_floor = 1.0f;
+            }
         } else
             v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
-        x = (lp - v->r_dc) * v->r_duck * v->r_duck;
+        v->r_lv += (v->r_lvg - v->r_lv) * v->r_lvk;
+        /* each step lifts it a little (soft: 8 ms up, 80 ms down to 0.6), so its steps make a rhythm */
+        if (v->r_pup) {
+            v->r_pu += (1.1f - v->r_pu) * (e->inv_sr * (1.0f / 0.008f));
+            if (v->r_pu >= 1.0f) {
+                v->r_pu = 1.0f;
+                v->r_pup = 0;
+            }
+        } else
+            v->r_pu -= v->r_pu * (e->inv_sr * (1.0f / 0.08f));
+        x = (lp - v->r_dc) * v->r_duck * v->r_duck * (1.0f + v->r_lvl) * v->r_lv * (0.6f + 0.4f * v->r_pu);
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */

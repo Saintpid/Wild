@@ -222,8 +222,17 @@ typedef struct {
     uint16_t clap_t, clap_gap;
     float clap_amp, clap_k;
     /* a rumble: high-passed into its own drive, low-passed after, the sub held off, ducked by a kick */
-    uint8_t rumble, r_down;   /* r_down: a kick came, the duck falls */
+    uint8_t rumble, r_down;   /* r_down: a kick (or a step's breath) came, the duck falls to r_floor */
+    uint8_t r_routed;         /* its effects are set: a breath leaves them (a reset drive clicked) */
     float r_pre, r_comp, r_hpk, r_hp, r_x1, r_g, r_kg, r_h, r_s1, r_s2, r_dc, r_dck, r_duck, r_duck_k;
+    /* it plays on (a drone): its floor, the note it glides to, its low-pass at rest, and its drift
+     * (Deviance): level and colour gliding to targets drawn every 0.3..1.2 s */
+    float r_floor, r_f0t, r_fl, r_dev, r_lvl, r_col, r_lvt, r_cot, r_mk, r_nz0, r_nzm, r_nzt;
+    float r_lv, r_lvg, r_lvk;   /* its level, gliding (~50 ms) to the last step's strength */
+    float r_pu;               /* a step's lift: up in ~8 ms, down over ~80 ms, 0.6..1 of its level */
+    uint8_t r_pup;            /* the lift rising */
+    float r_pre0, r_dr, r_drt, r_gr, r_grt, r_mb[NFM_OPS];   /* drift of the drive and the FM grit (the modulators' r_mb) */
+    uint16_t r_mn;
     float fold, crush, crush_rate, crush_acc, crush_hold, crush_q;
     float fade, fade_k;
     /* resonator: TPT state variable bandpass per mode */
@@ -267,6 +276,10 @@ typedef struct {
     /* This slot's hits are never stolen by another's (-1: none): a kick that never drops out. */
     int priority_slot;
     nfm_mod mod[NFM_SLOTS];  /* each sound's modulation effect (type 0: none) */
+    /* The key a rumble sings in (the acid line's): its root, a pitch class above C (-1: none, the
+     * rumble at its own pitch), and its scale, bit n for each pitch class n above the root. */
+    int key;
+    uint16_t key_scale;
 } nfm_engine;
 /* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
  * NFM_MOD_LEN]); without them those two are not played. */
@@ -309,6 +322,10 @@ void nfm_route(nfm_engine *e, int voice, int ins, float send_rev, float send_dly
 int nfm_voice_alive(const nfm_engine *e, int voice, uint32_t age);
 uint32_t nfm_voice_age(const nfm_engine *e, int voice);
 void nfm_stop_all(nfm_engine *e);
+/* A rumble plays on, a drone: its voice (-1: none playing), and its end (faded out over t s). A
+ * trigger on its slot while it plays is a breath (a soft dip, deeper by velocity) and a glide to the note. */
+int nfm_drone(const nfm_engine *e, int slot);
+void nfm_release(nfm_engine *e, int slot, float t);
 
 /* Render n frames, adding nothing: out_l/out_r are overwritten. */
 void nfm_render(nfm_engine *e, float *out_l, float *out_r, int n);

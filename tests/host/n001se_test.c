@@ -84,22 +84,24 @@ int main(int argc, char **argv)
             int j, v, kv;
             float lo = 0.0f, hi = 0.0f, x1 = 0.0f, x2 = 0.0f, h1, before = 0.0f, after = 0.0f;
             nfm_randomize(&re, 3, NFM_KIND_RUMBLE);
+            re.slot[3].macro[NFM_DEVIANCE] = 0.0f;   /* (still: its colour where it was drawn) */
             pitch_ok += re.slot[3].p[NFM_PITCH] > re.slot[0].p[NFM_PITCH] - 0.005f &&
                         re.slot[3].p[NFM_PITCH] < re.slot[0].p[NFM_PITCH] + 0.005f;
             v = nfm_trigger(&re, 3, 1.0f, 0.0f);
-            for (j = 0; j < (int)(0.2f * NE_SR) / 64; j++) {
+            for (j = 0; j < (int)(0.4f * NE_SR) / 64; j++) {   /* (in, 150 ms: then as it plays on) */
                 int i;
                 nfm_render(&re, rl, rr, 64);
                 for (i = 0; i < 64; i++) {       /* its second difference: the highs, +12 dB an octave */
                     h1 = rl[i] - 2.0f * x1 + x2;
                     x2 = x1;
                     x1 = rl[i];
+                    if (j < (int)(0.15f * NE_SR) / 64) continue;
                     lo += rl[i] * rl[i];
                     hi += h1 * h1;
-                    if (j >= (int)(0.15f * NE_SR) / 64) before += rl[i] * rl[i];
+                    if (j >= (int)(0.35f * NE_SR) / 64) before += rl[i] * rl[i];
                 }
             }
-            low_ok += hi < lo * 1e-6f;              /* (low-passed at 8 kHz instead: 7e-6 and up) */
+            low_ok += hi < lo * 1.3e-6f;            /* (here up to 7e-7; low-passed at 8 kHz: 2e-6 and up) */
             kv = nfm_trigger(&re, 0, 1.0f, 0.0f);
             for (j = 0; j < 10; j++) {            /* 10..15 ms on: the rumble alone, ducked */
                 int i;
@@ -152,6 +154,164 @@ int main(int argc, char **argv)
             ss /= (float)(t - 2000);
             CHECK(mx * mx < ss * 0.1f * 0.1f, "rumble %d: a click, (its jump / RMS)^2 %f", d, (double)(mx * mx / (ss > 0.0f ? ss : 1.0f)));
         }
+        /* playing on, its steps still a rhythm: louder just after each sixteenth than just before the next */
+        {
+            int st, j, i, step = (int)(NE_SR * 60.0f / 132.0f / 4.0f);
+            float up = 0.0f, down = 0.0f;
+            nfm_init(&re, NE_SR, 9u);
+            nfm_randomize(&re, 3, NFM_KIND_RUMBLE);
+            re.slot[3].macro[NFM_DEVIANCE] = 0.0f;
+            for (st = 0; st < 16; st++) {
+                nfm_trigger(&re, 3, 1.0f, 0.0f);
+                for (j = 0; j + 64 <= step; j += 64) {
+                    nfm_render(&re, rl, rr, 64);
+                    for (i = 0; i < 64; i++) {
+                        if (st < 4) continue;
+                        if (j >= 1024 && j < 2048) up += rl[i] * rl[i];      /* 23..46 ms on */
+                        if (j >= step - 1088) down += rl[i] * rl[i];         /* its last ~25 ms */
+                    }
+                }
+            }
+            CHECK(up > down * 1.5f, "rumble: its steps no rhythm (after/before %f)", (double)(up / (down > 0.0f ? down : 1.0f)));
+        }
+    }
+    /* a rumble plays on: one voice all along while its steps come at least a quarter apart (each how
+     * strong it is from there), out a quarter after its last, or when muted or stopped */
+    {
+        int dv, age, same = 1, st;
+        ne_init();
+        ne_clear();
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        ne_tset(3, T_BARS, 1);
+        for (st = 2; st < 16; st += 4)           /* the offbeats */
+            ne_step(3, st, 1, st == 2 ? 120 : 60, 0);
+        for (st = 0; st < 16; st += 4)
+            ne_step(0, st, 1, 110, 0);
+        ne_play(1);
+        render(80, 0);                           /* (its first step: the third sixteenth, 0.27 s) */
+        dv = nfm_drone(ne_fm(), 3);
+        CHECK(dv >= 0, "rumble: none playing after its first step");
+        age = dv >= 0 ? (int)ne_fm()->voice[dv].age : -1;
+        for (i = 0; i < 8; i++) {                /* ~2 s, its steps and the kicks among them */
+            render(40, 0);
+            same &= nfm_drone(ne_fm(), 3) == dv && (int)ne_fm()->voice[dv].age == age;
+        }
+        CHECK(same, "rumble: not one voice all along");
+        CHECK(dv >= 0 && ne_fm()->voice[dv].r_lvg < 0.5f, "rumble: not as soft as its last step");
+        ne_tset(3, T_MUTE, 1);
+        render(80, 0);
+        CHECK(nfm_drone(ne_fm(), 3) < 0 && ne_fm()->voice[dv].slot < 0, "rumble: still playing muted");
+        ne_tset(3, T_MUTE, 0);
+        render(40, 0);
+        CHECK(nfm_drone(ne_fm(), 3) >= 0, "rumble: not back when unmuted");
+        /* only the first of the bar's steps: out before the bar's end (a quarter, then 120 ms) */
+        ne_step(3, 6, 0, 0, 0);
+        ne_step(3, 10, 0, 0, 0);
+        ne_step(3, 14, 0, 0, 0);
+        {
+            int gone = 0, back = 0;
+            for (i = 0; i < 800; i++) {          /* ~4.6 s, 2 bars and more at 112 */
+                render(1, 0);
+                if (nfm_drone(ne_fm(), 3) < 0) gone = 1;
+                else if (gone) back = 1;
+            }
+            CHECK(gone && back, "rumble: a quarter without a step, not out (%d) and back (%d)", gone, back);
+        }
+        ne_play(0);
+        render(80, 0);
+        CHECK(nfm_drone(ne_fm(), 3) < 0, "rumble: still playing stopped");
+    }
+    /* a rumble's line: its notes a small walk on the scale, a drum's back on the root; and it glides */
+    {
+        int st, prev = 99, big = 0, off = 0, tones = 0, odd = 0, n = 0, dv;
+        const nseq_track *tr = &ne_seq()->track[3];
+        ne_init();
+        ne_clear();
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        ne_tset(3, T_BARS, 4);
+        ne_tset(3, T_HITLO, 24);
+        ne_tset(3, T_HITHI, 24);
+        for (i = 0; i < 8; i++) {
+            ne_generate(3);
+            render(1, 0);
+            prev = 99;
+            for (st = 0; st < tr->length; st++) {
+                int v = tr->step[st].note;
+                if (!tr->step[st].on) continue;
+                n++;
+                if (v) tones++;
+                if (v < -7 || v > 3 || v == -6 || v == -4 || v == -3 || v == -1 || v == 1 || v == 2) odd++;
+                if (prev != 99 && (v - prev > 5 || prev - v > 5)) big++;
+                prev = v;
+            }
+        }
+        CHECK(odd == 0, "rumble line: %d notes off its scale", odd);
+        CHECK(big == 0, "rumble line: %d leaps over a fourth", big);
+        CHECK(tones > n / 4 && tones < n * 3 / 4, "rumble line: %d of %d off the root", tones, n);
+        ne_new_sound(3, NFM_KIND_KICK);
+        render(1, 0);
+        for (st = 0; st < tr->length; st++) off |= tr->step[st].note;
+        CHECK(off == 0, "rumble line: still on a kick");
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        render(1, 0);
+        for (st = 0; st < tr->length; st++) off |= tr->step[st].note;
+        CHECK(off != 0, "rumble line: none on a new rumble");
+        /* the glide: a fifth down, a third of it left after 30 ms, done by 400 ms */
+        ne_clear();
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        ne_tset(3, T_BARS, 1);
+        for (st = 0; st < 16; st += 2)
+            ne_step(3, st, 1, 100, st < 8 ? 0 : -7);
+        ne_play(1);
+        {
+            float f0 = 0.0f, f1 = 0.0f, f2 = 0.0f;
+            int k;
+            for (k = 0; k < 2000 && !f1; k++) {
+                render(1, 0);
+                dv = nfm_drone(ne_fm(), 3);
+                if (dv < 0) continue;
+                if (!f0) f0 = ne_fm()->voice[dv].f0;
+                if (ne_fm()->voice[dv].r_f0t < f0 * 0.8f) {
+                    float to = ne_fm()->voice[dv].r_f0t, from = f0;
+                    render(5, 0);                /* ~29 ms */
+                    f1 = (ne_fm()->voice[dv].f0 - to) / (from - to);
+                    render(65, 0);               /* ~400 ms */
+                    f2 = (ne_fm()->voice[dv].f0 - to) / (from - to);
+                }
+            }
+            CHECK(f1 > 0.33f && f2 < 0.02f, "rumble glide: %f left at 30 ms, %f at 400 ms", (double)f1, (double)f2);
+        }
+        ne_play(0);
+        render(80, 0);
+    }
+    /* a rumble sings in the acid line's key: major on D, its minor third (3) sung as the major second, E */
+    {
+        static const int8_t pcs[] = { 2, 4, 2, 4 };     /* the root, D; and 3 -> 2 above it, E */
+        static const float ratio[12] = { 1.0f, 1.0594631f, 1.1224620f, 1.1892071f, 1.2599210f };
+        int st, bad = 0, k;
+        float last = 0.0f;
+        ne_init();
+        ne_clear();
+        ne_aset(A_SCALE, 6);
+        ne_aset(A_TUNE, 2);
+        ne_new_sound(3, NFM_KIND_RUMBLE);
+        ne_tset(3, T_BARS, 1);
+        for (st = 0; st < 16; st += 4)
+            ne_step(3, st, 1, 100, st % 8 ? 3 : 0);
+        ne_play(1);
+        for (k = 0; k < 4; k++) {
+            float r;
+            int dv;
+            render(k ? 92 : 70, 0);              /* late in each quarter at 112 (92 blocks) */
+            dv = nfm_drone(ne_fm(), 3);
+            r = dv >= 0 ? ne_fm()->voice[dv].f0 / 32.703196f : 0.0f;
+            while (r >= 2.0f) r *= 0.5f;
+            while (r > 0.0f && r < 1.0f) r *= 2.0f;
+            if (r < ratio[pcs[k]] * 0.995f || r > ratio[pcs[k]] * 1.005f) bad++, last = r;
+        }
+        CHECK(bad == 0, "rumble key: %d of 4 quarters off D major (last %f)", bad, (double)last);
+        ne_play(0);
+        render(80, 0);
     }
     ne_init();
     if (argc > 1) {
