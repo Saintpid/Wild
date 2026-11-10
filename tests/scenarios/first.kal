@@ -1,6 +1,6 @@
 # a first look and listen: the starting set, eight bars of it, the phrase's last bar counting in
 # (G_: 0 Tempo 1 Swing 2 Loose 3 Max hits 4 Chaos 5 Motion 6 Reverb 7 Delay 8 Filter 9 Drive 10 Level 11 MIDI ch
-#  T_: 0 Bars 1 Rnd len 2 Hits min 3 Hits max 4 Pitch 5 Evolve 6 Kind 7 Mute 8 Deviance 9 Length 10 Edge 11 Ring
+#  T_: 0 Bars 1 Rnd len 2 Less 3 Fill 4 Pitch 5 Evolve 6 Kind 7 Mute 8 Deviance 9 Length 10 Edge 11 Ring
 #  12 Ring tone 13 Level)
 wait 300
 shot home.png

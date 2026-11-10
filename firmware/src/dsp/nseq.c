@@ -126,11 +126,11 @@ NFM_CODE void nseq_generate(nseq *q, int t)
     nseq_track *tr = &q->track[t];
     const uint8_t *prof = track_profile(q, t);
     if (tr->len_random) random_length(q, tr);
-    int len = tr->length, lo = tr->hits_min, hi = tr->hits_max, bar = nseq_bar(tr);
+    int len = tr->length, bar = nseq_bar(tr);
+    int hi = (len * tr->hits_fill + 50) / 100;
+    int reduction = hi * tr->hits_less / 100;
+    int count = hi - reduction + (int)(rnd(&q->rng) % (unsigned)(reduction + 1));
     float *w = work;
-    if (hi < lo) { int x = hi; hi = lo; lo = x; }
-    int count = lo + (int)(rnd(&q->rng) % (unsigned)(hi - lo + 1));
-    if (count > len) count = len;
 
     nfm_zero(tr->step, sizeof tr->step);
     for (int s = 0; s < len; ++s) w[s] = (float)prof[s % bar] * (0.8f + 0.4f * rndf(&q->rng));
@@ -191,22 +191,22 @@ NFM_CODE void nseq_init(nseq *q, nfm_engine *engine, uint32_t seed)
     /* A sparse starting set with different lengths, so it drifts. */
     /* Kick, snare and hat keep fixed lengths as the anchor; the rest draw
      * their length (up to rnd bars) each time a pattern is made. */
-    NFM_DATA static const struct { uint8_t len, lo, hi, pitch, evolve, mute, rnd; } start[8] = {
-        { 32, 3, 5, 0, 10, 0, 0 },   /* kick, 2 bars */
-        { 32, 2, 4, 0, 0, 0, 0 },    /* snare, 2 bars */
-        { 16, 3, 6, 0, 20, 0, 0 },   /* hat, 1 bar */
-        { 24, 2, 4, 5, 25, 0, 3 },   /* perc */
-        { 13, 1, 2, 0, 30, 0, 2 },   /* click */
-        { 64, 1, 3, 7, 20, 1, 4 },   /* metal */
-        { 20, 1, 3, 5, 25, 1, 2 },   /* perc */
-        { 7, 1, 2, 0, 30, 1, 1 },    /* hat */
+    NFM_DATA static const struct { uint8_t len, less, fill, pitch, evolve, mute, rnd; } start[8] = {
+        { 32, 40, 16, 0, 10, 0, 0 },   /* kick, 2 bars */
+        { 32, 50, 13, 0, 0, 0, 0 },    /* snare, 2 bars */
+        { 16, 50, 38, 0, 20, 0, 0 },   /* hat, 1 bar */
+        { 24, 50, 17, 5, 25, 0, 3 },   /* perc */
+        { 13, 50, 15, 0, 30, 0, 2 },   /* click */
+        { 64, 67, 5, 7, 20, 1, 4 },    /* metal */
+        { 20, 67, 15, 5, 25, 1, 2 },   /* perc */
+        { 7, 50, 29, 0, 30, 1, 1 },    /* hat */
     };
     for (int t = 0; t < NSEQ_TRACKS; ++t) {
         nseq_track *tr = &q->track[t];
         int i = t & 7;
         tr->length = start[i].len;
-        tr->hits_min = start[i].lo;
-        tr->hits_max = start[i].hi;
+        tr->hits_less = start[i].less;
+        tr->hits_fill = start[i].fill;
         tr->pitch_range = start[i].pitch;
         tr->evolve = start[i].evolve;
         tr->mute = start[i].mute;
@@ -246,13 +246,11 @@ NFM_CODE void nseq_set_length(nseq *q, int t, int steps)
     if (q->track[t].pos >= steps) q->track[t].pos = 0;
 }
 
-NFM_CODE void nseq_set_hits(nseq *q, int t, int lo, int hi)
+NFM_CODE void nseq_set_hits(nseq *q, int t, int less, int fill)
 {
     if (!track_ok(t)) return;
-    lo = lo < 0 ? 0 : lo > NSEQ_MAX_STEPS ? NSEQ_MAX_STEPS : lo;
-    hi = hi < lo ? lo : hi > NSEQ_MAX_STEPS ? NSEQ_MAX_STEPS : hi;
-    q->track[t].hits_min = (uint8_t)lo;
-    q->track[t].hits_max = (uint8_t)hi;
+    q->track[t].hits_less = (uint8_t)(less < 0 ? 0 : less > 100 ? 100 : less);
+    q->track[t].hits_fill = (uint8_t)(fill < 0 ? 0 : fill > 100 ? 100 : fill);
 }
 
 NFM_CODE void nseq_set_step(nseq *q, int t, int s, int on, int vel, int note)

@@ -1,4 +1,6 @@
-# Wild 0.3.35 - experimental FM-1 firmware
+# Wild 0.3.37 - experimental FM-1 firmware
+
+**0.3.37:** Fill and Less set drum pattern density as percentages, so it follows the track length.
 
 **0.3.35:** Rumble no longer clicks when a new note or a kick cuts it off.
 
@@ -86,8 +88,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.35.fwsc, identity FM-1_869.
-- USB name: Wild FM-1. Screen: Wild 0.3.35.
+- Installable package: build/Wild-0.3.37.fwsc, identity FM-1_871.
+- USB name: Wild FM-1. Screen: Wild 0.3.37.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -95,7 +97,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.35 --id 869
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.37 --id 871
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -144,8 +146,9 @@ command.
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
   now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
-  the tracks drift against each other. Hits minÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“max sets how many hits a new pattern gets, and Evolve
-  now and then moves a hit when the loop comes round. Any track, the 303 too, can run in
+  the tracks drift against each other. Fill requests a percentage of the available steps, and Less lets
+  the generator remove up to a percentage of those hits. Evolve now and then moves a hit when the
+  loop comes round. Any track, the 303 too, can run in
   **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
   keys 1–12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
   quarters most: each is strong or soft (the step keys' two strengths), and **Dynamics** (Rhythm

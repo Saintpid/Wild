@@ -107,6 +107,18 @@ int main(void)
     assert(project_preset_save(2) == 0);
     clear_all(); assert(project_preset_load(2) == 0);
     assert(proj_bank_has(7) && lane_count(7) == 1);
+    /* Format 16 stores absolute counts in the same slots. Load through the song path. */
+    saved = proj;
+    saved.format = 16;
+    saved.t[0][T_BARS] = 2;
+    saved.t[0][T_RANDLEN] = 0;
+    saved.t[0][T_HITLESS] = 12;
+    saved.t[0][T_HITFILL] = 16;
+    assert(plat_preset_save(4, &saved, sizeof saved) == 0);
+    assert(project_preset_load(4) == 0);
+    assert(proj.format == PROJ_FORMAT && proj.t[0][T_HITLESS] == 25 && proj.t[0][T_HITFILL] == 50);
+    assert(!memcmp(&proj.st, &saved.st, sizeof proj.st));
+    assert(project_preset_load(2) == 0);
     /* A legacy song containing banks 9-12 is rejected before ANY state changes or writes. */
     legacy[0] = proj; legacy[1] = proj;
     legacy[0].bank = 8; legacy[1].bank = 9;

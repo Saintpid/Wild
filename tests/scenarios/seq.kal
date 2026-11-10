@@ -78,16 +78,26 @@ tapkey b5
 wait 20
 expect mute 0
 tap OCT-
-# black 10: a new pattern; Hits min up to 7 pushes max to 7: exactly 7
-spin K2 4
-expect tpar2 7
-expect tpar3 7
+# black 10: Fill 50% and Less 0% yield an exact count at each length
+spin K2 -40
+spin K3 34
+expect tpar2 0
+expect tpar3 50
 tapkey b9
 wait 20
-expect hits 7
-# the range keeps its order: min over max pushes max
-spin K2 3
-expect tpar3 10
+expect hits 16
+spin K1 -1
+tapkey b9
+wait 20
+expect len 16
+expect hits 8
+spin K2 25
+tapkey b9
+wait 20
+expect tpar2 25
+expect tpar3 50
+expect hits >5
+expect hits <9
 # black 11: a new sound, same kind
 tapkey b10
 wait 20

@@ -72,6 +72,23 @@ static void project_upgrade(void)
         for (i = 0; i < 4; i++)
             proj.g[FXG[i]] = ne_param_info(FXG[i])->def;
     }
+    if (f < 17u) {
+        for (t = 0; t < NE_TRACKS; t++) {
+            int16_t *tp = proj.t[t];
+            int lo = tp[T_HITLESS], hi = tp[T_HITFILL];
+            int bar = tp[T_GRID] == 1 ? NSEQ_TBAR : NSEQ_BAR;
+            int bars = tp[T_BARS], len = proj.st.len[t];
+            if (!tp[T_RANDLEN] || len < 1 || len > 8 * bar)
+                len = (bars >= 1 && bars <= 8 ? bars : ne_tparam_def(t, T_BARS)) * bar;
+            /* Approximate the old range at the reference length; keep the pattern intact. */
+            if (hi < 1 || hi > 64) hi = 4;
+            if (lo < 1 || lo > 64) lo = 2;
+            if (hi > len) hi = len;
+            if (lo > hi) lo = hi;
+            tp[T_HITFILL] = (int16_t)((hi * 100 + len / 2) / len);
+            tp[T_HITLESS] = (int16_t)(((hi - lo) * 100 + hi - 1) / hi);
+        }
+    }
 }
 
 /* the bytes a project of format f takes */

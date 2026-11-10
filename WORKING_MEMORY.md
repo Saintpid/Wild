@@ -1,3 +1,20 @@
+# Wild 0.3.37 / 871 - 2026-11-10
+
+- Drum HOME page: K2 Less and K3 Fill replace the old absolute min/max.
+  Round the requested fill to the nearest hit, then draw uniformly from that
+  count down to the maximum whole-hit reduction. Use the generated length
+  after random length selection, including triplets and shortened bars.
+- Project format 17 retains the same layout and parameter indices. Older
+  projects convert their drum generator settings using fixed bars or the saved
+  random length as the reference. Stored patterns are copied as before.
+- Resource-checked build and full host/UBSan/package suite pass. Image 190128 B,
+  data/BSS 81044/90112 B, RAM code 35988/40960 B, pool 335364/344064 B.
+  Logs: build/wild-0.3.37-build.log and build/wild-0.3.37-tests.log.
+- Version 0.3.36 / 870 is in use by the separate Rumble PR #43.
+- The local 0.3.30 worktree was backed up in stash
+  "Wild local 0.3.30 before density sync 2026-11-10". Its bank changes are already
+  in Saintpid/Wild main via c4766cc. Publish only to wild-source, not origin.
+
 # Wild 0.3.30 / 864 - 2026-11-04
 
 - Canonical local workspace: C:/Projects/M-Vave FM1 n001se/Wild, branch wild.

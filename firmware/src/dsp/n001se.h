@@ -61,7 +61,7 @@ enum {
 enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };
 /* per-track parameters */
 enum {
-    T_BARS, T_RANDLEN, T_HITLO, T_HITHI,
+    T_BARS, T_RANDLEN, T_HITLESS, T_HITFILL,
     T_PITCH, T_EVOLVE, T_KIND, T_MUTE,
     T_DEV, T_STRESS, T_SPIKE, T_BLEED,
     T_FLUID, T_LEVEL,
