@@ -48,8 +48,8 @@ typedef struct {
 typedef struct {
     nseq_step step[NSEQ_MAX_STEPS];
     uint8_t length;      /* steps, 1..128 */
-    uint8_t hits_min;    /* hits for the whole track, drawn at generate */
-    uint8_t hits_max;
+    uint8_t hits_less;   /* maximum reduction as a percentage of requested hits */
+    uint8_t hits_fill;   /* percentage of the generated track length to fill */
     uint8_t pitch_range; /* semitones up and down, 0 = always the root */
     uint8_t evolve;      /* 0..100: % chance per loop that one hit moves */
     uint8_t mute;
@@ -104,7 +104,7 @@ void nseq_generate_all(nseq *q);   /* unlocked tracks only */
 
 /* Live edits. Length changes keep the steps beyond the new end. */
 void nseq_set_length(nseq *q, int track, int steps);
-void nseq_set_hits(nseq *q, int track, int lo, int hi);
+void nseq_set_hits(nseq *q, int track, int less, int fill);
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
 enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM,

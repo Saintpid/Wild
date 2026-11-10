@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.37
+
+Firmware identity FM-1_871. Drum pattern density follows the generated length.
+
+- Fill sets the share of available steps to fill. Less sets how much of that hit count
+  can be removed at random. Fill 50% and Less 25% give 6–8 hits in one 16-step bar
+  and 12–16 hits in two bars. Less 0% gives an exact count.
+- Triplets and random lengths use the actual number of available steps. Older songs
+  and banks keep their patterns and convert their generator settings to percentages.
+
 ## 0.3.35
 
 Firmware identity FM-1_869. Rumble without clicks.

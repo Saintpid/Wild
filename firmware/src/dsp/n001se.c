@@ -62,8 +62,8 @@ static const ne_param_t GP[G_NPARAMS] = {
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
     [T_RANDLEN] = {"Rnd len", 0, 8, 0},
-    [T_HITLO] = {"Hits min", 1, 64, 2},
-    [T_HITHI] = {"Hits max", 1, 64, 4},
+    [T_HITLESS] = {"Less", 0, 100, 50},
+    [T_HITFILL] = {"Fill", 0, 100, 13},
     [T_PITCH] = {"Pitch", 0, 24, 0},
     [T_EVOLVE] = {"Evolve", 0, 100, 10},
     [T_KIND] = {"Kind", 0, NFM_KINDS - 1, 0},
@@ -121,17 +121,17 @@ const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 3, 5, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
-    {2, 0, 2, 4, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
-    {1, 0, 3, 6, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
-    {2, 3, 2, 4, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 40, 16, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 50, 13, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
+    {1, 0, 50, 38, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
+    {2, 3, 50, 13, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
 static const uint8_t PKNOB[] = {
     G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTATE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
     G_HICUT, G_LOCUT, G_RESO,
-    NE_PK_TRACK | T_HITLO, NE_PK_TRACK | T_HITHI, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
+    NE_PK_TRACK | T_HITLESS, NE_PK_TRACK | T_HITFILL, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
     NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
     NE_PK_TRACK | T_MODAMT, NE_PK_TRACK | T_MODRATE, NE_PK_TRACK | T_MODCHANCE,
@@ -210,6 +210,11 @@ void ne_param_text(int i, int v, char *b)
 void ne_tparam_text(int i, int v, char *b)
 {
     switch (i) {
+    case T_HITLESS: case T_HITFILL:
+        itoa_s(v, b);
+        while (*b) b++;
+        cpy(b, "%");
+        return;
     case T_KIND: cpy(b, ne_kind_name(v)); return;
     case T_MUTE: cpy(b, v ? "Muted" : "On"); return;
     case T_RANDLEN: if (v) { b[0] = '1'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Fixed"); return;
@@ -787,8 +792,7 @@ static void tset_k(int t, int p, int v, int keep)
         nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v);
         if (!v && !keep) nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
         break;
-    case T_HITLO: nseq_set_hits(&seq, t, v, tpar[t][T_HITHI] < v ? v : tpar[t][T_HITHI]); break;
-    case T_HITHI: nseq_set_hits(&seq, t, tpar[t][T_HITLO] > v ? v : tpar[t][T_HITLO], v); break;
+    case T_HITLESS: case T_HITFILL: nseq_set_hits(&seq, t, tpar[t][T_HITLESS], tpar[t][T_HITFILL]); break;
     case T_PITCH: nseq_set_flag(&seq, t, NSEQ_FLAG_PITCH_RANGE, v); break;
     case T_EVOLVE: nseq_set_flag(&seq, t, NSEQ_FLAG_EVOLVE, v); break;
     case T_MUTE: nseq_set_flag(&seq, t, NSEQ_FLAG_MUTE, v); break;

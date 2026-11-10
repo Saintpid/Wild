@@ -171,8 +171,10 @@ The drum tracks (tracks 1â€“4):
 
 PATTERN (HOME)
   Bars       The pattern's length, 1â€“8 bars
-  Hits min   The fewest hits in the pattern
-  Hits max   The most hits in the pattern (equal to min = exactly that many)
+  Less       0–100% of the requested hits may be removed at random. 0% gives the requested count.
+  Fill       0–100% of the new pattern's steps. The requested count is rounded to the nearest hit.
+             Fill 50% and Less 25% give 6–8 hits in 16 steps or 12–16 in 32 steps.
+             Triplets and random lengths use the number of steps in the generated pattern.
   Evolve     Chance in % per loop that one step of the pattern changes
 
 RHYTHM (HOME, page 2)

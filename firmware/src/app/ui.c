@@ -60,7 +60,7 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
     {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
-    {KT | T_BARS, KT | T_HITLO, KT | T_HITHI, KT | T_EVOLVE},
+    {KT | T_BARS, KT | T_HITLESS, KT | T_HITFILL, KT | T_EVOLVE},
     {KT | T_GRID, KT | T_DYN, K_NONE, K_NONE},       /* HOME again: the steps, sixteenths or triplets; how soft */
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
@@ -229,11 +229,6 @@ static void tpar_set(int t, int p, int v)
         ne_regrid(t, v);
     else
         ne_tset(t, p, v);
-    /* the hit range stays a range: the other end follows */
-    if (p == T_HITLO && proj.t[t][T_HITHI] < v)
-        tpar_set(t, T_HITHI, v);
-    if (p == T_HITHI && proj.t[t][T_HITLO] > v)
-        tpar_set(t, T_HITLO, v);
     mark_dirty();
 }
 
@@ -1612,7 +1607,7 @@ static int recording_active(void) { return rec_n != 0; }
 static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
 static int auto_ok(int k)
 {
-    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLO, T_HITHI}, NOT_A[] = {A_BARS, A_GRID},
+    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL}, NOT_A[] = {A_BARS, A_GRID},
                          NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
     const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
     uint32_t n = k & KT ? sizeof NOT_T : k & KA ? sizeof NOT_A : sizeof NOT_G, i;

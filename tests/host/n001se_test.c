@@ -184,18 +184,29 @@ int main(int argc, char **argv)
         fwrite(&n, 4, 1, wav);
         fclose(wav);
     }
-    /* the hit range: a new pattern with min = max has exactly that many hits */
-    for (t = 0; t < NE_TRACKS; t++) {
-        int n = 0;
-        ne_tset(t, T_RANDLEN, 0);
-        ne_tset(t, T_BARS, 4);
-        ne_tset(t, T_HITHI, 9);
-        ne_tset(t, T_HITLO, 9);
-        ne_generate(t);
-        render(1, 0);
-        for (i = 0; i < ne_seq()->track[t].length; i++)
-            n += ne_seq()->track[t].step[i].on;
-        CHECK(n == 9 && ne_seq()->track[t].length == 64, "track %d: %d hits in %d steps", t, n, ne_seq()->track[t].length);
+    /* Fill uses the length chosen for this pattern, including shortened random bars. */
+    for (int random = 0; random <= 1; random++) {
+        const nseq_track *tr = &ne_seq()->track[0];
+        ne_tset(0, T_RANDLEN, random ? 8 : 0);
+        for (int bars = 1; bars <= 2; bars++) {
+            ne_tset(0, T_BARS, bars);
+            for (int fill = 0; fill <= 100; fill += 50)
+                for (int less = 0; less <= 25; less += 25) {
+                    ne_tset(0, T_HITFILL, fill);
+                    ne_tset(0, T_HITLESS, less);
+                    for (int draw = 0; draw < 16; draw++) {
+                        int n = 0;
+                        ne_generate(0);
+                        render(1, 0);
+                        for (i = 0; i < tr->length; i++) n += tr->step[i].on;
+                        int hi = (tr->length * fill + 50) / 100;
+                        int lo = hi - hi * less / 100;
+                        CHECK(random || tr->length == bars * NE_BAR, "fixed length %d steps", tr->length);
+                        CHECK(n >= lo && n <= hi, "fill %d less %d: %d hits in %d steps, expected %d-%d",
+                              fill, less, n, tr->length, lo, hi);
+                    }
+                }
+        }
     }
     /* Chaos and swing at full: glitches come, a beat repeat never longer than an eighth */
     ne_init();
@@ -265,8 +276,8 @@ int main(int argc, char **argv)
             ne_tset(t, T_SPIKE, 100);
             ne_tset(t, T_DRIVE, 100);
             ne_tset(t, T_BARS, 1);
-            ne_tset(t, T_HITHI, 8);
-            ne_tset(t, T_HITLO, 8);
+            ne_tset(t, T_HITFILL, 50);
+            ne_tset(t, T_HITLESS, 0);
             ne_generate(t);
         }
         pk = render(bars, 0);
@@ -389,8 +400,8 @@ int main(int argc, char **argv)
               (unsigned)first);
         CHECK(asteps == 24 && abad == 0, "acid triplets: %d steps, %d off the grid", asteps, abad);
         /* a new pattern in triplets: its hits within its length, on the grid's steps */
-        ne_tset(0, T_HITLO, 6);
-        ne_tset(0, T_HITHI, 6);
+        ne_tset(0, T_HITLESS, 0);
+        ne_tset(0, T_HITFILL, 50);
         ne_tset(0, T_BARS, 3);
         ne_generate(0);
         ne_generate(NE_ACID);
@@ -399,7 +410,7 @@ int main(int argc, char **argv)
             n += tr->step[i].on && i < tr->length;
         for (i = asteps = 0; i < NE_ASTEPS; i++)
             asteps += (ne_acid()->step[i].flags & NACID_ON) && i >= 4 * 12;   /* (four bars drawn, as in 16ths) */
-        CHECK(tr->length == 36 && n == 6 && asteps == 0, "triplets: a new pattern %d steps, %d hits; acid notes past four bars %d",
+        CHECK(tr->length == 36 && n == 18 && asteps == 0, "triplets: a new pattern %d steps, %d hits; acid notes past four bars %d",
               tr->length, n, asteps);
     }
     /* two strengths, then Dynamics: at 0 each new hit is strong (127) or soft (NSEQ_VEL_SOFT), strong
@@ -411,8 +422,8 @@ int main(int argc, char **argv)
         ne_init();
         ne_tset(1, T_RANDLEN, 0);
         ne_tset(1, T_BARS, 8);
-        ne_tset(1, T_HITHI, 64);
-        ne_tset(1, T_HITLO, 64);
+        ne_tset(1, T_HITFILL, 50);
+        ne_tset(1, T_HITLESS, 0);
         for (d = 0; d < 2; d++) {
             ne_tset(1, T_DYN, d ? 100 : 0);
             for (i = 0; i < 60; i++) {
