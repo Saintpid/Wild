@@ -1057,13 +1057,14 @@ NFM_CODE uint32_t nfm_voice_age(const nfm_engine *e, int voice)
 
 #define CTL_STEP 8
 
-/* a rumble playing on, every 8 frames: its glide to the note (~15 ms), and its drift by Deviance (0:
+/* a rumble playing on, every 8 frames: its glide to the note (90 ms, a sung slide, never a jump),
+ * and its drift by Deviance (0:
  * still): its level +-30 %, its low-pass +-0.8 octave, its noise 0.1..1.9 x, its drive +-40 % and its
  * FM grit (the modulators) +-60 %, each to a target of its own drawn every 0.3..1.2 s */
 NFM_CODE NFM_HOT static void rumble_control(nfm_engine *e, nfm_voice *v)
 {
     float dev = e->slot[v->slot].macro[NFM_DEVIANCE];
-    v->f0 += (v->r_f0t - v->f0) * 0.06f;
+    v->f0 += (v->r_f0t - v->f0) * ((float)CTL_STEP * (1.0f / 0.09f) * e->inv_sr);
     if (dev <= 0.0f && v->r_lvl == 0.0f && v->r_col == 0.0f && v->r_nzm == 0.0f && v->r_dr == 0.0f && v->r_gr == 0.0f)
         return;
     if (v->r_mn == 0) {

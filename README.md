@@ -3,7 +3,8 @@
 **0.3.36: Rumble plays on.** A bed under the track, one tone with no hits, that every kick ducks.
 Each step lifts it softly, so its steps make a rhythm, and sets how strong it is; a quarter
 without a step and it fades out (120 ms).
-Deviance lets its level, colour, noise, drive and FM grit drift; at 0 it is still.
+It sings a small line: its steps get notes close together on a minor pentatonic, and it glides
+between them. Deviance lets its level, colour, noise, drive and FM grit drift; at 0 it is still.
 
 **0.3.35:** Rumble no longer clicks when a new note or a kick cuts it off.
 
@@ -136,8 +137,9 @@ command.
   perc, click, metal, clap or rumble, and perc, click and metal land in a random octave. A rumble is a
   techno rumble, a bed under the track rather than hits: driven and kept low (high-passed into its
   drive, low-passed after), at the kick's pitch, ducked by every kick so it pumps in between. Each step
-  lifts it a little (a rhythm in one tone) and says how strong it is from there; a quarter without
-  one and it fades out. With Deviance its level,
+  lifts it a little (a rhythm) and says how strong it is from there; a quarter without
+  one and it fades out. A new pattern gives its steps a small line (a minor pentatonic, from a fifth
+  below to a minor third above, mostly a scale step at a time) and it glides between the notes (90 ms). With Deviance its level,
   colour, noise, drive and FM grit drift slowly.
 - **An acid line** (track 5) after the TB-303: saw, square, pulse, tri, sine or duo through a model
   of the 303's diode ladder filter (Open303's TeeBeeFilter, its diodes bending a little), calibrated as [Open303](https://sourceforge.net/projects/open303/) (Robin Schmidt) measured a

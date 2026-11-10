@@ -106,6 +106,9 @@ void nseq_generate_all(nseq *q);   /* unlocked tracks only */
 /* Live edits. Length changes keep the steps beyond the new end. */
 void nseq_set_length(nseq *q, int track, int steps);
 void nseq_set_hits(nseq *q, int track, int lo, int hi);
+/* A track's sound became a rumble (rumble 1: a line, if all its steps are on the root) or a drum
+ * again (0: all on the root). */
+void nseq_retone(nseq *q, int track, int rumble);
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
 enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM,

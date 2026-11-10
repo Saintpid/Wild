@@ -13,10 +13,15 @@ Firmware identity FM-1_870. Rumble plays on: a bed, not hits.
   swells back; Stress sets how fast (30..150 ms).
 - **Its steps are its rhythm and how strong it is,** not on/off: each step lifts it a little, softly
   (up in ~8 ms, back down to 0.6 over ~80 ms), so programmed steps make a rhythm in one tone, and it
-  glides (~50 ms) to that step's strength and its note. A quarter without a step, a mute or STOP, and it fades out in 120 ms; the
+  glides (~50 ms) to that step's strength. A quarter without a step, a mute or STOP, and it fades out in 120 ms; the
   next step brings it in again. So the pattern says where it plays and how much.
 - **Deviance makes it live:** its level, its colour, how much noise is in it, its drive and its FM
   grit drift slowly, each to a new place every 0.3..1.2 s. At 0 it stays still: only the kicks move it.
+- **It sings a line:** a new pattern gives its steps notes, a small walk on a minor pentatonic
+  (from a fifth below to a minor third above its pitch), mostly one scale step at a time, never more
+  than a fourth, and pulled back to its root. It glides from note to note (90 ms), never a jump. Hold a
+  step and turn KNOB 2 to change its note. A track turned into a rumble gets a line if its steps were all
+  on the root; turned back into a drum, its steps go back to the root.
 - It sits 5 dB lower than before, as it plays on. A new sound on its track hands over in 150 ms.
 
 ## 0.3.35
