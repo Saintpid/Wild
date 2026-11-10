@@ -600,6 +600,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
             nfm_voice *v = &e->voice[d];
             velocity = clamp01(velocity);
             v->r_lvg = velocity * (0.4f + 0.6f * velocity);
+            v->r_pup = 1;                  /* and a lift: a rhythm in it, no new tone */
             v->r_f0t = param_map(NFM_PITCH, sl->p[NFM_PITCH]) * exp2_approx((transpose + sl->tune) * (1.0f / 12.0f));
             return d;
         }
@@ -724,6 +725,8 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
         v->r_lv = 0.0f;
         v->r_lvg = r_lvg;
         v->r_lvk = e->inv_sr * (1.0f / 0.05f);
+        v->r_pu = 0.0f;
+        v->r_pup = 1;
         v->r_pre0 = v->r_pre;
         for (int k = 0; k < NFM_OPS; ++k) v->r_mb[k] = (v->carriers >> k & 1) ? 0.0f : v->env[k];
         v->r_f0t = v->f0;
@@ -1242,7 +1245,16 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
         } else
             v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
         v->r_lv += (v->r_lvg - v->r_lv) * v->r_lvk;
-        x = (lp - v->r_dc) * v->r_duck * v->r_duck * (1.0f + v->r_lvl) * v->r_lv;
+        /* each step lifts it a little (soft: 8 ms up, 80 ms down to 0.6), so its steps make a rhythm */
+        if (v->r_pup) {
+            v->r_pu += (1.1f - v->r_pu) * (e->inv_sr * (1.0f / 0.008f));
+            if (v->r_pu >= 1.0f) {
+                v->r_pu = 1.0f;
+                v->r_pup = 0;
+            }
+        } else
+            v->r_pu -= v->r_pu * (e->inv_sr * (1.0f / 0.08f));
+        x = (lp - v->r_dc) * v->r_duck * v->r_duck * (1.0f + v->r_lvl) * v->r_lv * (0.6f + 0.4f * v->r_pu);
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */

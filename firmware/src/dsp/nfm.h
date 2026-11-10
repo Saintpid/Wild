@@ -229,6 +229,8 @@ typedef struct {
      * (Deviance): level and colour gliding to targets drawn every 0.3..1.2 s */
     float r_floor, r_f0t, r_fl, r_dev, r_lvl, r_col, r_lvt, r_cot, r_mk, r_nz0, r_nzm, r_nzt;
     float r_lv, r_lvg, r_lvk;   /* its level, gliding (~50 ms) to the last step's strength */
+    float r_pu;               /* a step's lift: up in ~8 ms, down over ~80 ms, 0.6..1 of its level */
+    uint8_t r_pup;            /* the lift rising */
     float r_pre0, r_dr, r_drt, r_gr, r_grt, r_mb[NFM_OPS];   /* drift of the drive and the FM grit (the modulators' r_mb) */
     uint16_t r_mn;
     float fold, crush, crush_rate, crush_acc, crush_hold, crush_q;

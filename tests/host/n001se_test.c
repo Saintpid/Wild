@@ -154,6 +154,26 @@ int main(int argc, char **argv)
             ss /= (float)(t - 2000);
             CHECK(mx * mx < ss * 0.1f * 0.1f, "rumble %d: a click, (its jump / RMS)^2 %f", d, (double)(mx * mx / (ss > 0.0f ? ss : 1.0f)));
         }
+        /* playing on, its steps still a rhythm: louder just after each sixteenth than just before the next */
+        {
+            int st, j, i, step = (int)(NE_SR * 60.0f / 132.0f / 4.0f);
+            float up = 0.0f, down = 0.0f;
+            nfm_init(&re, NE_SR, 9u);
+            nfm_randomize(&re, 3, NFM_KIND_RUMBLE);
+            re.slot[3].macro[NFM_DEVIANCE] = 0.0f;
+            for (st = 0; st < 16; st++) {
+                nfm_trigger(&re, 3, 1.0f, 0.0f);
+                for (j = 0; j + 64 <= step; j += 64) {
+                    nfm_render(&re, rl, rr, 64);
+                    for (i = 0; i < 64; i++) {
+                        if (st < 4) continue;
+                        if (j >= 1024 && j < 2048) up += rl[i] * rl[i];      /* 23..46 ms on */
+                        if (j >= step - 1088) down += rl[i] * rl[i];         /* its last ~25 ms */
+                    }
+                }
+            }
+            CHECK(up > down * 1.5f, "rumble: its steps no rhythm (after/before %f)", (double)(up / (down > 0.0f ? down : 1.0f)));
+        }
     }
     /* a rumble plays on: one voice all along while its steps come at least a quarter apart (each how
      * strong it is from there), out a quarter after its last, or when muted or stopped */
