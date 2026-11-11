@@ -149,6 +149,8 @@ NFM_CODE static float pos_w(const nacid *a, int s)
 NFM_CODE static int roll_on(nacid *a, int s)
 {
     float p = a->p[NACID_P_DENSITY] * pos_w(a, s), c = a->p[NACID_P_CHAOS];
+    if (a->p[NACID_P_DENSITY] <= 0.0f) return 0;
+    if (a->p[NACID_P_DENSITY] >= 1.0f) return 1;
     if (s % a->bar == 0) p = lerp(0.95f, p, c);            /* the one, nearly always */
     if (s >= 3 && (a->step[s - 1].flags & a->step[s - 2].flags & a->step[s - 3].flags & NACID_ON))
         p *= lerp(0.6f, 1.0f, c);                             /* a rest makes the groove */
@@ -227,6 +229,7 @@ NFM_CODE static int roll_accent(nacid *a, int s)
     float w = p % b == 2 ? 1.5f : p % b == 0 ? 0.8f : 0.9f;
     if (s > 0 && !(a->step[s - 1].flags & NACID_ON)) w *= 1.3f;
     if (s > 0 && (a->step[s - 1].flags & NACID_ACCENT)) w *= 0.6f;
+    if (a->p[NACID_P_ACCENTS] >= 1.0f) return 1;
     return rndf(&a->rng) < clamp1(a->p[NACID_P_ACCENTS] * lerp(w, 1.0f, a->p[NACID_P_CHAOS]));
 }
 
@@ -240,6 +243,7 @@ NFM_CODE static int roll_slide(nacid *a, int s)
         if (iv < 0) iv = -iv;
         w = iv == 0 ? 0.5f : iv <= 2 ? 1.0f : iv >= 12 ? 1.8f : 1.25f;
     }
+    if (a->p[NACID_P_SLIDES] >= 1.0f) return 1;
     return rndf(&a->rng) < clamp1(a->p[NACID_P_SLIDES] * lerp(w, 1.0f, a->p[NACID_P_CHAOS]));
 }
 
@@ -252,15 +256,18 @@ NFM_CODE static void draw_rhythm(nacid *a, int s)
 }
 NFM_CODE static void draw_note(nacid *a, int s)
 {
-    if (!(a->step[s].flags & NACID_ON)) return;
+    /* A rest is a muted musical step, not an uninitialised C. Preserve its gate
+     * while giving it a scale-aware pitch and an independent accent. */
+    uint8_t gate = a->step[s].flags & NACID_ON;
     a->step[s].note = octave(a, s, pick_pitch(a, s));
-    a->step[s].flags = NACID_ON | (roll_accent(a, s) ? NACID_ACCENT : 0);
+    a->step[s].flags = gate | (roll_accent(a, s) ? NACID_ACCENT : 0);
 }
 NFM_CODE static void draw_slide(nacid *a, int s)
 {
     nacid_note *st = &a->step[s];
     st->flags &= (uint8_t)~NACID_SLIDE;
-    if ((st->flags & NACID_ON) && roll_slide(a, s)) st->flags |= NACID_SLIDE;
+    /* Precompute a slide even for a rest, ready for live gate activation. */
+    if (roll_slide(a, s)) st->flags |= NACID_SLIDE;
 }
 
 /* The rhythm first, as a motif: a bar, or half a bar twice (its second half a little different); the
@@ -314,23 +321,15 @@ NFM_CODE static void evolve(nacid *a)
     nacid_note *st = &a->step[s];
     float r = rndf(&a->rng);
     if (r < 0.4f) {
-        if (st->flags & NACID_ON) {
-            uint8_t f = st->flags;
-            draw_note(a, s);
-            st->flags = f;
-        }
+        uint8_t f = st->flags;
+        draw_note(a, s);
+        st->flags = f; /* new pitch only; keep gate, accent and slide */
     } else if (r < 0.65f) {
-        if (st->flags & NACID_ON) {
-            st->flags = 0;
-        } else {
-            st->flags = NACID_ON;
-            draw_note(a, s);
-            draw_slide(a, s);
-        }
-        if (s > 0) draw_slide(a, s - 1);
+        /* Gate changes, including live-style activation, never erase latent data. */
+        st->flags ^= NACID_ON;
     } else if (r < 0.85f) {
-        if (st->flags & NACID_ON) st->flags ^= NACID_ACCENT;
-    } else if (st->flags & NACID_ON) {
+        st->flags ^= NACID_ACCENT;
+    } else {
         st->flags ^= NACID_SLIDE;
     }
 }
