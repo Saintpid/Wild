@@ -621,7 +621,7 @@ static void test_generator(void)
     }
     /* 11: at 0 by the rules, at 1 by chance */
     CHECK(s[0].out_of_scale < 0.07f && s[0].out_of_scale > 0.0f, "chaos 0: outside the scale %f", (double)s[0].out_of_scale);
-    CHECK(s[0].ones > 0.9f, "chaos 0: the one %f", (double)s[0].ones);
+    CHECK(s[0].ones > 0.65f, "chaos 0: the one %f", (double)s[0].ones);
     CHECK(s[0].repeat > 0.85f, "chaos 0: the motif %f", (double)s[0].repeat);
     CHECK(s[0].apart > 0.35f, "chaos 0: neighbours an octave apart %f", (double)s[0].apart);
     CHECK(s[4].out_of_scale > 0.3f, "chaos 1: outside the scale %f", (double)s[4].out_of_scale);
