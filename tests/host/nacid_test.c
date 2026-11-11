@@ -672,6 +672,39 @@ static void test_generator(void)
     printf("chaos 100 %%, 512 steps: attacks and slides by the rules (%d slid), %d wrong\n", slid, wrong);
 }
 
+/* Generated rests retain the same latent pitch, slide and accent data as
+ * sounding steps, so turning a gate on during a performance reveals the step. */
+static void test_latent_steps(void)
+{
+    int rested = 0, pitched = 0, accented = 0, sliding = 0;
+    fresh(0.0f);
+    nacid_set_length(&ac, 64);
+    ac.p[NACID_P_DENSITY] = 0.0f;
+    ac.p[NACID_P_ACCENTS] = 1.0f;
+    ac.p[NACID_P_SLIDES] = 1.0f;
+    for (int g = 0; g < 32; ++g) {
+        nacid_generate(&ac);
+        for (int s = 0; s < 64; ++s) {
+            nacid_note st = ac.step[s];
+            CHECK(!(st.flags & NACID_ON), "density 0: unexpectedly active step %d", s);
+            rested++;
+            pitched += st.note != 0;
+            accented += !!(st.flags & NACID_ACCENT);
+            sliding += !!(st.flags & NACID_SLIDE);
+        }
+    }
+    CHECK(pitched > rested / 2, "rest pitches were not generated: %d/%d", pitched, rested);
+    CHECK(accented == rested && sliding == rested, "latent accents/slides: %d/%d, %d/%d", accented, rested, sliding, rested);
+    nacid_note prior = ac.step[5];
+    nacid_set_step(&ac, 5, prior.flags | NACID_ON, prior.note);
+    CHECK((ac.step[5].flags & 7) == (prior.flags | NACID_ON) && ac.step[5].note == prior.note,
+          "manual gate activation destroyed latent step data");
+    ac.p[NACID_P_DENSITY] = 1.0f;
+    nacid_generate(&ac);
+    for (int s = 0; s < 64; ++s)
+        CHECK(ac.step[s].flags & NACID_ON, "density 100: inactive step %d", s);
+}
+
 /* the major scale: in it, its third and not the minor's */
 static void test_major(void)
 {
@@ -892,6 +925,7 @@ int main(void)
     test_analogue();
     test_filter();
     test_generator();
+    test_latent_steps();
     test_major();
     test_deviance();
     test_rest();
