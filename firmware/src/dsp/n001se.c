@@ -89,7 +89,7 @@ static const ne_param_t TP[T_NPARAMS] = {
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
-    [A_NOTES] = {"Notes", 10, 100, 60},
+    [A_NOTES] = {"Notes", 0, 100, 60},
     [A_SLIDES] = {"Slides", 0, 100, 20},
     [A_ACCENTS] = {"Accents", 0, 100, 25},
     [A_OCTAVES] = {"Octaves", 0, 100, 30},
