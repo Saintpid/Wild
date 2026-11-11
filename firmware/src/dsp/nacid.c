@@ -151,7 +151,7 @@ NFM_CODE static int roll_on(nacid *a, int s)
     float p = a->p[NACID_P_DENSITY] * pos_w(a, s), c = a->p[NACID_P_CHAOS];
     if (a->p[NACID_P_DENSITY] <= 0.0f) return 0;
     if (a->p[NACID_P_DENSITY] >= 1.0f) return 1;
-    if (s % a->bar == 0) p = lerp(0.95f, p, c);            /* the one, nearly always */
+    /* Even the downbeat follows the requested density; pos_w still favours it. */
     if (s >= 3 && (a->step[s - 1].flags & a->step[s - 2].flags & a->step[s - 3].flags & NACID_ON))
         p *= lerp(0.6f, 1.0f, c);                             /* a rest makes the groove */
     return rndf(&a->rng) < clamp1(p);
