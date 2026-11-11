@@ -238,7 +238,9 @@ NFM_CODE static int roll_slide(nacid *a, int s)
 {
     const nacid_note *nx = &a->step[(s + 1) % (a->bar * NACID_MAX_BARS)];
     float w = 0.35f;
-    if (nx->flags & NACID_ON) {
+    /* Both steps already have a pitch, even if their gates are off. Use
+     * the same interval rules for latent and currently sounding notes. */
+    {
         int iv = nx->note - a->step[s].note;
         if (iv < 0) iv = -iv;
         w = iv == 0 ? 0.5f : iv <= 2 ? 1.0f : iv >= 12 ? 1.8f : 1.25f;
