@@ -232,8 +232,8 @@ MOD (FX, page 2)
 
 The acid track (track 5) has its own parameters on the same pages:
 
-PATTERN    Bars (1â€“4), Notes (how many steps have notes), Slides, Evolve
-TRACK      Accents, Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
+PATTERN    Bars (1â€“4), Notes (0–100% of steps triggered), Slides (0–100% of steps), Evolve
+TRACK      Accents (0–100% of steps), Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
 SOUND      Cutoff (314 Hz - 2.4 kHz, as a 303's), Reso, Env mod, Decay (200 ms - 2 s)
 RHYTHM     Grid: 16ths or Triplets, as on the drum tracks (1-4 bars of 12 steps in triplets)
 TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0â€“100 %)
@@ -241,6 +241,10 @@ DEVIANCE   (ENV, page 3: the acid line's only) Deviance (below)
 TRACK FX   Reverb, Delay, Filter, Drive
 MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn per note, and a slid note keeps the previous note's choice)
 
+Notes, Slides and Accents are percentage targets, not fixed counts. The musical rules and Chaos
+place them in the phrase; the totals may vary when a new pattern is drawn. Even an inactive acid
+step has a generated pitch, accent and slide. Toggling its gate on while playing reveals these
+properties without rerolling them. A new pattern regenerates all steps.
 How the acid line plays, as a TB-303:
   Gate       A note sounds for half a step. A slide holds it into the next step, and the next note glides there without a new attack: the volume and the filter envelope go on. A note that is not slid into starts again. A rest closes the gate, so a slide into a rest makes a longer note. Slides in a row make one long movement, also from the last step into the first.
   Slide      The pitch glides at the same speed whatever the interval, in about 60 ms (Open303's: an RC of 12 ms), so even two octaves get there within a step.
