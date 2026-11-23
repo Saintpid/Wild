@@ -25,6 +25,8 @@
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
  *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation, an empty start; saved songs stay
+ *   GLO + EDIT     clear the selected track (asked, GLO + EDIT again: yes): no hits or notes, its settings at
+ *                  their defaults, 1 bar, nothing by chance, its automation gone; its kind and sound stay
  *   GLO + REC      the selected track's automation erased
  *   SAVE           the preset list to save: a slot, SAVE again (it also saves the project by itself,
  *                  after a change, once stopped and quiet); held: reset
@@ -118,7 +120,9 @@ static struct {
     uint32_t sig[3];
     uint32_t save_t;                   /* when SAVE went down (held: reset to the defaults?) */
     uint32_t reset_ask;                /* until when "RESET?" waits for SAVE (0: not asking) */
-    uint8_t reset_all;                 /* ...asked as "CLEAR ALL?" (GLO + HOME): every bank, all automation */
+    uint8_t reset_all;                 /* ...asked as "CLEAR ALL?" (GLO + HOME, 1): every bank, all automation;
+                                        * as "CLEAR <track>?" (GLO + EDIT, 2): that track */
+    uint8_t reset_track;               /* ...the track asked about */
     int8_t held_step;                  /* a step key held (its step), -1 none */
     uint8_t held_was_on, held_edited;
     uint8_t held_vel;                  /* ...its velocity and note as edited (the engine's lag a block) */
@@ -1249,10 +1253,66 @@ static void clear_all(void)
     ui.view_bar = 0;
     say("CLEARED", "ALL BANKS");
 }
+static const char *track_name(int t) { return t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]); }
+/* what CLEAR TRACK leaves as it is: the kind and the mixer's (mute, level) */
+static int clear_keeps(int t, int p)
+{
+    return t == NE_ACID ? p == A_MUTE || p == A_LEVEL : p == T_KIND || p == T_MUTE || p == T_LEVEL;
+}
+/* ...and its starting point: CLEAR ALL's (1 bar, Fixed, nothing by chance), else the default */
+static int clear_value(int t, int p)
+{
+    if (t == NE_ACID)
+        return p == A_BARS ? 1 : p == A_EVOLVE || p == A_CHAOS || p == A_DEV ? 0 : ne_aparam_info(p)->def;
+    return p == T_BARS ? 1 : p == T_RANDLEN || p == T_PITCH || p == T_EVOLVE || p == T_DEV || p == T_DYN ? 0 :
+           ne_tparam_def(t, p);
+}
+/* CLEAR TRACK (GLO + EDIT, and again to say yes): the track starts over, the others play on. No hits or
+ * notes, its settings at clear_value(), its automation gone (in the bank playing); its kind, its sound,
+ * its mute and level stay. Undo brings it back */
+static void clear_track(int t)
+{
+    char b[16] = "CLEARED ";
+    int i, n = t == NE_ACID ? A_NPARAMS : T_NPARAMS, grid = t == NE_ACID ? A_GRID : T_GRID;
+    auto_finish_all();
+    undo_mark(0);
+    auto_new_pattern(t);
+    for (i = -1; i < n; i++) {                       /* (the grid first: Bars count in it) */
+        int p = i < 0 ? grid : i;
+        if ((i >= 0 && p == grid) || clear_keeps(t, p))
+            continue;
+        if (t == NE_ACID)
+            knob_set(KA | p, clear_value(t, p));
+        else
+            tpar_set(t, p, clear_value(t, p));
+    }
+    if (t == NE_ACID)                                /* (the length to 1 bar even if Bars was 1) */
+        ne_aset(A_BARS, 1);
+    else
+        ne_tset(t, T_BARS, 1);
+    ne_clear_track(t);
+    ui.held_step = -1;
+    ui.pop_t = 0;                                    /* (a knob's box would show its value from before) */
+    if (t == ui.track) {
+        ui.bar_lock = 0;
+        ui.view_bar = 0;
+    }
+    mark_dirty();
+    s_cpy(b + 8, track_name(t));
+    say(b, 0);
+}
 static void reset_ask(int on)
 {
     ui.reset_ask = on ? plat_ms() + RESET_ASK_MS : 0u;
-    if (on) {
+    if (on && ui.reset_all == 2) {
+        char b[16] = "CLEAR ";
+        int n = 6;
+        s_cpy(b + 6, track_name(ui.reset_track));
+        while (b[n]) n++;
+        s_cpy(b + n, "?");
+        say(b, "GLO+EDIT: YES");
+        ui.msg_until = ui.reset_ask;
+    } else if (on) {
         say(ui.reset_all ? "CLEAR ALL?" : "RESET?", ui.reset_all ? "GLO+HOME: YES" : "SAVE: YES");
         ui.msg_until = ui.reset_ask;
     } else {
@@ -1438,11 +1498,19 @@ static void input(void)
         if (btn & m) {
             ui.btn_used &= ~m;
             if (i != B_SEL && i != B_PLAY) ui.bank_select = 0;
-            if ((i == B_HOME || i == B_REC) && (btn >> B_GLO & 1u)) {
+            if ((i == B_HOME || i == B_REC || i == B_EDIT) && (btn >> B_GLO & 1u)) {
                 ui.btn_used |= m | 1u << B_GLO;     /* GLO + HOME: clear all (asked); GLO + REC: the track's automation */
-                if (i == B_HOME && ui.list) {
+                if (i == B_EDIT && ui.list) {        /* (GLO + EDIT: the track cleared, asked) */
+                } else if (i == B_EDIT && ui.reset_ask && ui.reset_all == 2) {
+                    ui.reset_ask = 0;                /* asked, and GLO + EDIT again: yes */
+                    clear_track(ui.reset_track);
+                } else if (i == B_EDIT) {
+                    ui.reset_all = 2;
+                    ui.reset_track = ui.track;
+                    reset_ask(1);
+                } else if (i == B_HOME && ui.list) {
                     list_erase_all();                /* (on the list: all songs, asked) */
-                } else if (i == B_HOME && ui.reset_ask && ui.reset_all) {
+                } else if (i == B_HOME && ui.reset_ask && ui.reset_all == 1) {
                     ui.reset_ask = 0;                /* asked, and GLO + HOME again: yes */
                     clear_all();
                 } else if (i == B_HOME) {

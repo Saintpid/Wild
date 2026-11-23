@@ -5,6 +5,17 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.38
+
+Firmware identity FM-1_872. Clear one track and start it over.
+
+- **GLO + EDIT** asks "CLEAR Kick?" (or whichever track is selected); GLO + EDIT again says yes,
+  anything else keeps it. The track empties: no hits or notes, 1 bar, Fixed, every chance on it
+  (Evolve, Deviance, Pitch, Dynamics; the 303's Chaos too) at 0 and its other settings, effects
+  included, at their defaults. Its automation goes too.
+- Its kind (Kick, Snare...), its sound, its mute and its level stay, and the other tracks play on.
+  Undo (black 3) brings it all back.
+
 ## 0.3.37
 
 Firmware identity FM-1_871. Drum pattern density follows the generated length.

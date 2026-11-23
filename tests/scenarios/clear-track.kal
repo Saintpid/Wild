@@ -1,0 +1,82 @@
+# CLEAR TRACK: GLO + EDIT asks, GLO + EDIT again says yes (a key keeps): the selected track starts over (no
+# hits or notes, its settings at their defaults, 1 bar Fixed, nothing by chance, its automation gone), its
+# kind, mute and level stay, the other tracks play on; Undo brings it back.
+wait 200
+expect track 0
+expect hits >0
+expect tpar0 2
+# track 1 (the kick): its own reverb and drive, automation on its reverb
+tap FX
+spin K1 30
+spin K4 35
+expect tpar15 30
+expect tpar18 60
+tap PLAY
+tap REC
+turn K1 5 80
+tap REC
+expect lanes 1
+tap PLAY
+# GLO + EDIT, then a key: kept
+press GLO
+tap EDIT
+release GLO
+tapkey w4
+expect tpar15 >0
+expect lanes 1
+# GLO + EDIT twice: the kick starts over
+press GLO
+tap EDIT
+release GLO
+press GLO
+tap EDIT
+release GLO
+expect track 0
+expect hits 0
+expect len 16
+expect tpar0 1
+expect tpar1 0
+expect tpar5 0
+expect tpar8 0
+expect tpar15 0
+expect tpar18 25
+expect tpar25 0
+expect tpar6 0
+expect tpar7 0
+expect tpar13 80
+expect lanes 0
+expect dirty 1
+shot cleared.png
+# the snare is untouched; playing, the kick stays empty
+tap OCT+
+expect hits >0
+tap PLAY
+wait 2000
+tap PLAY
+tap OCT-
+expect hits 0
+# Undo: back as it was
+tapkey b2
+expect hits >0
+expect tpar15 >0
+expect tpar0 2
+expect lanes 1
+# the 303 (track 5): its notes go, its length 1 bar; the drums stay
+tap OCT-
+expect track 4
+expect anotes >0
+press GLO
+tap EDIT
+release GLO
+press GLO
+tap EDIT
+release GLO
+expect anotes 0
+expect alen 16
+expect apar0 1
+expect apar6 0
+expect apar24 0
+expect apar25 0
+tap OCT+
+expect hits >0
+expect dropped 0
