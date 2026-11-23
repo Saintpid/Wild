@@ -1,3 +1,26 @@
+WILD 0.3.42: RUMBLE IS A KICK EFFECT
+
+Only the five main tracks appear in the grid. SELECT and OCT-/+ select those
+tracks; Rumble is not a separate row or channel.
+On a Kick, ENV cycles Sound, Tone, Rumble, Texture, Layer, then Sound again:
+  Rumble: KNOB1 level (0 off), KNOB2 Tail, KNOB3 Colour, KNOB4 Drive.
+  Texture: KNOB1 Duck, KNOB2 Width, KNOB3 Movement, KNOB4 Shape.
+  Layer: KNOB1 Mute (the Rumble effect only).
+NEW SOUND on these three effect pages randomises only Rumble, preserving Duck
+and an existing nonzero level (off becomes 55). On other pages it changes the
+instrument. Step keys and NEW PATTERN edit the selected main track as usual.
+Other instruments do not show Rumble pages. Assigned Rumble encoder targets
+still address the selected drum track (track 1 when Acid is selected).
+
+The 875 sound engine is unchanged: a smooth swell reaches full envelope level
+one eighth after the actual Kick; Duck defaults to 100 and stays as set during
+randomisation. Rumble settings save per track/bank. Continuous controls and
+Mute support REC automation; Shape changes fade and are not automated.
+GLO cycles FX bus, Master, Glue, Groove, Setup, Scene, Controls. Global FX
+new-project defaults are Reverb 30, Delay 50, Filter 100, Drive 100.
+FX cycles Track FX and Mod. Controls assigns SELECT, ALGORITHM and PRESETS;
+defaults remain Track, Page and Glue. Mixer/list SELECT retains its own role.
+
 WILD 0.1.4: Fixed full-cycle encoder counting; slow turns do not relearn intermediate contacts.
 
 WILD 0.1.4 MIXER
@@ -35,7 +58,7 @@ Diagnostics redraw four times per second. Leave playback running while viewing.
 
 INHERITED N001SE MANUAL
 
-n001se â€“ MANUAL
+n001se ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ MANUAL
 Random FM drum sequencer for the M-VAVE FM-1
 Firmware 1.5.0 (821)
 
@@ -45,10 +68,10 @@ WHAT IS n001se?
 
 n001se is a custom firmware that turns the M-VAVE FM-1 into a sequencer for random FM percussion, made for live sets. It has five tracks:
 
-  Tracks 1â€“4: FM drums (Kick, Snare, Hat, Perc, Click, Metal, Clap or Rumble)
+  Tracks 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4: FM drums (Kick, Snare, Hat, Perc, Click, Metal, Clap or Rumble)
   Track 5:    Acid, a 303-style bass line with its own filter, accent and glide
 
-Each track has its own pattern of 1â€“8 bars (acid 1â€“4), and the tracks can have different lengths, so polyrhythms appear by themselves. Patterns are drawn at random within limits you choose, and they can change slowly while they play. Every hit also varies a little in tone, so nothing sounds exactly the same twice.
+Each track has its own pattern of 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars (acid 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), and the tracks can have different lengths, so polyrhythms appear by themselves. Patterns are drawn at random within limits you choose, and they can change slowly while they play. Every hit also varies a little in tone, so nothing sounds exactly the same twice.
 
 ====================================================================
 
@@ -69,16 +92,16 @@ Top:
   The battery shows how much is left in %, filled as far as it is, red at 10 % and below. It is read every two seconds and smoothed, so it settles a little after power-on, and it only goes up again when the battery has really been charged (not when it recovers a little as the load drops). The % is an estimate from the battery's voltage. Plugged into a computer's USB it shows a lightning bolt instead (it is charging; a charger alone is not seen, so it then shows %).
 
 Middle (the sequencer):
-  One row per track, 1â€“5. The selected row has a grey background.
+  One row per track, 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ5. The selected row has a grey background.
   On the left: a level meter, the track's name, its length ("2b" = 2 bars, "12st" = 12 steps) and R/D when the track sends to reverb/delay.
   Then 16 steps for one bar. A stronger colour means a higher velocity, and a small mark shows a pitched step. On the acid track accents are brighter, and slides show as a bridge to the next step.
 
 Below the tracks:
-  The bar numbers 1â€“8. The bar shown on the keys is white, and underlined if you have locked it.
-  The phrase row: eight bars, the eighth red. During the eighth bar the beats count 1â€“4 on the far right.
+  The bar numbers 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8. The bar shown on the keys is white, and underlined if you have locked it.
+  The phrase row: eight bars, the eighth red. During the eighth bar the beats count 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 on the far right.
 
 Big numbers:
-  In bars 4 and 8 of the phrase the beats 1â€“4 are shown big and see-through over the sequencer. Each number fades until the next one comes, and in bar 8 they are red. It makes it easier to find the right spot for breaks.
+  In bars 4 and 8 of the phrase the beats 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 are shown big and see-through over the sequencer. Each number fades until the next one comes, and in bar 8 they are red. It makes it easier to find the right spot for breaks.
 
 The parameter box:
   When you turn a knob, the parameter's name and value show big over the sequencer. The box fades away shortly after you stop turning.
@@ -102,12 +125,12 @@ SEL held + white 1-8  Copy the playing bank onto that bank and switch to it, eve
 SEL + white 16  Chance: a new scene on every press, whether SEL is held or tapped first. Select the current bank to return to its original, or select another bank to leave the scene. Copying to another bank captures the scene you hear as an ordinary bank; its source keeps its original. Mute keys during Chance choose the original's mutes.
 
 Page buttons (another press goes to the button's next page):
-HOME       Pattern → Rhythm
+HOME       Pattern ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Rhythm
 EDIT       Track
-ENV        Sound â†’ Tone
-FX         Track FX â†’ Mod â†’ FX bus
-LFO        Drift → Routing
-GLOBAL     Master â†’ Glue â†’ Groove â†’ Setup â†’ Scene
+ENV        Sound ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Tone
+FX         Track FX ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Mod ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ FX bus
+LFO        Drift ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Routing
+GLOBAL     Master ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Glue ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Groove ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Setup ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Scene
 
 ====================================================================
 
@@ -117,7 +140,7 @@ SELECT     Selects the track. In the preset list: selects the slot.
 ALGO       Steps through all pages.
 PRESETS    A quick knob for any parameter. Glue by default. You choose what it controls on the Setup page (the "Presets" knob): a global parameter, a parameter of the selected drum track or a 303 parameter, for example "303 Cutoff". In the preset list it steps through the slots.
 MASTER     Main volume.
-K1â€“K4      The four knobs under the screen. What they do depends on the page.
+K1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œK4      The four knobs under the screen. What they do depends on the page.
 
 ====================================================================
 
@@ -133,12 +156,12 @@ In SEQ mode:
   press takes the accent off (a slide stays), the next turns the note off. So: empty, accent,
   plain, off.
   Hold a step and turn:
-    Drum tracks: K1 = velocity, K2 = pitch (âˆ’24 to +24)
-    The acid track: K1 = note (âˆ’12 to +24), K2 = accent off/on, K3 = slide off/on (right = on, left = off). A slide belongs to the note that slides on: it glides into the next step's note.
+    Drum tracks: K1 = velocity, K2 = pitch (ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢24 to +24)
+    The acid track: K1 = note (ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢12 to +24), K2 = accent off/on, K3 = slide off/on (right = on, left = off). A slide belongs to the note that slides on: it glides into the next step's note.
   A step you edited while holding it stays when you let go.
 
 In LIVE mode:
-  The keys play the sounds directly, four keys per drum sound (tracks 1â€“4), up the scale.
+  The keys play the sounds directly, four keys per drum sound (tracks 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), up the scale.
 
 In the preset list:
   Pick a slot directly among the 16 slots on the list's page.
@@ -167,13 +190,13 @@ UNDO/REDO:
 
 THE PAGES
 
-The drum tracks (tracks 1â€“4):
+The drum tracks (tracks 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4):
 
 PATTERN (HOME)
-  Bars       The pattern's length, 1â€“8 bars
-  Less       0–100% of the requested hits may be removed at random. 0% gives the requested count.
-  Fill       0–100% of the new pattern's steps. The requested count is rounded to the nearest hit.
-             Fill 50% and Less 25% give 6–8 hits in 16 steps or 12–16 in 32 steps.
+  Bars       The pattern's length, 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars
+  Less       0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of the requested hits may be removed at random. 0% gives the requested count.
+  Fill       0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of the new pattern's steps. The requested count is rounded to the nearest hit.
+             Fill 50% and Less 25% give 6ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 hits in 16 steps or 12ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“16 in 32 steps.
              Triplets and random lengths use the number of steps in the generated pattern.
   Evolve     Chance in % per loop that one step of the pattern changes
 
@@ -196,7 +219,7 @@ RHYTHM (HOME, page 2)
              set one by hand.
 
 TRACK (EDIT)
-  Rnd len    Random length: Fixed, or 1â€“N bars. Sometimes the last bar is shorter, for odd lengths.
+  Rnd len    Random length: Fixed, or 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œN bars. Sometimes the last bar is shorter, for odd lengths.
   Pitch      How much the steps may vary in pitch (+-N semitones), Root = no variation
   Level      The track's volume
   Mute       Off/on
@@ -214,7 +237,7 @@ SOUND (ENV, page 1)
 TONE (ENV, page 2)
   Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble. A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble: a low, driven tail at the kick's pitch that swells in, is ducked by every kick and plays between the beats (Spike drives it harder and opens it up). Takes effect with the next new sound (black 11).
   Ring tone  The resonance's pitch
-  Tune       Tuning, âˆ’24 to +24 semitones
+  Tune       Tuning, ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢24 to +24 semitones
 
 TRACK FX (FX, page 1)
   Reverb     Send to the reverb. The amount is random per hit up to the level you set, and sometimes nothing is sent at all.
@@ -226,25 +249,31 @@ MOD (FX, page 2)
   A modulation effect per sound. It is not global: each track has its own.
   Mod        The effect: Off, Phaser, Flanger, Chorus, Ringmod or Tremolo
   Amount     How much. Phaser: the sweep's width and feedback. Flanger: the sweep's depth and feedback. Chorus: depth and amount. Ringmod: amount. Tremolo: depth.
-  Rate       Speed. The sweep runs at 0.05â€“8 Hz (tremolo 0.5â€“32 Hz). For Ringmod, Rate is the carrier's frequency, 30â€“1920 Hz: low gives a shaky tremolo, high a metallic ring.
-  Chance     The share of hits that get the effect, 0â€“100 %. Drawn for every hit, just like the sends.
+  Rate       Speed. The sweep runs at 0.05ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 Hz (tremolo 0.5ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ32 Hz). For Ringmod, Rate is the carrier's frequency, 30ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ1920 Hz: low gives a shaky tremolo, high a metallic ring.
+  Chance     The share of hits that get the effect, 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ100 %. Drawn for every hit, just like the sends.
   The sweep runs all the time, also between hits, so every hit lands at a new place in the sweep. The volume is compensated, so the effect changes the tone, not the loudness.
 
 The acid track (track 5) has its own parameters on the same pages:
 
-PATTERN    Bars (1â€“4), Notes (0–100% of steps triggered), Slides (0–100% of steps), Evolve
-TRACK      Accents (0–100% of steps), Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
+PATTERN    Bars (1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), Notes (0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of steps triggered), Slides (0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of steps), Evolve
+TRACK      Accents (0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of steps), Octaves (chance of octave jumps), Scale (Minor, Phrygian, Dorian, Penta, Blues, Harm min, Major), Level (also on the mixer, GLO + OCT-, and PRESETS)
 SOUND      Cutoff (314 Hz - 2.4 kHz, as a 303's), Reso, Env mod, Decay (200 ms - 2 s)
 RHYTHM     Grid: 16ths or Triplets, as on the drum tracks (1-4 bars of 12 steps in triplets)
-TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0â€“100 %)
+TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ100 %)
 DEVIANCE   (ENV, page 3: the acid line's only) Deviance (below)
 TRACK FX   Reverb, Delay, Filter, Drive
 MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn per note, and a slid note keeps the previous note's choice)
 
-Notes, Slides and Accents are percentage targets, not fixed counts. The musical rules and Chaos
-place them in the phrase; the totals may vary when a new pattern is drawn. Even an inactive acid
+Notes sets the exact percentage of the playing steps that have notes, rounded to the nearest
+whole note: 50% gives 8 notes in one 16-step bar or 24 in four triplet bars. Musical rules and
+Chaos choose their positions. Slides and Accents are musically weighted probabilities; 0%
+means none and 100% means every generated step, including inactive steps. Even an inactive acid
 step has a generated pitch, accent and slide. Toggling its gate on while playing reveals these
-properties without rerolling them. A new pattern regenerates all steps.
+properties without rerolling them. Step keys still cycle accent, plain, off; switching off
+keeps pitch and slide. Grid changes retain inactive properties, with sounding notes winning
+collisions; newly inserted sixteenths inherit nearby properties with their gate off.
+A new pattern regenerates all steps. Evolve can change inactive pitches, accents and slides;
+its gate toggles retain the other properties. Evolve and manual edits may change the note count.
 How the acid line plays, as a TB-303:
   Gate       A note sounds for half a step. A slide holds it into the next step, and the next note glides there without a new attack: the volume and the filter envelope go on. A note that is not slid into starts again. A rest closes the gate, so a slide into a rest makes a longer note. Slides in a row make one long movement, also from the last step into the first.
   Slide      The pitch glides at the same speed whatever the interval, in about 60 ms (Open303's: an RC of 12 ms), so even two octaves get there within a step.
@@ -299,23 +328,23 @@ MASTER (GLOBAL, page 1)
   Hi cut     Low-pass filter on the whole mix (100 = Open)
   Lo cut     High-pass filter on the whole mix (0 = Open)
   Reso       The filters' resonance
-  Glue       A light mastering chain on the whole mix, its amount (how hard it works). 0 = off (the whole chain), 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter and more finished but not louder: the volume is Level's. After it there is always a limiter, at âˆ’1 dBFS with the Glue on (âˆ’0.3 dBFS off).
+  Glue       A light mastering chain on the whole mix, its amount (how hard it works). 0 = off (the whole chain), 100 = a little over the top with light saturation. The loudness is compensated, so Glue makes the mix tighter and more finished but not louder: the volume is Level's. After it there is always a limiter, at ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢1 dBFS with the Glue on (ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢0.3 dBFS off).
 
-GLUE (GLOBAL, page 2): how the Glue sounds. Its chain: compressor â†’ EQ â†’ width â†’ inflator â†’ limiter.
+GLUE (GLOBAL, page 2): how the Glue sounds. Its chain: compressor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ EQ ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ width ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ inflator ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ limiter.
   Glue mix   Parallel compression: how much of the compressed mix against what goes in. 100 = all compressed, 50 = half (the default: tight, but the hits keep their punch). The compressor has a gentle transient expander in it, so hits come through.
-  Glue EQ    A mastering EQ that listens: it follows the balance between lows and highs and leans the mix towards a pink-noise slope of âˆ’4.5 dB per octave, adds a little foundation under 90 Hz and air over 9 kHz, takes a little box (90â€“700 Hz) away, and turns 2â€“9 kHz down while it is harsh (de-harsh). 50 = the set it was tuned to (the default), 100 = twice as much, 0 = flat.
+  Glue EQ    A mastering EQ that listens: it follows the balance between lows and highs and leans the mix towards a pink-noise slope of ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢4.5 dB per octave, adds a little foundation under 90 Hz and air over 9 kHz, takes a little box (90ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ700 Hz) away, and turns 2ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ9 kHz down while it is harsh (de-harsh). 50 = the set it was tuned to (the default), 100 = twice as much, 0 = flat.
   Color      An inflator (after Oxford's curve): denser and fuller near the top without clipping. 0 = off, 100 = all of it. Default 50.
   Width      The stereo width: 0 = mono, 50 = as it is, 100 = twice as wide. The sides under 120 Hz are always taken out (the lows in mono), so the kick and the bass stay centred. Default 60.
 
 GROOVE (GLOBAL, page 3)
-  Tempo      60â€“200 BPM (stays put while MIDI clock is in control)
-  Swing      0â€“100
+  Tempo      60ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ200 BPM (stays put while MIDI clock is in control)
+  Swing      0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ100
   Loose      Human unevenness in timing and strength
-  Max hits   How many drum tracks may hit on the same step, 1â€“4 (track 1 always plays). Default: 4
+  Max hits   How many drum tracks may hit on the same step, 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 (track 1 always plays). Default: 4
 
 SETUP (GLOBAL, page 4)
   Level      Overall level
-  MIDI ch    All or 1â€“16
+  MIDI ch    All or 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ16
   Presets    What the PRESETS encoder controls
   USB audio  On/Off. Off sends silence over USB and saves CPU.
   (The CPU load shows at the top right of this page.)
@@ -361,13 +390,13 @@ AUTOSAVE:
 MIDI (USB and the MIDI IN socket)
 
 Notes:
-  C1â€“E1 (36â€“40)   New pattern for tracks 1â€“4 (36â€“39) and acid (40 = E1)
+  C1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œE1 (36ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ40)   New pattern for tracks 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 (36ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ39) and acid (40 = E1)
   C2 (48)         New patterns for all drum tracks
-  C3â€“C5 (60â€“84)   Root note for the pitched tracks (C3 = no transposition)
+  C3ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œC5 (60ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ84)   Root note for the pitched tracks (C3 = no transposition)
   A note starts playback if it is stopped.
 
 Controllers (CC):
-  102â€“106  The sound macros on all drum tracks: Deviance, Length, Edge, Ring, Ring tone
+  102ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ106  The sound macros on all drum tracks: Deviance, Length, Edge, Ring, Ring tone
   107      Chaos
   108      Motion
   109      Filter (FX bus)
@@ -384,7 +413,7 @@ Controllers (CC):
   71       Acid resonance
   120/123  Stop
 
-Program Change 0â€“63:  Loads preset 1â€“64.
+Program Change 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ63:  Loads preset 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ64.
 
 MIDI clock:
   n001se follows incoming clock, and the screen then shows EXT by the tempo. Start and Continue start from the top, Stop stops. When the clock stops coming, its own tempo takes over again.
@@ -402,7 +431,7 @@ White keys:
 Black keys:
   1/2      Faintly lit in the direction you can go. Blink when the bar is locked.
   3/4      Faintly lit when there is something to undo or redo.
-  5â€“9      Faint = the track plays, bright = a hit right now, off = muted.
+  5ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ9      Faint = the track plays, bright = a hit right now, off = muted.
 
 The other buttons are faintly lit so you can read them in the dark.
 
@@ -411,11 +440,11 @@ The other buttons are faintly lit so you can read them in the dark.
 TIPS FOR LIVE SETS
 
 - Give the tracks different lengths (Bars or Rnd len), so they drift against each other and make polyrhythms.
-- Evolve at 5â€“15 keeps the patterns alive without losing their character.
+- Evolve at 5ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ15 keeps the patterns alive without losing their character.
 - Put an important parameter on the PRESETS encoder, for example 303 Cutoff, Glue or Chaos, so you always have it at hand whatever the page.
 - Use the big beat numbers in bars 4 and 8 to place breaks and mutes in the right spot.
 - Put Mod on the hi-hat with Chance around 30, so some hits get a sweeping flanger or phaser while the rest stay dry.
-- Mutate at 30â€“50 builds tension before every round without touching the mutes yourself.
+- Mutate at 30ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ50 builds tension before every round without touching the mutes yourself.
 - Hold SEL and press white 16 for Chance. Tap/release SEL, then the current bank key to return. Hold SEL with another bank key to copy; tap/release SEL then its key to switch.
 - Pulled up a new pattern you did not want? Press UNDO (black 3).
 

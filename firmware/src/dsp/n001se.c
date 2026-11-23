@@ -38,8 +38,8 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_POLY] = {"Max hits", 1, 4, 4},
     [G_CHAOS] = {"Chaos", 0, 100, 40},
     [G_MOTION] = {"Motion", 0, 100, 30},
-    [G_REVERB] = {"Reverb", 0, 100, 70},             /* the returns; the sends are per track */
-    [G_DELAY] = {"Delay", 0, 100, 70},
+    [G_REVERB] = {"Reverb", 0, 100, 30},             /* the returns; the sends are per track */
+    [G_DELAY] = {"Delay", 0, 100, 50},
     [G_FILTER] = {"Filter", 0, 100, 100},            /* scales the tracks' filter and drive */
     [G_DRIVE] = {"Drive", 0, 100, 100},
     [G_LEVEL] = {"Level", 0, 100, 80},
@@ -58,6 +58,12 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_GCOLOR] = {"Color", 0, 100, 50},
     [G_GWIDTH] = {"Width", 0, 100, 60},
     [G_ACIDWAVES] = {"303 waves", 0, 1, 0},
+    [G_RUMBLE] = {"Rumble", 0, 100, 0},
+    [G_RTONE] = {"Tonality", 0, 100, 65},
+    [G_RLENGTH] = {"Tail", 0, 100, 50},
+    [G_RMOTION] = {"Movement", 0, 100, 40},
+    [G_SKNOB] = {"Select", 0, 0, 0},
+    [G_AKNOB] = {"Algorithm", 0, 0, 0},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
@@ -86,6 +92,15 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_GRID] = {"Grid", 0, 1, 0},
     [T_DRIFT] = {"Drift", 0, 1, 1},
     [T_DYN] = {"Dynamics", 0, 100, 50},
+    [T_RLEVEL] = {"Rumble", 0, 100, 0},
+    [T_RTAIL] = {"Tail", 0, 100, 55},
+    [T_RCOLOR] = {"Colour", 0, 100, 45},
+    [T_RDRIVE] = {"Drive", 0, 100, 45},
+    [T_RDUCK] = {"Duck", 0, 100, 100},
+    [T_RWIDTH] = {"Width", 0, 100, 65},
+    [T_RMOTION] = {"Movement", 0, 100, 25},
+    [T_RSEED] = {"Shape", 0, 127, 0},
+    [T_RMUTE] = {"Mute", 0, 1, 0},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -139,6 +154,8 @@ static const uint8_t PKNOB[] = {
     NE_PK_ACID | A_ACCENT, NE_PK_ACID | A_TUNE, NE_PK_ACID | A_LEVEL,
     NE_PK_ACID | A_MODAMT, NE_PK_ACID | A_MODRATE,
     NE_PK_ACID | A_DEV,
+    NE_PK_TRACK | T_RLEVEL, NE_PK_TRACK | T_RCOLOR, NE_PK_TRACK | T_RTAIL, NE_PK_TRACK | T_RMOTION,
+    NE_PK_TRACK | T_RDRIVE, NE_PK_TRACK | T_RDUCK, NE_PK_TRACK | T_RWIDTH, NE_PK_TRACK | T_RMUTE, NE_PK_TRACK | T_RSEED,
 };
 #define NE_PKNOBS ((int)sizeof PKNOB)
 int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v : 0]; }
@@ -146,15 +163,15 @@ int ne_pknob_target(int v) { return PKNOB[(unsigned)v < (unsigned)NE_PKNOBS ? v 
 const ne_param_t *ne_param_info(int i)
 {
     static ne_param_t pk;                        /* G_PKNOB's range is the table's */
-    if (i == G_PKNOB) {
-        pk = GP[G_PKNOB];
-        pk.hi = NE_PKNOBS - 1;
+    if (i == G_PKNOB || i == G_SKNOB || i == G_AKNOB) {
+        pk = GP[i];
+        pk.hi = i == G_PKNOB ? NE_PKNOBS - 1 : NE_PKNOBS;
         return &pk;
     }
     return &GP[(unsigned)i < G_NPARAMS ? i : 0];
 }
 const ne_param_t *ne_tparam_info(int i) { return &TP[(unsigned)i < T_NPARAMS ? i : 0]; }
-int ne_tparam_def(int t, int i) { return T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
+int ne_tparam_def(int t, int i) { return i >= T_RLEVEL && i < T_NPARAMS ? TP[i].def : T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
 
 static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap", "Rumble"};
 const char *ne_kind_name(int k) { return (unsigned)k < NFM_KINDS ? KIND_NAME[k] : "?"; }
@@ -189,20 +206,26 @@ void ne_param_text(int i, int v, char *b)
     case G_USBAUDIO: cpy(b, v ? "On" : "Off"); return;
     case G_ACIDWAVES: cpy(b, v ? "All" : "Original"); return;
     case G_SELMODE: cpy(b, v == NE_SEL_AB ? "A/B" : v == NE_SEL_COPY ? "Copy" : "Chance"); return;
-    case G_PKNOB: {
+    case G_PKNOB: case G_SKNOB: case G_AKNOB: {
+        if (i != G_PKNOB) {
+            if (!v) { cpy(b, i == G_SKNOB ? "Track" : "Page"); return; }
+            --v;
+        }
         int k = ne_pknob_target(v);
         if (k & NE_PK_ACID) {                    /* "303 Cutoff" */
             cpy(b, "303 ");
             cpy(b + 4, AP[k & ~NE_PK_ACID].name);
         } else {
-            cpy(b, k & NE_PK_TRACK ? TP[k & ~NE_PK_TRACK].name : GP[k].name);
+            if ((k & NE_PK_TRACK) && (k & ~NE_PK_TRACK)>T_RLEVEL) {
+                cpy(b,"R "); cpy(b+2,TP[k & ~NE_PK_TRACK].name);
+            } else cpy(b, k & NE_PK_TRACK ? TP[k & ~NE_PK_TRACK].name : GP[k].name);
         }
         return;
     }
     case G_HICUT: if (v == 100) { cpy(b, "Open"); return; } break;
     case G_LOCUT: if (!v) { cpy(b, "Open"); return; } break;
     case G_GWIDTH: if (!v) { cpy(b, "Mono"); return; } break;
-    case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTATE: case G_GEQ: case G_GCOLOR: if (!v) { cpy(b, "Off"); return; } break;
+    case G_RUMBLE: case G_REVERB: case G_DELAY: case G_FILTER: case G_DRIVE: case G_GLUE: case G_MUTATE: case G_GEQ: case G_GCOLOR: if (!v) { cpy(b, "Off"); return; } break;
     }
     itoa_s(v, b);
 }
@@ -216,7 +239,8 @@ void ne_tparam_text(int i, int v, char *b)
         cpy(b, "%");
         return;
     case T_KIND: cpy(b, ne_kind_name(v)); return;
-    case T_MUTE: cpy(b, v ? "Muted" : "On"); return;
+    case T_MUTE: case T_RMUTE: cpy(b, v ? "Muted" : "On"); return;
+    case T_RLEVEL: if (!v) { cpy(b, "Off"); return; } break;
     case T_RANDLEN: if (v) { b[0] = '1'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Fixed"); return;
     case T_PITCH: if (v) { b[0] = '+'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Root"); return;
     case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
@@ -231,6 +255,11 @@ void ne_aparam_text(int i, int v, char *b)
 {
     static const char *const SCALE[NACID_SCALES] = {"Minor", "Phrygian", "Dorian", "Penta", "Blues", "Harm min", "Major"};
     switch (i) {
+    case A_NOTES: case A_SLIDES: case A_ACCENTS:
+        itoa_s(v, b);
+        while (*b) ++b;
+        cpy(b, "%");
+        return;
     case A_SCALE: cpy(b, SCALE[(unsigned)v < NACID_SCALES ? v : 0]); return;
     case A_MUTE: cpy(b, v ? "Muted" : "On"); return;
     case A_WAVE: {
@@ -329,6 +358,27 @@ NFM_HOT static float exp2_(float x)                      /* (nfx.c's) */
     p = 1.0f + f * (0.6931472f + f * (0.2402265f + f * (0.0555041f + f * (0.0096181f + f * 0.0013334f))));
     v.u = (uint32_t)(i + 127) << 23;
     return v.f * p;
+}
+#include "nrumble.h"
+static nrumble rumble[NE_TRACKS];
+static float rumble_input[NE_TRACKS][64];
+static void rumble_stop(void)
+{
+    for (int t=0;t<NE_TRACKS;++t) nr_stop(&rumble[t]);
+}
+static void rumble_hit(int slot, float velocity)
+{
+    if (fm.slot[slot].kind==NFM_KIND_KICK && !tpar[slot][T_MUTE] &&
+        !tpar[slot][T_RMUTE] && tpar[slot][T_LEVEL]>0 && velocity>0.0f) {
+        rumble[slot].amount=pct(tpar[slot][T_RLEVEL]);
+        nr_kick(&rumble[slot],NE_SR*60.0f/seq.bpm);
+    }
+}
+NFM_HOT static void rumble_tap(int slot, const float *mono, float gain, int offset, int n)
+{
+    if (fm.slot[slot].kind!=NFM_KIND_KICK || !tpar[slot][T_RLEVEL] ||
+        tpar[slot][T_MUTE] || tpar[slot][T_RMUTE]) return;
+    for (int i=0;i<n && offset+i<64;++i) rumble_input[slot][offset+i]+=mono[i]*gain;
 }
 static float tan_pi(float x)                     /* tan(pi x), up to x 0.3 (13 kHz): nfx.c's */
 {
@@ -758,7 +808,10 @@ static void gset(int p, int v)
 {
     if ((unsigned)p >= G_NPARAMS)
         return;
-    v = v < GP[p].lo ? GP[p].lo : v > GP[p].hi ? GP[p].hi : v;
+    {
+        const ne_param_t *info = ne_param_info(p);
+        v = v < info->lo ? info->lo : v > info->hi ? info->hi : v;
+    }
     gpar[p] = (int16_t)v;
     switch (p) {
     case G_TEMPO: if (!ne_ext) { seq.bpm = (float)v; ne_bpm_x10 = (uint16_t)(v * 10); } break;
@@ -774,6 +827,7 @@ static void gset(int p, int v)
     case G_GLUE: case G_GMIX: case G_GEQ: case G_GCOLOR: case G_GWIDTH: glue_set(); break;
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     case G_MUTATE: break;                        /* (read at the quarters) */
+    case G_RUMBLE: case G_RTONE: case G_RLENGTH: case G_RMOTION: break; /* retired 873 controls */
     case G_SELMODE: case G_ACIDWAVES: break;     /* (the UI's) */
     }
 }
@@ -815,6 +869,15 @@ static void tset_k(int t, int p, int v, int keep)
     case T_KIND: break;                /* takes effect with the next new sound */
     case T_GRID: nseq_set_flag(&seq, t, NSEQ_FLAG_TRIPLET, v); break;
     case T_DYN: nseq_set_flag(&seq, t, NSEQ_FLAG_DYN, v); break;
+    case T_RTAIL: rumble[t].tail=pct(v); break;
+    case T_RCOLOR: rumble[t].colour=pct(v); break;
+    case T_RDRIVE: rumble[t].drive=pct(v); break;
+    case T_RDUCK: rumble[t].duck_amount=pct(v); break;
+    case T_RWIDTH: rumble[t].width=pct(v); break;
+    case T_RMOTION: rumble[t].motion=pct(v); break;
+    case T_RSEED: rumble[t].requested_seed=(uint8_t)v; break;
+    case T_RLEVEL: rumble[t].amount=pct(v); break;
+    case T_RMUTE: if (v) nr_stop(&rumble[t]); break;
     }
     (void)tr;
 }
@@ -1015,6 +1078,16 @@ NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float
     else
         nacid_render(&acid, &fm, l, r, rev, dly, n);
     if (nfm_clock) sp_acid += nfm_clock() - t0;
+    /* Its own dry return; Audio Load attributes this work to FX. */
+    for (int t=0;t<NE_TRACKS;++t) {
+        int enabled=fm.slot[t].kind==NFM_KIND_KICK && !tpar[t][T_MUTE] && !tpar[t][T_RMUTE];
+        rumble[t].amount=enabled ? pct(tpar[t][T_RLEVEL]) : 0.0f;
+        if (!enabled) nr_stop(&rumble[t]);
+        float *ol=l, *or_=r;
+        if (fm.dir_l && (fm.direct>>t&1u)) { ol=fm.dir_l; or_=fm.dir_r; }
+        nr_render(&rumble[t],rumble_input[t],ol,or_,n,fm.master*pct(tpar[t][T_LEVEL]));
+        nfm_zero(rumble_input[t],sizeof rumble_input[t]);
+    }
 }
 
 static void new_sound(int t, int kind)
@@ -1041,6 +1114,10 @@ void ne_init(void)
     int t, p;
     nfm_init(&fm, NE_SR, 0x6e303031u);
     nfx_init(&fx, NE_SR, 0x6e736521u);
+    for (int t=0;t<NE_TRACKS;++t) nr_init(&rumble[t]);
+    nfm_zero(rumble_input,sizeof rumble_input);
+    fx.on_hit = rumble_hit;
+    fm.tap = rumble_tap;
     nseq_init(&seq, &fm, 0x73657121u);
     nseq_set_fx(&seq, &fx);
     nacid_init(&acid, NE_SR, 0x61636964u);
@@ -1061,7 +1138,7 @@ void ne_init(void)
         gset(p, GP[p].def);
     for (t = 0; t < NE_TRACKS; t++) {
         for (p = 0; p < T_NPARAMS; p++)
-            tset(t, p, T_DEF[t][p]);
+            tset(t, p, ne_tparam_def(t,p));
         new_sound(t, T_DEF[t][T_KIND]);
         nseq_generate(&seq, t);
     }
@@ -1098,6 +1175,7 @@ void ne_restore(const ne_state_t *s)
     int t, i;
     hold = 1;
     __asm__ volatile("" ::: "memory");
+    rumble_stop();
     nfm_stop_all(&fm);
     for (t = 0; t < NE_TRACKS; t++) {
         nseq_track *tr = &seq.track[t];
@@ -1186,6 +1264,7 @@ static void clock_msg(int m, uint32_t now)
         nseq_start(&seq);
     } else if (m == NE_CLK_STOP) {
         nseq_stop(&seq);
+        rumble_stop();
     }
 }
 
@@ -1202,8 +1281,10 @@ static void drain(void)
         case C_PLAY:
             if (c.a && !seq.playing)
                 nseq_start(&seq);
-            else if (!c.a && seq.playing)
+            else if (!c.a && seq.playing) {
                 nseq_stop(&seq);
+                rumble_stop();
+            }
             break;
         case C_STEP: nseq_set_step(&seq, c.t, c.a, c.b, c.c, c.d); break;
         case C_GEN:
@@ -1238,9 +1319,10 @@ static void drain(void)
             break;
         case C_CLOCK: clock_msg(c.a, seq.now); break;
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
-        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); break;
+        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); rumble_stop(); break;
         case C_SPACE: nfx_space_shift(&fx); break;
         case C_CLEAR: {                /* CLEAR ALL: no hits, no notes */
+            rumble_stop();
             int t, s;
             for (t = 0; t < NE_TRACKS; t++)
                 for (s = 0; s < NE_STEPS; s++)

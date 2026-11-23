@@ -6,6 +6,8 @@ wait 200
 tap FX
 expect view 6
 tap GLO
+expect view 8
+tap GLO
 expect view 11
 spin K1 -40
 expect gpar12 60
@@ -59,6 +61,7 @@ expect preset 2
 spin K3 -5
 expect tpar14 0
 tap GLO
+tap GLO
 spin K1 40
 expect gpar12 100
 tap ENV
@@ -87,6 +90,7 @@ tap FX
 expect list 0
 expect view 4
 # Program Change 3 (slot 003 is 2), on channel 1, while playing
+tap HOME
 tap ENV
 tap ENV
 spin K3 -5
@@ -100,6 +104,7 @@ expect preset 2
 tap PLAY
 expect dropped 0
 # undo / redo on black 3 / 4: one knob turn is one edit
+tap GLO
 tap GLO
 tap GLO
 tap GLO

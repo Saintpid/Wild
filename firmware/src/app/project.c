@@ -53,7 +53,7 @@ static void project_upgrade(void)
     if (f >= 2u) {
         proj.preset = p[0];
         proj.bank = p[1];
-        p += 32;
+        p += f >= 18u ? 20 : 32;
     }
     if (f >= 3u) {
         memcpy(&proj.acid, p, sizeof proj.acid);
@@ -96,7 +96,7 @@ static uint32_t project_size(uint32_t f)
 {
     uint32_t n = 8u + 2u * (uint32_t)PROJ_G_OF(f) + 2u * NE_TRACKS * (uint32_t)PROJ_T_OF(f) + sizeof proj.st;
     if (f >= 2u)
-        n += 32u;
+        n += f >= 18u ? 20u : 32u;
     if (f >= 3u)
         n += sizeof proj.acid + 2u * (uint32_t)PROJ_A_OF(f);
     return n;

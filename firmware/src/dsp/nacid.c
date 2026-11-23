@@ -233,11 +233,11 @@ NFM_CODE static int roll_accent(nacid *a, int s)
     return rndf(&a->rng) < clamp1(a->p[NACID_P_ACCENTS] * lerp(w, 1.0f, a->p[NACID_P_CHAOS]));
 }
 
-/* a slide where it moves: most into another note, an octave above all; into a rest (a long note) seldom */
+/* A latent slide follows the interval even when either gate is currently off. */
 NFM_CODE static int roll_slide(nacid *a, int s)
 {
     const nacid_note *nx = &a->step[(s + 1) % (a->bar * NACID_MAX_BARS)];
-    float w = 0.35f;
+    float w;
     /* Both steps already have a pitch, even if their gates are off. Use
      * the same interval rules for latent and currently sounding notes. */
     {
@@ -270,6 +270,44 @@ NFM_CODE static void draw_slide(nacid *a, int s)
     st->flags &= (uint8_t)~NACID_SLIDE;
     /* Precompute a slide even for a rest, ready for live gate activation. */
     if (roll_slide(a, s)) st->flags |= NACID_SLIDE;
+}
+
+/* The motif supplies candidates; Notes sets the exact rounded count in the
+ * playing length. Weighted corrections keep musical positions at low Chaos. */
+NFM_CODE static void fit_density(nacid *a)
+{
+    int count = 0, len = a->length;
+    int target = (int)(a->p[NACID_P_DENSITY] * (float)len + 0.5f);
+    if (target < 0) target = 0;
+    if (target > len) target = len;
+    for (int s = 0; s < len; ++s) count += !!(a->step[s].flags & NACID_ON);
+    while (count != target) {
+        int add = count < target, chosen = -1;
+        float sum = 0.0f;
+        for (int s = 0; s < len; ++s) {
+            if (!!(a->step[s].flags & NACID_ON) == add) continue;
+            float w = pos_w(a, s);
+            sum += add ? w : 1.0f / w;
+        }
+        float r = rndf(&a->rng) * sum;
+        for (int s = 0; s < len; ++s) {
+            if (!!(a->step[s].flags & NACID_ON) == add) continue;
+            float w = pos_w(a, s);
+            chosen = s; /* also handles floating-point rounding at the end */
+            if ((r -= add ? w : 1.0f / w) < 0.0f) break;
+        }
+        if (chosen < 0) break;
+        nacid_note old = a->step[chosen];
+        a->step[chosen].flags ^= NACID_ON;
+        count += add ? 1 : -1;
+        /* Correct matching motif copies together where the remaining count
+         * allows it, rather than independently damaging each repeated bar. */
+        for (int s = chosen % a->bar; s < len && count != target; s += a->bar)
+            if (s != chosen && a->step[s].flags == old.flags && a->step[s].note == old.note) {
+                a->step[s].flags ^= NACID_ON;
+                count += add ? 1 : -1;
+            }
+    }
 }
 
 /* The rhythm first, as a motif: a bar, or half a bar twice (its second half a little different); the
@@ -313,6 +351,7 @@ NFM_CODE void nacid_generate(nacid *a)
             draw_slide(a, s - 1);
             draw_slide(a, s);
         }
+    fit_density(a);
 }
 
 /* one step changes: a new note mostly, else a note comes or goes, an accent or a slide flips; by the
@@ -353,28 +392,31 @@ NFM_CODE void nacid_set_grid(nacid *a, int triplet)
  * first, as nseq's grid counts for the length and the playhead) */
 NFM_CODE void nacid_regrid(nacid *a, int triplet)
 {
-    nacid_note *st = a->step, old;
+    nacid_note *st = a->step, mapped[NACID_STEPS] = { { 0, 0 } };
     int s;
     if ((a->bar == NACID_TBAR) == !!triplet) return;
     if (triplet) {
         for (s = 0; s < NACID_STEPS; ++s) {
             int d = s / 4 * 3 + (s % 4 < 2 ? s % 4 : 2);
-            old = st[s];
-            st[s].flags = 0;
-            if ((old.flags & NACID_ON) && !(st[d].flags & NACID_ON)) st[d] = old;
+            /* First step wins ties; a sounding step takes priority over a rest. */
+            if (s % 4 != 3 || (!(mapped[d].flags & NACID_ON) && (st[s].flags & NACID_ON)))
+                mapped[d] = st[s];
         }
         a->length = (uint8_t)(a->length / 4 * 3 + (a->length % 4 < 3 ? a->length % 4 : 3));
         a->pos = (uint8_t)(a->pos / 4 * 3 + (a->pos % 4 < 3 ? a->pos % 4 : 3));
     } else {
         for (s = NACID_TBAR * NACID_MAX_BARS - 1; s >= 0; --s) {
             int d = s / 3 * 4 + s % 3;
-            old = st[s];
-            st[s].flags = 0;
-            if (old.flags & NACID_ON) st[d] = old;
+            mapped[d] = st[s];
+            if (s % 3 == 2) {
+                mapped[d + 1] = st[s];
+                mapped[d + 1].flags &= (uint8_t)~NACID_ON;
+            }
         }
         a->length = (uint8_t)(a->length / 3 * 4 + a->length % 3);
         a->pos = (uint8_t)(a->pos / 3 * 4 + a->pos % 3);
     }
+    for (s = 0; s < NACID_STEPS; ++s) st[s] = mapped[s];
     a->bar = triplet ? NACID_TBAR : NACID_BAR;
     if (a->length < 1) a->length = 1;
     if (a->pos >= a->length) a->pos = 0;

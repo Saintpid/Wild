@@ -20,7 +20,7 @@ expect tpar19 1
 spin K4 40
 expect tpar22 100
 shot modfx.png
-tap FX
+tap GLO
 expect view 8
 shot fxbus.png
 # SEL + white 16: a scene by chance (the kick's reverb is 40 before it); select current bank: back

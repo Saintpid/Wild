@@ -1,0 +1,74 @@
+# Kick child layer: no sequence, independent randomisation, ENV controls.
+wait 200
+expect gpar6 30
+expect gpar7 50
+tap ENV
+tap ENV
+tap ENV
+expect track 0
+expect rumble 1
+expect view 16
+expect tpar26 0
+tapkey b10
+wait 1500
+expect tpar26 55
+shot rumble-layer.png
+wav rumble-layer.wav
+tap PLAY
+wait 4000
+tapkey b10
+wait 4000
+tap ENV
+expect view 18
+spin K2 10
+wait 1500
+shot rumble-texture.png
+tap ENV
+expect view 19
+spin K1 1
+expect tpar34 1
+wait 100
+spin K1 -1
+expect tpar34 0
+tap ENV
+expect view 3
+tap ENV
+tap ENV
+expect view 16
+spin K1 -100
+expect tpar26 0
+wait 500
+tap PLAY
+wavstop
+# Global FX now lead the GLO pages; FX cycles only track FX and modulation.
+tap GLO
+expect view 8
+wait 1500
+shot global-fx.png
+tap HOME
+expect rumble 0
+tap FX
+expect view 6
+tap FX
+expect view 7
+tap FX
+expect view 6
+tap GLO
+expect view 8
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+expect view 17
+spin K2 41
+expect gpar31 41
+spin ALGO 50
+expect tpar26 50
+expect view 17
+spin ALGO -100
+expect tpar26 0
+wait 1500
+shot controls.png
+expect dropped 0
