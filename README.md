@@ -201,7 +201,7 @@ command.
 
 | Control | Does |
 | --- | --- |
-| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, three to a beat). A press: empty ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ strong ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ soft ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off (303: accent ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ plain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, three to a beat). A press: empty ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ strong ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ soft ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off (303: accent ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ plain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off). Lit: strong bright, soft dim, an empty quarter faint. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 6 steps (within the bank) |
 | **Black 5ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ9** | Mute tracks 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ5 |

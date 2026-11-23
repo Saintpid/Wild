@@ -18,12 +18,12 @@
  *   wav FILE | wavstop           start / stop recording the output
  *   peakreset                    restart the output peak (expect peak_db_min / peak_db_max)
  *   shot FILE.png                save the screen
- *   leds                         print the lit buttons and keys
+ *   leds                         print the lit buttons and keys (# lit, + dim, - faint)
  *   expect WHAT VALUE            check state: exit 1 on mismatch; VALUE "<N" / ">N" is a bound
  *                                (WHAT: view dirty store_writes midi_out playing track bar lock live list slot preset
  *                                 stepN velN noteN (step N of the selected track) hits velmin len mute
  *                                 voices phrase ext bpm gparN tparN (the selected track's) kindT
- *                                 dimkeys litkeys (bits) dropped peak_db_max peak_db_min
+ *                                 dimkeys litkeys faintkeys (bits) dropped peak_db_max peak_db_min
  *                                 the acid line: alen anotes alast aflagsN anoteN aparN alevel; glitches;
  *                                 patkeepN patmovedN (N 5: the acid line); bank banks bankdirty parts partofN
  *                                 songs listfree listlen copyfrom;
@@ -71,7 +71,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 
 static uint32_t now_ms, held_btn, held_keys, master = 2048;
 static int32_t enc_acc[NE];
-static uint32_t lit_btn, lit_keys, dim_keys;
+static uint32_t lit_btn, lit_keys, dim_keys, faint_keys;
 
 uint32_t plat_ms(void) { return now_ms; }
 uint32_t plat_buttons(void) { return held_btn; }
@@ -83,11 +83,12 @@ int32_t plat_enc(int role)
     return v;
 }
 uint32_t plat_master(void) { return master; }
-void plat_leds(uint32_t b, uint32_t k, uint32_t d)
+void plat_leds(uint32_t b, uint32_t k, uint32_t d, uint32_t f)
 {
     lit_btn = b;
     lit_keys = k;
     dim_keys = d & ~k;                           /* (a lit key is lit, not dim: plat_fm1.c) */
+    faint_keys = f & ~k & ~d;
 }
 
 #define MQ 256
@@ -656,6 +657,8 @@ static int expect(const char *what, const char *val)
         got = (int)dim_keys;
     else if (!strcmp(what, "litkeys"))
         got = (int)lit_keys;
+    else if (!strcmp(what, "faintkeys"))
+        got = (int)faint_keys;
     else if (!strcmp(what, "peak_db_max") || !strcmp(what, "peak_db_min")) {
         double db = 20.0 * log10(peak_out > 1e-9f ? peak_out : 1e-9f);
         int bad = what[8] == 'm' && what[9] == 'a' ? db > atof(val) : db < atof(val);
@@ -790,7 +793,8 @@ int main(int argc, char **argv)
                     printf(" %s", BTN_N[i]);
             printf(" | white ");
             for (i = 0; i < 16; i++)
-                printf("%c", (lit_keys >> WHITE_K[i] & 1u) ? '#' : (dim_keys >> WHITE_K[i] & 1u) ? '+' : '.');
+                printf("%c", (lit_keys >> WHITE_K[i] & 1u) ? '#' : (dim_keys >> WHITE_K[i] & 1u) ? '+'
+                                                    : (faint_keys >> WHITE_K[i] & 1u) ? '-' : '.');
             printf(" black ");
             for (i = 0; i < 11; i++)
                 printf("%c", (lit_keys >> BLACK_K[i] & 1u) ? '#' : (dim_keys >> BLACK_K[i] & 1u) ? '+' : '.');

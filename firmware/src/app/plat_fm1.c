@@ -39,9 +39,9 @@ static void led_pos_init(void)
                     led_pos[id] = (uint8_t)((p << 3) | r);
     }
 }
-void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys)
+void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys, uint32_t faint_keys)
 {
-    uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0};
+    uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0}, nf[FM1_NCOL] = {0};
     uint32_t i, c;
     for (i = 0; i < NB + NKEYS; i++) {
         uint32_t id = i < NB ? panel.btn[i] : 14u + (i - NB);
@@ -54,10 +54,13 @@ void plat_leds(uint32_t buttons, uint32_t keys, uint32_t dim_keys)
             nl[q >> 3] |= (uint8_t)(1u << (q & 7u));
         else if (dim)
             nd[q >> 3] |= (uint8_t)(1u << (q & 7u));
+        else if (i >= NB && ((faint_keys >> (i - NB)) & 1u))
+            nf[q >> 3] |= (uint8_t)(1u << (q & 7u));
     }
     for (c = 0; c < FM1_NCOL; c++) {
         fm1_led[c] = nl[c];
         fm1_led_dim[c] = nd[c];
+        fm1_led_faint[c] = nf[c];
     }
 }
 

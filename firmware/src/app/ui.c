@@ -2434,13 +2434,14 @@ static void draw_knobs(void)
     cv_blit(0, KNB_Y);
 }
 
-/* the lights. SEQ: the white keys the bar's hits (bright), the playhead (dim walking; dark on a hit);
+/* the lights. SEQ: the white keys the bar's hits (strong bright, soft dim), the quarters' empty steps
+ * faint (1 5 9 13; triplets 1 4 7 10), the playhead (dim walking; dark on a hit);
  * black 1 / 2 dim where the bar can go (the bar locked: one blinks); black 3 lit on the Master page;
  * black 5-8 the tracks: dim on, bright on a hit, dark muted. LIVE: the white keys light with their
  * sound. */
 static void leds(void)
 {
-    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, d = 0, i;
+    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, d = 0, f = 0, i;
     int t = ui.track, sb = shown_bar(), ps = play_step(t), blink = (plat_ms() / 160u) & 1u;
     if (playing())
         b |= 1u << B_PLAY;
@@ -2463,15 +2464,17 @@ static void leds(void)
                 d |= 1u << WHITE_K[i];
     } else {
         for (i = 0; i < NWHITE && (int)i < tbar(t); i++) {   /* (triplets: keys 13-16 dark) */
-            int s = sb * tbar(t) + (int)i;
-            if (step_on(t, s))
-                k |= 1u << WHITE_K[i];
+            int s = sb * tbar(t) + (int)i, on = step_on(t, s);
+            uint32_t m = 1u << WHITE_K[i];
             if (s == ps) {
-                if (k >> WHITE_K[i] & 1u)
-                    k &= ~(1u << WHITE_K[i]);        /* the playhead on a hit: dark a moment */
-                else
-                    d |= 1u << WHITE_K[i];
-            }
+                if (!on)
+                    d |= m;                          /* (on a hit: dark a moment) */
+            } else if (on && t != NE_ACID && trk(t)->step[s].vel <= NSEQ_VEL_SPLIT)
+                d |= m;                              /* a soft hit (the acid line: all bright) */
+            else if (on)
+                k |= m;
+            else if (s < tlen(t) && tbar(t) >= 4 && (int)i % (tbar(t) >> 2) == 0)
+                f |= m;                              /* a quarter */
         }
     }
     if (ui.list && blink)                            /* the list: its key blinks */
@@ -2495,7 +2498,7 @@ static void leds(void)
             d |= 1u << BLACK_K[BK_MUTE1 + i];
     }
     k |= ui.keys;
-    plat_leds(b, k, d);
+    plat_leds(b, k, d, f);
 }
 
 /* AUTOSAVE: a while after a change, once stopped and quiet (a flash erase silences the audio a moment,
