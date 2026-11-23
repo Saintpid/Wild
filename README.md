@@ -1,4 +1,8 @@
-# Wild 0.3.37 - experimental FM-1 firmware
+# Wild 0.3.38 - experimental FM-1 firmware
+
+**0.3.38: clear one track.** GLO + EDIT, and GLO + EDIT again to say yes: the selected track starts
+over (no hits or notes, its settings at their defaults, 1 bar Fixed, nothing by chance, its automation
+gone) while the others play on. Its kind, sound, mute and level stay; Undo brings it back.
 
 **0.3.37:** Fill and Less set drum pattern density as percentages, so it follows the track length.
 
@@ -182,6 +186,7 @@ command.
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
 | **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation. GLO + REC: the selected track's automation erased |
+| **GLO + EDIT** | Clear the selected track: asks, GLO + EDIT again says yes (a key keeps it). No hits or notes, its settings at their defaults, 1 bar Fixed, nothing by chance, its automation gone; its kind, sound, mute and level stay, the other tracks play on. Undo brings it back |
 | **GLO + HOME** | Clear all: asks, GLO + HOME again says yes. Every bank empty, all automation gone, bank 1 empty (no hits or notes, 1 bar Fixed, nothing by chance); saved songs kept |
 | **SAVE / ARP** | Save / load a song, all its banks (64 slots). On the list: SEL copies the song (SEL again on a free slot), HOME deletes it (HOME again: yes), GLO + HOME erases all songs (GLO + HOME again: yes); any other button cancels that |
 | **PRESETS** | Controls any parameter, Glue to start with |
