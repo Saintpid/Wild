@@ -5,24 +5,123 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.38
+## 0.3.43
 
-Firmware identity FM-1_872. Clear one track and start it over.
+Firmware identity FM-1_877. The beat and the strengths on the step keys, and clearing one track.
+Brings together the 0.3.40-0.3.42 line and what was made alongside it.
 
+- The quarters' empty steps (white keys 1, 5, 9 and 13; a track in triplets 1, 4, 7 and 10) glow
+  faintly, fainter than any hit, so you can see where the beat is. A hit on a quarter shows as a hit.
+- A soft drum hit lights dim, a strong one bright, so you can tell them apart on the keys. The 303's
+  notes all stay bright. The playhead walks over them as before.
 - **GLO + EDIT** asks "CLEAR Kick?" (or whichever track is selected); GLO + EDIT again says yes,
   anything else keeps it. The track empties: no hits or notes, 1 bar, Fixed, every chance on it
   (Evolve, Deviance, Pitch, Dynamics; the 303's Chaos too) at 0 and its other settings, effects
-  included, at their defaults. Its automation goes too.
+  included, at their defaults. Its automation goes too, and a Kick's Rumble stops.
 - Its kind (Kick, Snare...), its sound, its mute and its level stay, and the other tracks play on.
   Undo (black 3) brings it all back.
+
+## 0.3.42
+
+Firmware identity FM-1_876. Rumble stays on the Kick effect pages.
+
+- Removed the separate Rumble row, child selection and scrolling track list.
+  SELECT and OCT-/+ select only the five main tracks, even with four Kicks.
+- Kick ENV cycles Sound / Tone / Rumble / Texture / Layer / Sound. Non-Kick
+  tracks omit the Rumble pages. NEW SOUND on those pages randomises only Rumble;
+  elsewhere it changes the instrument. Step keys continue editing the main track.
+- Removed child-specific HOME/EDIT/FX/LFO routing. Assignable encoder targets,
+  effect settings, format 19 and the 875 DSP remain unchanged.
+- Firmware resource checks and host controls/scenario tests cover navigation,
+  ENV cycling, normal step editing and isolated Rumble randomisation.
+
+## 0.3.41
+
+Firmware identity FM-1_875. Offbeat Rumble swell without a new attack.
+
+- Each actual Kick starts a tempo-scaled hold and smoothstep rise. The envelope
+  reaches full level one eighth after that hit; its final 15% of a quarter-note
+  rises with zero endpoint slope. Incoming kicks fade the previous envelope down
+  smoothly; the latest hit restarts the timing rather than stacking new attacks.
+- During the hidden part, higher feedback retains the excitation, blended by
+  Duck amount. Tail controls the decay as it swells into view. No long audio
+  delay or extra effect chain is added. Stop/reset cancel the pending rise.
+- Duck defaults to 100. NEW SOUND preserves the chosen Duck amount, so random
+  timbres do not reintroduce an unwanted attack. Saved settings remain unchanged.
+- Host checks cover timing at 60/112/132/200/300 BPM, smooth ramps, retriggers,
+  stop cancellation and actual swing-delayed Kick scheduling. Format remains 19.
+
+## 0.3.40
+
+Firmware identity FM-1_874. Per-kick Rumble layers and a wider random sound palette.
+
+- Each Kick has a selectable child row without a sequencer. SELECT visits children;
+  OCT-/+ retain main-track navigation. Kick ENV also opens the child panel.
+- NEW SOUND on the child randomises it independently of the Kick and its pattern,
+  with undo/redo. Nine controls cover level, tail, colour, drive, duck, width,
+  movement, internal shape and mute over three ENV pages. Settings save per bank.
+- The 873 pitched-oscillator prototype is replaced by real kick audio driving a
+  compact two-line scattering tank at quarter sample rate. Each parent has its
+  own state. Output interpolation, gain/duck smoothing and four 150 Hz Side HP
+  poles run at full rate. Shape replacement fades out before resetting the tank.
+- Up to four independent kick layers need no extra FM voices or pool buffers.
+  The fixed 17760-byte undo budget stays fixed despite the larger project layout.
+- Global FX moved from FX to the first GLO page. New defaults are Reverb 30,
+  Delay 50, Filter 100, Drive 100. Assignable encoder targets now include all
+  layer controls; existing Rumble assignment positions map to per-track controls.
+- Format 19 appends nine parameters per drum track; projects are 1848 bytes and
+  paired bank records still fit their sectors. Earlier layouts remain readable.
+- Resource-checked firmware, DSP/UBSan, controls/storage and full app scenarios
+  pass. No-input silence, seeded variation, Side filtering, four active layers,
+  randomisation isolation/undo/save and navigation are covered on host. Actual
+  sound quality, device render peaks and dropouts require FM-1 evaluation.
+
+## 0.3.39
+
+Firmware identity FM-1_873. Rumble return and assignable navigation encoders.
+
+- FX's fourth page provides Rumble level (0 off), Tonality, Tail and Movement.
+  One kick-excited synthesis return adds a mono bass core, gliding tonal motion
+  and quieter stereo partials. Four 150 Hz high-pass poles suppress low Side
+  content. No delay buffers, extra FM voices or additional effect chain.
+- Actual kick triggers excite and duck the return at their scheduled time.
+  Gain, colour, pitch and stop are smoothed. Off and unexcited states bypass
+  per-sample synthesis. Audio Load attributes the new return to FX.
+- GLO's sixth page, Controls, assigns SELECT and ALGORITHM to any PRESETS target.
+  Defaults remain Track/Page; PRESETS keeps Glue. Page buttons remain available.
+  Mixer SELECT and preset-list SELECT keep priority over custom assignments.
+- Rumble is bank-local and automatable. Assignments are kept across bank changes
+  and saved. Format 18 uses twelve reserved bytes for six new globals, preserving
+  project/bank sizes. Existing Rumble drum kind remains available separately.
+- Host signal/UI tests cover stereo, mono fundamental, smooth edits, buffer
+  invariance, stop/panic, remapping, persistence and recovery. Sound quality
+  and real-device load require FM-1 evaluation.
+
+## 0.3.38
+
+Firmware identity FM-1_872. The 303's generator and live step editing.
+
+- Notes 0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% sets the exact rounded note count in the playing length, including
+  triplets. Musical position and motif weighting choose placement; Chaos loosens it.
+- Inactive generated steps also hold pitch, accent and slide. Step keys reveal
+  those properties; switching off retains pitch and slide. Grid conversion and
+  saving preserve inactive properties. New subdivisions inherit nearby latent
+  properties with their gate off; sounding steps win grid collisions.
+- Slides and Accents show percentages and support 0% and 100%; intermediate
+  values remain musically weighted probabilities. Evolve can change inactive
+  properties and toggles gates without rerolling the step.
+- Saved format 17 and parameter indices stay unchanged. Existing stored patterns
+  are retained; Notes' exact-count rule applies when generating a new pattern.
+- Regression coverage includes real step keys, grid changes, persistence, all
+  note percentages and lengths, and a fixed overload through the final limiter.
 
 ## 0.3.37
 
 Firmware identity FM-1_871. Drum pattern density follows the generated length.
 
 - Fill sets the share of available steps to fill. Less sets how much of that hit count
-  can be removed at random. Fill 50% and Less 25% give 6–8 hits in one 16-step bar
-  and 12–16 hits in two bars. Less 0% gives an exact count.
+  can be removed at random. Fill 50% and Less 25% give 6ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 hits in one 16-step bar
+  and 12ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“16 hits in two bars. Less 0% gives an exact count.
 - Triplets and random lengths use the actual number of available steps. Older songs
   and banks keep their patterns and convert their generator settings to percentages.
 
@@ -607,13 +706,13 @@ Firmware identity FM-1_824.
     default: tight, but the hits keep their punch. A gentle transient expander in the compressor lets
     the hits through.
   - **Glue EQ:** an EQ that listens. It follows the balance between lows and highs and leans the mix
-    towards a pink slope of Ã¢Ë†â€™4.5 dB an octave, adds a little foundation and air, takes a little box
-    away, and turns the harsh 2Ã¢â‚¬â€œ9 kHz down while it stands out. 50 by default, 0 flat.
+    towards a pink slope of ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢4.5 dB an octave, adds a little foundation and air, takes a little box
+    away, and turns the harsh 2ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“9 kHz down while it stands out. 50 by default, 0 flat.
   - **Color:** an inflator, denser and fuller near the top. 50 by default.
   - **Width:** 0 mono, 50 as it is, 100 twice as wide; the lows under 120 Hz always in mono. 60 by
     default.
 - As before, the Glue is loudness matched (the volume is Level's), and 0 turns all of it off. With
-  the Glue on, the limiter's ceiling is Ã¢Ë†â€™1 dBFS (Ã¢Ë†â€™0.3 dBFS off).
+  the Glue on, the limiter's ceiling is ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1 dBFS (ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢0.3 dBFS off).
 - Project format 11: a saved project or preset gets the Glue page's defaults, so one with Glue up
   sounds a little different (more finished) than before. Glue mix 100, Glue EQ 0, Color 0 and Width
   50 come close to the old Glue.
@@ -634,7 +733,7 @@ Firmware identity FM-1_822.
 - **Space (Drift page, knob 4).** The reverb and the delay wander between places of their own: the
   reverb from a small room through the usual one to a big hall (length and tone), the delay between
   a dotted eighth (as before), an eighth, a sixteenth and a quarter. At 0 they stay put as before;
-  the higher, the more often they move, but always slowly: each glide takes 1Ã¢â‚¬â€œ4 bars and each place
+  the higher, the more often they move, but always slowly: each glide takes 1ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“4 bars and each place
   is held at least 4 bars (about 8 on average at 100). The delay fades from one length to the next,
   so nothing bends in pitch. With Space up, SEL also moves them by the same chance (always at 100).
   Chaos and Motion no longer move the delay time or the reverb's length and tone; Space does.
@@ -644,7 +743,7 @@ Firmware identity FM-1_822.
 
 Firmware identity FM-1_821.
 
-- **A new kind of sound: Clap.** Three or four quick bursts of band-passed noise, 6Ã¢â‚¬â€œ13 ms apart,
+- **A new kind of sound: Clap.** Three or four quick bursts of band-passed noise, 6ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“13 ms apart,
   then the tail, with a short FM knock under it and now and then the resonator as a room. The
   bursts are drawn anew on every hit, so no two claps are the same. Choose it with Kind on the Tone
   page and draw a new sound (black 11). Its patterns lean on beats 2 and 4, like a snare's, with a
@@ -677,7 +776,7 @@ The acid line is rebuilt after the TB-303, its sequencer and its sound.
   now and then, and now and then a note outside the scale. Then the octaves (up likelier off the
   beat), accents where they push the rhythm (off the beat, after a rest), and slides where they move
   the line: most into a different note, and most of all into an octave jump.
-- **Chaos for the acid line** (Tone page, KNOB 4, 0Ã¢â‚¬â€œ100 %, 25 % to start with). At 0 % the line
+- **Chaos for the acid line** (Tone page, KNOB 4, 0ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“100 %, 25 % to start with). At 0 % the line
   follows the rules above; at 100 % the scale, the beat and the motif are gone: any note, wild
   octaves (up to two), accents and slides anywhere. In between, every chance moves step by step.
 - **The 303's gate and slide.** A note's gate is half a step. A slide holds the gate into the next
@@ -765,10 +864,10 @@ The first public version, tested on the FM-1 (firmware identity FM-1_814: instal
 ## 0.1.0
 
 - **n001se, the first build.** Four FM percussion sounds (kick, snare, hat, perc to start; click and
-  metal too) where every hit varies a little, a random pattern sequencer over them with 1Ã¢â‚¬â€œ8 bars a
+  metal too) where every hit varies a little, a random pattern sequencer over them with 1ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“8 bars a
   track, and drifting effects (filter, drive, delay, reverb) that pick which hits they touch.
 - **The keys are the sequencer:** the white keys are the 16 steps of a bar, lit where there is a hit,
-  with the playhead walking over them; black keys 1Ã¢â‚¬â€œ8 choose the bar; 9Ã¢â‚¬â€œ11 mute, new pattern, new sound.
+  with the playhead walking over them; black keys 1ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“8 choose the bar; 9ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“11 mute, new pattern, new sound.
 - **The phrase:** eight bars across the screen, the eighth red, counting 1 2 3 4 to the next round.
 - MIDI in (USB and TRS): notes for new patterns, controllers for the macros and effects, MIDI clock.
 
@@ -779,7 +878,7 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 ## 0.6.1
 
 - **Less work with Reverb at 0:** once the reverb's tail has died away, the reverb stops running until
-  you turn it up again (on the FM-1, about 24% Ã¢â€ â€™ 15% CPU when nothing is playing). Nothing changes in
+  you turn it up again (on the FM-1, about 24% ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ 15% CPU when nothing is playing). Nothing changes in
   the sound.
 
 ## 0.6.0
@@ -803,7 +902,7 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 
 ## 0.5.1
 
-- **The wah is now heard.** Covering the sound hole (ENV Ã¢â€ â€™ Body: Wah, the mod wheel, pressure, the Hole
+- **The wah is now heard.** Covering the sound hole (ENV ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Body: Wah, the mod wheel, pressure, the Hole
   key, or Wah rate) muffles the sound like a vowel closing: bright with the hole open, dark and a little
   quieter covered, with a vowel-like peak sweeping through the tines on the way. Before, it only moved a
   resonance below the lowest tine, and barely changed the sound. Box and Gourd have a hole; Board and
@@ -833,11 +932,11 @@ The versions below are FiMba-1's, the kalimba firmware n001se was built from.
 
 - **16 voices** (up from 12): fewer tines cut short when long-ringing steel tines and patterns overlap.
   Upper overtones that have died away are skipped, so ordinary playing costs less.
-- **Worn**: an old, played-in kalimba. Each tine gets its own quirks: a little out of tune (up to Ã‚Â±12
+- **Worn**: an old, played-in kalimba. Each tine gets its own quirks: a little out of tune (up to ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±12
   cents), a longer or shorter sustain, a faster or slower beat, uneven brightness and level.
 - **Pages by button**: each page button owns its pages; press it again for the next (dots in the
-  header show which). HOME: Tine Ã¢â€ â€™ **Character** (Worn, Glide, Tuning, Release). ENV: Body.
-  FX: Space Ã¢â€ â€™ Color. LFO: Grain Ã¢â€ â€™ Spread. SEL: Keys Ã¢â€ â€™ Play. SEQ: Pattern. GLO: Setup.
+  header show which). HOME: Tine ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ **Character** (Worn, Glide, Tuning, Release). ENV: Body.
+  FX: Space ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Color. LFO: Grain ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Spread. SEL: Keys ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Play. SEQ: Pattern. GLO: Setup.
 - **ARP**: tap to start or stop the pattern; **hold** to open its settings.
 - Settings saved by earlier versions carry over; new settings start at their defaults.
 

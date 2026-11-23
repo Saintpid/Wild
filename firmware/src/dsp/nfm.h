@@ -267,6 +267,7 @@ typedef struct {
     /* This slot's hits are never stolen by another's (-1: none): a kick that never drops out. */
     int priority_slot;
     nfm_mod mod[NFM_SLOTS];  /* each sound's modulation effect (type 0: none) */
+    void (*tap)(int slot, const float *mono, float gain, int offset, int frames);
 } nfm_engine;
 /* Delay lines for the flanger and chorus, NFM_MOD_LEN frames for each voice (int16[NFM_VOICES *
  * NFM_MOD_LEN]); without them those two are not played. */
@@ -282,6 +283,7 @@ enum { NFM_INS_FILTER = 1, NFM_INS_DRIVE = 2 };
 void nfm_init(nfm_engine *e, float sample_rate, uint32_t seed);
 /* Zero n bytes without calling libc memset (words when aligned). */
 void nfm_zero(void *p, unsigned n);
+float nfm_sine(float phase);                        /* shared table, phase in cycles */
 
 /* The base patch. value is 0..1; out-of-range values are clamped. */
 void nfm_set_param(nfm_engine *e, int slot, int param, float value);

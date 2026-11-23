@@ -166,6 +166,7 @@ NFM_CODE int nfx_trigger(nfx *fx, nfm_engine *e, int slot, float vel, float tran
     if (v < 0) return v;
     nfx_route(fx, fx->slot_amt[slot], &filter, &drive, send);
     nfm_route(e, v, (filter ? NFM_INS_FILTER : 0) | (drive > 0.0f ? NFM_INS_DRIVE : 0), send[1], send[0], drive);
+    if (fx->on_hit) fx->on_hit(slot, vel);
     return v;
 }
 

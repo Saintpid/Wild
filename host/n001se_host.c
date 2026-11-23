@@ -498,6 +498,8 @@ static int expect(const char *what, const char *val)
         got = (int)midi_out_count;
     else if (!strcmp(what, "playing"))
         got = ne_seq()->playing;
+    else if (!strcmp(what, "rumble"))
+        got = rumble_editing();
     else if (!strcmp(what, "track"))
         got = ui.track;
     else if (!strcmp(what, "bar"))               /* the bar the keys show */

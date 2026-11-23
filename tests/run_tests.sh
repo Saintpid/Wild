@@ -47,6 +47,14 @@ run glue sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_H
     firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/glue_test $OUT"
 run wild-stream sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/wild_stream_test tests/host/wild_stream_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/wild_stream_test $OUT/wild-reference.pcm reference && $OUT/wild_stream_test $OUT/wild-reference.pcm"
+run limiter sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/limiter_test tests/host/limiter_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/limiter_test"
+run rumble sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/rumble_test tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_test"
+run rumble-ubsan sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/rumble_ubsan tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_ubsan"
+run controls sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen \
+    -o $OUT/controls_test tests/host/controls_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/controls_test"
 run switch python3 tests/switch_test.py
 run rescue python3 tests/rescue_test.py
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"

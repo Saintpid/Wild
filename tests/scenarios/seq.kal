@@ -136,6 +136,8 @@ expect view 9
 tap LFO
 expect view 10
 tap GLO
+expect view 8
+tap GLO
 expect view 11
 tap GLO
 expect view 12
@@ -148,12 +150,18 @@ expect view 14
 tap GLO
 expect view 15
 turn ALGO 1
+expect view 17
+turn ALGO 1
 expect view 0
+turn ALGO -1
+expect view 17
 turn ALGO -1
 expect view 15
 # PRESETS: Glue by default (30); on the Setup page, its choice: Tempo
 turn PRESET 5
 expect gpar15 35
+tap HOME
+tap GLO
 tap GLO
 tap GLO
 tap GLO

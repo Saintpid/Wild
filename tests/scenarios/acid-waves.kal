@@ -34,6 +34,7 @@ tap GLO
 tap GLO
 tap GLO
 tap GLO
+tap GLO
 expect view 15
 spin K1 1
 expect gpar25 1

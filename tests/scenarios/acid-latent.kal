@@ -1,0 +1,57 @@
+# A real key press reveals stored properties; grid and saving retain them.
+wait 200
+tap OCT-
+tap EDIT
+spin K1 100
+tap HOME
+spin K2 -100
+spin K3 100
+tapkey b9
+wait 20
+expect anotes 0
+expect aflags0 6
+wait 1200
+shot acid_percent.png
+tapkey w0
+wait 20
+expect aflags0 7
+key w0 down
+wait 20
+spin K1 -40
+spin K1 19
+key w0 up
+wait 20
+expect anote0 7
+expect aflags0 7
+tapkey w0
+wait 20
+expect aflags0 5
+tapkey w0
+wait 20
+expect aflags0 4
+tapkey w0
+wait 20
+expect aflags0 5
+expect anote0 7
+# Turn off, change grid twice, activate: slide and pitch survive.
+tapkey w0
+wait 20
+expect aflags0 4
+tap HOME
+spin K1 1
+wait 20
+expect aflags0 4
+expect anote0 7
+spin K1 -1
+wait 20
+expect aflags0 4
+wait 6000
+reboot
+wait 200
+expect aflags0 4
+expect anote0 7
+tap OCT-
+tapkey w0
+wait 20
+expect aflags0 5
+expect anote0 7

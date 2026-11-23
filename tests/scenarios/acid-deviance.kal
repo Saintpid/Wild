@@ -41,8 +41,11 @@ expect view 3
 tap ENV
 expect view 4
 tap ENV
-expect view 3
+expect view 16
+expect rumble 1
+tap HOME
 tap OCT-
+tap ENV
 tap ENV
 tap ENV
 expect view 5
