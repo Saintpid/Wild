@@ -7,12 +7,12 @@
 #include "../dsp/n001se.h"
 
 #ifndef OM_VERSION                       /* a release build passes its own (tools/build.py --release) */
-#define OM_VERSION "Wild 0.3.37"
+#define OM_VERSION "Wild 0.3.42"
 #endif
 #define PROJ_MAGIC 0x53313031u           /* "101S": never a FiMba-1 or FoMni project */
 /* The format: a newer version reads an older project and gives what it lacks its defaults. Add a value
  * at the end of G_* / T_*, bump the format and say here how many the older one had. */
-#define PROJ_FORMAT 17u                    /* 2: master filter, PRESETS knob, Tune, the preset number;
+#define PROJ_FORMAT 19u                    /* 2: master filter, PRESETS knob, Tune, the preset number;
                                             3: the acid line (appended);
                                             4: effects per track (T_ and A_ REVERB..DRIVE);
                                             5: USB audio on / off (G_USBAUDIO);
@@ -27,9 +27,11 @@
                                             14: triplets per track (T_GRID, A_GRID);
                                             15: Drift in / past, per track (T_DRIFT, A_DRIFT);
                                             16: Dynamics per drum track (T_DYN);
-                                            17: drum hit counts become percentages (same layout) */
-#define PROJ_G_OF(f) ((f) == 1u ? 12 : (f) <= 4u ? 17 : (f) <= 6u ? 18 : (f) <= 7u ? 19 : (f) <= 9u ? 20 : (f) <= 10u ? 21 : (f) <= 11u ? 25 : G_NPARAMS)   /* the values each format holds */
-#define PROJ_T_OF(f) ((f) == 1u ? 14 : (f) <= 3u ? 15 : (f) <= 5u ? 19 : (f) <= 13u ? 23 : (f) <= 14u ? 24 : (f) <= 15u ? 25 : T_NPARAMS)
+                                            17: drum hit counts become percentages (same layout);
+                                            18: Rumble return and assignable SELECT/ALGORITHM;
+                                            19: nine kick-layer parameters per drum track */
+#define PROJ_G_OF(f) ((f) == 1u ? 12 : (f) <= 4u ? 17 : (f) <= 6u ? 18 : (f) <= 7u ? 19 : (f) <= 9u ? 20 : (f) <= 10u ? 21 : (f) <= 11u ? 25 : (f) <= 17u ? 26 : G_NPARAMS)   /* the values each format holds */
+#define PROJ_T_OF(f) ((f) == 1u ? 14 : (f) <= 3u ? 15 : (f) <= 5u ? 19 : (f) <= 13u ? 23 : (f) <= 14u ? 24 : (f) <= 15u ? 25 : (f) <= 18u ? 26 : T_NPARAMS)
 #define PROJ_A_OF(f) ((f) <= 2u ? 0 : (f) == 3u ? 16 : (f) <= 5u ? 20 : (f) <= 8u ? 24 : (f) <= 12u ? 25 : (f) <= 13u ? 26 : (f) <= 14u ? 27 : A_NPARAMS)
 
 typedef struct {
@@ -39,7 +41,7 @@ typedef struct {
     ne_state_t st;                       /* the patterns and the sounds, as saved */
     uint8_t preset;                      /* the preset slot it came from / went to last (0..63) */
     uint8_t bank;                        /* the bank it is (0..PROJ_BANKS - 1; older: 0) */
-    uint8_t rsv[30];                     /* room to grow */
+    uint8_t rsv[18];                     /* 12 reserved bytes fund six globals; bank/journal size unchanged */
     ne_acid_t acid;                      /* the acid line's pattern, as saved */
     int16_t a[A_NPARAMS];                /* n001se.h A_* */
 } project_t;

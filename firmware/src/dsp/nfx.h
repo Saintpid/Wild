@@ -97,6 +97,7 @@ typedef struct {
     /* another source on the bus (the acid line): adds to the dry bus and the sends */
     void (*src)(void *ctx, float *l, float *r, float *rev, float *dly, int n);
     void *src_ctx;
+    void (*on_hit)(int slot, float velocity); /* successful hits, at their actual scheduled time */
 } nfx;
 
 void nfx_init(nfx *fx, float sample_rate, uint32_t seed);

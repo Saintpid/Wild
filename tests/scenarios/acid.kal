@@ -27,8 +27,15 @@ expect apar24 0
 spin K4 120
 expect apar24 100
 shot acid_tone.png
-# a step: step 16 (w15) of bar 1, empty: a press sets the root with an accent, again plain, again off
-expect aflags15 0
+# A generated empty step carries its accent. Prepare a deterministic fixture.
+tap EDIT
+spin K1 100
+tap HOME
+spin K2 -100
+spin K3 -100
+tapkey b9
+wait 20
+expect aflags15 2
 tapkey w15
 wait 20
 expect aflags15 3
@@ -43,6 +50,7 @@ tapkey w15
 wait 20
 key w15 down
 wait 20
+spin K2 1
 spin K3 1
 key w15 up
 wait 20
@@ -52,14 +60,15 @@ wait 20
 expect aflags15 5
 tapkey w15
 wait 20
-expect aflags15 0
+expect aflags15 4
 tapkey w15
 wait 20
-expect aflags15 3
+expect aflags15 5
 # held: KNOB 1 its note, KNOB 2 accent on, KNOB 3 slide on
 key w15 down
 wait 20
-spin K1 7
+spin K1 -40
+spin K1 19
 spin K2 1
 spin K3 1
 wait 20
@@ -77,6 +86,9 @@ expect apar7 0
 tapkey b10
 expect apar14 >-25
 expect apar14 <25
+tap HOME
+tap HOME
+spin K2 60
 tapkey b9
 wait 20
 expect anotes >3

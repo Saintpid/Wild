@@ -114,7 +114,23 @@ int main(void)
     saved.t[0][T_RANDLEN] = 0;
     saved.t[0][T_HITLESS] = 12;
     saved.t[0][T_HITFILL] = 16;
-    assert(plat_preset_save(4, &saved, sizeof saved) == 0);
+    {
+        /* Real format-16 bytes: before format 18 used twelve reserved bytes for globals. */
+        struct {
+            uint32_t magic, format;
+            int16_t g[26], t[NE_TRACKS][26];
+            ne_state_t st;
+            uint8_t preset, bank, rsv[30];
+            ne_acid_t acid;
+            int16_t a[A_NPARAMS];
+        } old = {0};
+        old.magic=saved.magic; old.format=16;
+        memcpy(old.g,saved.g,sizeof old.g);
+        for (int tr=0;tr<NE_TRACKS;++tr) memcpy(old.t[tr],saved.t[tr],sizeof old.t[tr]);
+        old.st=saved.st; old.preset=saved.preset; old.bank=saved.bank;
+        old.acid=saved.acid; memcpy(old.a,saved.a,sizeof old.a);
+        assert(plat_preset_save(4, &old, sizeof old) == 0);
+    }
     assert(project_preset_load(4) == 0);
     assert(proj.format == PROJ_FORMAT && proj.t[0][T_HITLESS] == 25 && proj.t[0][T_HITFILL] == 50);
     assert(!memcmp(&proj.st, &saved.st, sizeof proj.st));

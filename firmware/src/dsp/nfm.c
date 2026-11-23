@@ -48,6 +48,8 @@ NFM_CODE NFM_HOT static inline float sin_cyc(float x)
     return sine_table[i] + (sine_table[i + 1] - sine_table[i]) * t;
 }
 
+NFM_CODE NFM_HOT float nfm_sine(float phase) { return sin_cyc(phase); }
+
 NFM_CODE NFM_HOT static float exp2_approx(float x)
 {
     if (x < -126.0f) return 0.0f;
@@ -1198,6 +1200,7 @@ NFM_CODE NFM_HOT void nfm_render_bus(nfm_engine *e, float *out_l, float *out_r, 
                 vb[m] = voice_tick(e, v, &e->rng);
             }
             if (v->mod_on) mod_run(&e->mod[slot], &v->ms, vb, i0, m);
+            if (e->tap) e->tap(slot, vb, gs*0.5f, i0, m);
             float *pl = ol + i0, *pr = or_ + i0;
             for (int i = 0; i < m; ++i) {
                 pl[i] += vb[i] * gl;

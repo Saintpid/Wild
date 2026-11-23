@@ -79,9 +79,7 @@ expect lanebars0 2
 expect dropped 0
 # a new pattern: its track's automation goes, another track's and the global ones stay
 tap PLAY
-tap FX
-tap FX
-tap FX
+tap GLO
 expect view 8
 tap REC
 turn K1 -20 80

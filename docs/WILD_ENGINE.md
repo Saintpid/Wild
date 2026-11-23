@@ -1,3 +1,130 @@
+# Wild 0.3.42 - Rumble pages without a child track
+
+The child-row UI from 874 is removed. Five fixed main rows and their bar strip
+are drawn again. SELECT and OCT-/+ select the five real tracks. No independent
+Rumble selection or child-mode flag remains. Rumble editing context derives
+from the selected Kick and current ENV effect page. Kick ENV cycles Sound/Tone/
+Rumble/Texture/Layer/Sound; non-Kicks skip effect pages. NEW SOUND in that context
+randomises the effect only. Steps, NEW PATTERN, HOME, EDIT, FX and LFO retain
+ordinary main-track behaviour. Assignments and stored per-track effect values
+remain. Format 19 and all 875 audio processing are unchanged.
+
+Regression coverage checks five-track navigation with four Kicks, ENV wraparound,
+step editing on effect pages, isolated randomisation and persistence. Firmware
+resource checks remain enabled. Logs: build/wild-0.3.42-build.log and -tests.log.
+
+# Wild 0.3.41 - tempo-scaled offbeat envelope
+
+nr_kick schedules a sample-counted hold and smoothstep rise relative to the
+actual successful hit. Hold ends at 35% of a quarter; the final 15% rises to full
+envelope level at round(quarter * 0.5). The previous envelope fades down under
+retriggering, without restarting the tank or creating an additional kick transient.
+Duck still blends between dry envelope and this contour. Default Duck is 100;
+NEW SOUND preserves its value. Stored Duck values are not rewritten.
+
+During the hold, feedback is blended towards 0.99 by Duck amount to retain the
+excitation. As the rise begins, feedback glides back towards the Tail setting.
+This changes the envelope/decay rather than delaying the audio through a long
+buffer. Existing tank topology, seed families and Side filtering are retained.
+Stop, bypass/reset and Shape replacement cancel pending timing. The newest kick
+owns the contour: closely spaced hits can suppress a rise, keeping kick priority.
+
+Tests exercise exact sample counts at five tempos, the rise slope, cancellation
+and retriggers, and a real sequencer hit delayed by swing. At 120 BPM/max swing,
+a Kick scheduled on sixteenth 2 fires at sample 8269; its envelope reaches full
+level 11025 frames later (the last frame processed is 19293). These checks do not
+establish subjective groove or physical FM-1 load. Project format stays 19.
+Logs: build/wild-0.3.41-build.log and build/wild-0.3.41-tests.log.
+
+# Wild 0.3.40 - independent kick effect children
+
+The 873 oscillator prototype is superseded. Each drum slot owns a nrumble tank
+and a 64-frame input accumulator. The FM voice render taps actual mono kick audio
+before master gain. Only the owning Kick's unmuted, enabled layer accepts input;
+other drum kinds cannot excite it. Successful scheduled triggers set the owning
+layer's duck envelope and tempo-aware modulation, including loose/swing timing.
+
+A two-line orthogonal scattering network runs at 11025 Hz with int16 state,
+input high-pass/drive, damping and weak signal-dependent noise. Shape selects
+line lengths and motion phase/rate; NEW SOUND also randomises the exposed controls.
+No pitched oscillators produce the wet sound. One sine lookup per tank tick is
+only an amplitude LFO. Full-rate reconstruction, a 25 Hz Mid HP, gain/duck ramps
+and four 150 Hz Side HP poles follow the tank. The Side cutoff is a gradual slope.
+Master processing can change the final result. Shape replacement fades before
+resetting the tank; new excitation then comes from the next kick. Stop, panic,
+parent/child mute and instrument changes release it. Bypass avoids tank processing.
+Each parent can route its layer to the direct bus when Drift is bypassed.
+
+Nine appended T_R* parameters store each layer in the normal project, bank,
+automation and undo system. Shape is excluded from automation; replacing a tank
+is an explicit action. Retired global Rumble fields remain as unused slots.
+The old four encoder assignment positions now point to per-track level, colour,
+tail and motion, followed by the additional layer targets. Format 19 stores
+1848-byte projects (3696-byte bank pairs); older T counts/reserved lengths are
+read explicitly. Undo retains its fixed 17760-byte allocation.
+
+UI keeps five real track IDs and an ephemeral child-selection flag. SELECT walks
+parent/child rows; OCT-/+ choose the real tracks. ENV on Kick can enter the child
+without SELECT. Child step keys and NEW PATTERN cannot modify a sequence.
+NEW SOUND randomises only layer parameters in one undo operation, enabling an
+off layer at 55 without changing an existing nonzero level. Three ENV pages offer
+all controls; parent identity changes invalidate the child selection safely.
+The grid scrolls full rows if four Kicks cannot fit, without shrinking steps.
+
+GLO order: FX bus, Master, Glue, Groove, Setup, Scene, Controls. Global FX defaults
+30/50/100/100; FX on ordinary tracks offers Track FX and Mod. Resource limits
+remain enabled. Logs are build/wild-0.3.40-build.log and -tests.log. Host checks do
+not establish sound quality, CPU headroom or dropout-free playback on AC79.
+
+# Wild 0.3.39 - Rumble return and encoder assignments
+
+One nrumble state adds a kick-excited dry return alongside the acid source.
+nfx_trigger notifies successful kick hits at their actual scheduled time.
+No FM voices or sample/delay buffers are allocated. Three shared-table oscillators
+provide a mono fundamental and quieter texture partials. Tonality moves partials
+towards harmonic ratios; Movement glides a repeating motif relative to scene root
+and acid Tune, with a rhythmic amplitude contour. Tail is tempo-scaled. Kicks
+duck the return smoothly. Muted/zero-level kicks provide no excitation.
+Master Level scales the return. Stop, panic, MIDI clock stop and state restore
+release it. Audio Load counts the new synthesis under FX.
+
+Side passes four 150 Hz high-pass poles AFTER amplitude modulation. The transition
+is gradual, not a brick-wall crossover. Subsequent master processing can alter
+the result. Off is bit-exact bypass after its fade. Enabled silence skips synthesis.
+
+FX page 4 is Rumble. GLO page 6 is Controls. SELECT and ALGORITHM use 0 for their
+original functions and 1..N for PRESETS target index + 1. PRESETS choices are
+appended, preserving prior indices. Assignment selectors cannot be automated;
+they are retained across banks like Setup values. SELECT retains its mixer and
+preset-list roles in those contexts. Physical page buttons remain available.
+
+Format 18 adds six globals and reduces reserved bytes by twelve. Projects remain
+1776 bytes; banks and undo journal retain their sizes. Older formats read their
+own parameter counts and reserved length. The old Rumble drum kind is unchanged.
+
+Host checks do not establish sound quality or AC79 performance. Compare Audio
+Load and underruns off/on in the same dense patch; evaluate against the user's
+music references. Full firmware resource and test results are recorded in memory.
+
+# Wild 0.3.38 - 303 generation and latent steps
+
+Notes sets round(playing length * percentage / 100) active steps. The existing
+generator supplies a motif; weighted gate corrections meet the count, changing
+matching motif copies together when possible. This runs only on new pattern
+generation, not on rendering or restore. Evolve and manual edits can change the count.
+
+Inactive generated steps hold pitch, accent and slide. Live step activation keeps
+those properties; the accent/plain/off cycle retains pitch and slide on switching
+off. Grid mapping preserves inactive data and gives sounding steps priority in
+collisions. Inserted sixteenths inherit nearby inactive properties. Saved format
+17, parameter indices and internal identifiers remain unchanged.
+
+Resource-checked firmware and complete host suite pass for 0.3.38 / FM-1_872:
+image 190760 B, data/BSS 81044/90112 B, RAM code 35988/40960 B,
+pool 335364/344064 B. Host checks include exact counts on both grids, actual
+keys, persistence, Evolve and a fixed overload through the final limiter.
+These tests do not establish real-device audio continuity or performance.
+
 # Wild 0.3.30 - eight banks and reversible live copying
 
 The active bank array is eight project_t records (1776 B each). White key 16 remains

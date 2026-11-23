@@ -43,10 +43,10 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, NVIEWS };
+enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, V_RUMBLE, V_CONTROLS, V_RDETAIL, V_RMIX, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
-                                              "Routing", "Master", "Glue", "Groove", "Setup", "Scene"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_FX, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO};
+                                              "Routing", "Master", "Glue", "Groove", "Setup", "Scene", "Rumble", "Controls", "Texture", "Layer"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -78,6 +78,10 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_TEMPO, G_SWING, G_LOOSE, G_POLY},
     {G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO},
     {G_ACIDWAVES, K_NONE, K_NONE, K_NONE},           /* (G_SELMODE: kept in projects, unused since the banks) */
+    {KT | T_RLEVEL, KT | T_RTAIL, KT | T_RCOLOR, KT | T_RDRIVE},
+    {G_SKNOB, G_AKNOB, G_PKNOB, K_NONE},
+    {KT | T_RDUCK, KT | T_RWIDTH, KT | T_RMOTION, KT | T_RSEED},
+    {KT | T_RMUTE, K_NONE, K_NONE, K_NONE},
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -214,7 +218,14 @@ static void ktext(int k, int v, char *t)
         ne_param_text(k, v, t);
 }
 /* the pages a track has: the Deviance page under ENV is the acid line's (the drums' is on Sound) */
-static int view_here(int v) { return v != V_ADEV || ui.track == NE_ACID; }
+static int has_rumble(int t) { return t<NE_TRACKS && ne_fm()->slot[t].kind==NFM_KIND_KICK; }
+static int rumble_view(int v) { return v==V_RUMBLE || v==V_RDETAIL || v==V_RMIX; }
+static int rumble_editing(void) { return has_rumble(ui.track) && rumble_view(ui.view); }
+static int view_here(int v)
+{
+    if (rumble_view(v)) return has_rumble(ui.track);
+    return v!=V_ADEV || ui.track==NE_ACID;
+}
 static int view_knob(int i)
 {
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
@@ -286,7 +297,7 @@ static int track_bars(int t);
 #define SC_N 9
 static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
-#define UNDO_BYTES (10u * sizeof(project_t))
+#define UNDO_BYTES 17760u                      /* fixed budget, independent of project format growth */
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;
@@ -373,7 +384,7 @@ static void undo_mark(uint32_t key)
 _Static_assert(sizeof(undo_entry) + sizeof(project_t) + sizeof proj_auto + 3u <= UNDO_BYTES,
                "one full bank operation must fit undo");
 /* the values SEL's scenes and the banks never change: the tempo, the level, the Setup and Scene pages' */
-static const uint8_t SEL_KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
+static const uint8_t SEL_KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB};
 static int sel_kept(int g)
 {
     uint32_t i;
@@ -540,7 +551,9 @@ static int step_on(int t, int s)
 
 static void select_track(int t)
 {
+    ui.held_step=-1;
     ui.track = (uint8_t)((t + UI_TRACKS) % UI_TRACKS);
+    if (rumble_view(ui.view) && !has_rumble(ui.track)) ui.view=V_SOUND;
     if (!view_here(ui.view))
         ui.view = V_SOUND;
     if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
@@ -584,12 +597,12 @@ static void white_down(int w)
     ui.held_step = (int8_t)s;
     ui.held_edited = 0;
     ui.held_was_on = (uint8_t)step_on(t, s);
-    if (t == NE_ACID) {                              /* a note on the root, with an accent, no slide */
+    if (t == NE_ACID) {                              /* reveal the step's stored musical properties */
         const nacid_note *st = &ne_acid()->step[s];
-        ui.held_flags = ui.held_was_on ? st->flags : NACID_ON | NACID_ACCENT;
-        ui.held_note = ui.held_was_on ? st->note : 0;
+        ui.held_flags = st->flags | NACID_ON;
+        ui.held_note = st->note;
         if (!ui.held_was_on) {
-            ne_astep(s, NACID_ON | NACID_ACCENT, 0);
+            ne_astep(s, ui.held_flags, ui.held_note);
             mark_dirty();
         }
         return;
@@ -611,7 +624,7 @@ static void white_up(int w)
         if (t == NE_ACID && ui.held_flags & NACID_ACCENT)
             ne_astep(ui.held_step, ui.held_flags & ~NACID_ACCENT, ui.held_note);   /* (a slide stays) */
         else if (t == NE_ACID)
-            ne_astep(ui.held_step, 0, ui.held_note);
+            ne_astep(ui.held_step, ui.held_flags & ~NACID_ON, ui.held_note);
         else if (ui.held_vel > NSEQ_VEL_SPLIT)
             ne_step(t, ui.held_step, 1, NSEQ_VEL_SOFT, ui.held_note);
         else
@@ -696,6 +709,14 @@ static int rnd_in(int lo, int hi)
     ui_rng ^= ui_rng >> 17;
     ui_rng ^= ui_rng << 5;
     return lo + (int)((ui_rng >> 8) % (uint32_t)(hi - lo + 1));
+}
+static void new_rumble(int t)
+{
+    static const uint8_t params[]={T_RTAIL,T_RCOLOR,T_RDRIVE,T_RWIDTH,T_RMOTION};
+    static const uint8_t lo[]={20,10,20,35,0}, hi[]={95,85,95,100,95};
+    for (unsigned i=0;i<sizeof params;++i) tpar_set(t,params[i],rnd_in(lo[i],hi[i]));
+    tpar_set(t,T_RSEED,(proj.t[t][T_RSEED]+rnd_in(1,127))&127);
+    if (!proj.t[t][T_RLEVEL]) tpar_set(t,T_RLEVEL,55);
 }
 static void new_sound(int t)
 {
@@ -974,8 +995,9 @@ static void black_down(int b)
         say("NEW PATTERN", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
         undo_mark(0);
-        new_sound(t);
+        if (rumble_editing()) new_rumble(t); else new_sound(t);
         mark_dirty();
+        if (rumble_editing()) { say("NEW RUMBLE", "KICK UNCHANGED"); return; }
         say("NEW SOUND", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     }
 }
@@ -1184,6 +1206,7 @@ static void list_erase_all(void)
 static void set_view(int v)
 {
     ui.view = (uint8_t)v;
+    if (rumble_view(v)) ui.held_step=-1;
     ui.touched = -1;
 }
 
@@ -1369,13 +1392,13 @@ static void button(int b)
     case B_SEL: sel_press(); break;
     case B_REC: rec_press(); break;
     default:
-        for (v = 0; v < NVIEWS; v++)                 /* a page button: its page, or its next one */
-            if (VIEW_BTN[v] == b) {
-                if (VIEW_BTN[ui.view] == b && ui.view + 1 < NVIEWS && VIEW_BTN[ui.view + 1] == b && view_here(ui.view + 1))
-                    v = ui.view + 1;
+        for (int i = 1; i <= NVIEWS; ++i) {          /* same button cycles its pages, including appended ones */
+            v = VIEW_BTN[ui.view] == b ? (ui.view+i)%NVIEWS : i-1;
+            if (VIEW_BTN[v] == b && view_here(v)) {
                 set_view(v);
                 break;
             }
+        }
         break;
     }
 }
@@ -1487,6 +1510,7 @@ static void mixer_turn(int channel, int32_t delta)
 
 static void input(void)
 {
+    if (rumble_view(ui.view) && !has_rumble(ui.track)) ui.view=V_SOUND;
     uint32_t btn = plat_buttons(), keys = plat_keys(), ch, i;
     int32_t e;
     ch = btn ^ ui.btn;
@@ -1575,15 +1599,21 @@ static void input(void)
         if (mixer_open) mixer_turn(0, e);
         else if (ui.list)
             list_move(e > 0 ? 1 : -1);
+        else if (proj.g[G_SKNOB])
+            turn(EN_SELECT, ne_pknob_target(proj.g[G_SKNOB]-1), e);
         else
             select_track(ui.track + (e > 0 ? 1 : -1));
     }
     if ((e = plat_enc(EN_ALGO)) != 0) {              /* the pages */
-        int v = ui.view;
-        do
-            v = (v + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS;
-        while (!view_here(v));
-        set_view(v);
+        if (proj.g[G_AKNOB])
+            turn(EN_ALGO, ne_pknob_target(proj.g[G_AKNOB]-1), e);
+        else {
+            int v = ui.view;
+            do
+                v = (v + (e > 0 ? 1 : NVIEWS - 1)) % NVIEWS;
+            while (!view_here(v));
+            set_view(v);
+        }
     }
     if ((e = plat_enc(EN_PRESET)) != 0) {
         int k = ne_pknob_target(proj.g[G_PKNOB]);   /* (NE_PK_TRACK is KT: the selected track's) */
@@ -1675,8 +1705,8 @@ static int recording_active(void) { return rec_n != 0; }
 static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
 static int auto_ok(int k)
 {
-    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL}, NOT_A[] = {A_BARS, A_GRID},
-                         NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES};
+    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID},
+                         NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB};
     const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
     uint32_t n = k & KT ? sizeof NOT_T : k & KA ? sizeof NOT_A : sizeof NOT_G, i;
     for (i = 0; i < n; i++)
@@ -2040,14 +2070,15 @@ static void draw_header(void)
         }
         x = 18 + text_w(&FONT_B, VIEW_NAME[ui.view]);
         {   /* the button's pages, when it has more than one: a dot each, this one filled */
-            int first = ui.view, n = 0, v;
-            while (first > 0 && VIEW_BTN[first - 1] == VIEW_BTN[ui.view])
-                first--;
-            for (v = first; v < NVIEWS && VIEW_BTN[v] == VIEW_BTN[ui.view]; v++)
-                n += view_here(v);
+            int n = 0, current = 0, v;
+            for (v = 0; v < NVIEWS; v++)
+                if (VIEW_BTN[v] == VIEW_BTN[ui.view] && view_here(v)) {
+                    if (v == ui.view) current = n;
+                    ++n;
+                }
             if (n > 1) {
                 for (v = 0; v < n; v++)
-                    cv_round(x - 4 + v * 9, 12, 6, 6, 3, first + v == ui.view ? K_TEXT : K_LINE);
+                    cv_round(x - 4 + v * 9, 12, 6, 6, 3, current == v ? K_TEXT : K_LINE);
                 x += n * 9 + 2;
             }
         }
@@ -2318,6 +2349,7 @@ static void draw_grid(void)
     }
     for (t = 0; t < NE_TRACKS; t++) {
         const nseq_track *tr = trk(t);
+        for (int p=T_RLEVEL;p<T_NPARAMS;++p) h=hash(h,(uint32_t)proj.t[t][p]);
         h = hash(h, (uint32_t)tr->last | (uint32_t)tr->length << 16 | (uint32_t)tr->mute << 24 |
                         (uint32_t)(ne_fm()->slot[t].kind & 7) << 25);
         h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9 |
@@ -2330,8 +2362,7 @@ static void draw_grid(void)
         return;
     ui.sig[1] = h;
     cv_begin(240, MAIN_H, K_BG);
-    for (t = 0; t < UI_TRACKS; t++)
-        draw_track(t, 2 + t * ROW_H);
+    for (t=0;t<UI_TRACKS;++t) draw_track(t,2+t*ROW_H);
     {   /* the bar numbers over the phrase, for the black keys: the one shown outlined */
         int b, bars = track_bars(ui.track), sb = shown_bar();
         for (b = 0; b < 8; b++) {
@@ -2403,13 +2434,14 @@ static void draw_knobs(void)
     cv_blit(0, KNB_Y);
 }
 
-/* the lights. SEQ: the white keys the bar's hits (bright), the playhead (dim walking; dark on a hit);
+/* the lights. SEQ: the white keys the bar's hits (strong bright, soft dim), the quarters' empty steps
+ * faint (1 5 9 13; triplets 1 4 7 10), the playhead (dim walking; dark on a hit);
  * black 1 / 2 dim where the bar can go (the bar locked: one blinks); black 3 lit on the Master page;
  * black 5-8 the tracks: dim on, bright on a hit, dark muted. LIVE: the white keys light with their
  * sound. */
 static void leds(void)
 {
-    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, d = 0, i;
+    uint32_t b = VIEW_BTN[ui.view] < NB ? 1u << VIEW_BTN[ui.view] : 0u, k = 0, d = 0, f = 0, i;
     int t = ui.track, sb = shown_bar(), ps = play_step(t), blink = (plat_ms() / 160u) & 1u;
     if (playing())
         b |= 1u << B_PLAY;
@@ -2432,20 +2464,22 @@ static void leds(void)
                 d |= 1u << WHITE_K[i];
     } else {
         for (i = 0; i < NWHITE && (int)i < tbar(t); i++) {   /* (triplets: keys 13-16 dark) */
-            int s = sb * tbar(t) + (int)i;
-            if (step_on(t, s))
-                k |= 1u << WHITE_K[i];
+            int s = sb * tbar(t) + (int)i, on = step_on(t, s);
+            uint32_t m = 1u << WHITE_K[i];
             if (s == ps) {
-                if (k >> WHITE_K[i] & 1u)
-                    k &= ~(1u << WHITE_K[i]);        /* the playhead on a hit: dark a moment */
-                else
-                    d |= 1u << WHITE_K[i];
-            }
+                if (!on)
+                    d |= m;                          /* (on a hit: dark a moment) */
+            } else if (on && t != NE_ACID && trk(t)->step[s].vel <= NSEQ_VEL_SPLIT)
+                d |= m;                              /* a soft hit (the acid line: all bright) */
+            else if (on)
+                k |= m;
+            else if (s < tlen(t) && tbar(t) >= 4 && (int)i % (tbar(t) >> 2) == 0)
+                f |= m;                              /* a quarter */
         }
     }
     if (ui.list && blink)                            /* the list: its key blinks */
         b |= 1u << (ui.list == L_SAVE ? B_SAVE : B_ARP);
-    if (sb > 0)                                      /* the bar keys: lit where they can go */
+    if (sb > 0)                        /* the bar keys: lit where they can go */
         d |= 1u << BLACK_K[BK_BARDN];
     if (sb + 1 < track_bars(t))
         d |= 1u << BLACK_K[BK_BARUP];
@@ -2464,7 +2498,7 @@ static void leds(void)
             d |= 1u << BLACK_K[BK_MUTE1 + i];
     }
     k |= ui.keys;
-    plat_leds(b, k, d);
+    plat_leds(b, k, d, f);
 }
 
 /* AUTOSAVE: a while after a change, once stopped and quiet (a flash erase silences the audio a moment,

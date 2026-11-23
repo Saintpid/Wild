@@ -1,3 +1,142 @@
+# Wild 0.3.42 / 876 - 2026-11-12
+
+- User chose removing Rumble from the channel grid; keep it as a Kick effect.
+  Five fixed main rows and normal SELECT/OCT navigation restored. No child flag
+  or virtual selection remains. Kick ENV cycles Sound/Tone/Rumble/Texture/Layer/
+  Sound. Other instruments skip Rumble pages. NEW SOUND on those three pages
+  randomises only Rumble; elsewhere it changes the instrument. Steps and NEW
+  PATTERN edit the selected main track normally, including on effect pages.
+- Removed child-specific HOME/EDIT/FX/LFO behaviour and scrolling rows. Assigned
+  Rumble encoder targets, per-track saved settings and format 19 are retained.
+  DSP is unchanged from 875, including the offbeat swell and Duck preservation.
+- Resource-checked firmware and complete host/UBSan/package/installer/scenario
+  suite pass. Controls tests cover full ENV cycle, regular step editing, isolated
+  randomisation/undo/save and exactly five navigation targets with four Kicks.
+  Rumble-page screenshot visually checked: only the five real sequencers appear.
+- Image 195128 B; data/BSS 87596/90112 B; RAM code 37988/40960 B;
+  pool 335368/344064 B. Logs build/wild-0.3.42-build.log and -tests.log.
+- Delivered ../Firmware Wild/Wild-0.3.42.fwsc; SHA256
+  494dcda4ca00a665dc18f49f060de8654061bff07449189d9aaf778108ee29ed.
+  Versioned ELF/dis/bin retained. No push/publication or device flashing.
+
+# Wild 0.3.41 / 875 - 2026-11-11
+
+- User says 874 sounds much better. Requests more drive by moving Rumble's
+  weight to the eighth after each kick, without an attack; uses Duck at 100.
+- Sample-counted hold until 35% of a quarter, smoothstep rise over the next 15%,
+  full envelope at round(quarter/2) after the actual successful kick. Prior
+  envelope fades down on retrigger; newest kick owns timing. Stop/reset cancel
+  pending rise. Dense kicks can keep it down, retaining kick priority.
+- Feedback blends towards 0.99 by Duck amount while hidden to retain excitation;
+  returns smoothly to Tail feedback as the rise begins. No long audio buffer.
+  Tank topology, Shape families and Side filtering stay. Format remains 19.
+- Duck defaults to 100. NEW SOUND preserves the user's Duck setting while
+  randomising other timbre controls. Existing saved Duck values are retained.
+- Resource-checked firmware and full host/UBSan/package/installer/scenario suite
+  pass. New tests cover five tempos, smooth rise, retriggers, Stop cancellation,
+  Duck preservation and real swing-delayed scheduling (120 BPM: hit sample 8269,
+  envelope full at last processed frame 19293, 11025 frames after the trigger).
+- Image 196004 B; data/BSS 87596/90112 B; RAM code 37988/40960 B;
+  pool 335368/344064 B. Logs build/wild-0.3.41-build.log and -tests.log.
+- Delivered ../Firmware Wild/Wild-0.3.41.fwsc, SHA256
+  8de5ede8a7925d8b4d9cecfa205153935f683cdde661d23f9f45c7d7acba6be8.
+  Versioned ELF/dis/bin retained. No push/publication/flashing. Groove/CPU
+  acceptance needs physical FM-1 listening and diagnostics.
+
+# Wild 0.3.40 / 874 - 2026-11-11
+
+- User reports 873 sounds like blowing across a bottle; the old Rumble sounded
+  better. Authorized replacing that oscillator prototype with a deeper textured
+  effect layer per Kick, wider controls and NEW SOUND randomisation. Global FX
+  requested under GLO with default Reverb/Delay/Filter/Drive 30/50/100/100.
+- Actual kick audio now feeds an independent compact two-line scattering tank
+  per parent. Quarter-rate tank, full-rate gain/duck/interpolation and Side HP
+  (four poles at 150 Hz), no extra FM voices or pool buffers. No audio input
+  means no generated tone. Shape changes fade out/reset, then await the next kick.
+- Each actual Kick shows a child row without steps. SELECT visits children;
+  OCT-/+ intentionally retain real-track navigation. Kick ENV reaches Rumble
+  even with SELECT remapped. Child ENV cycles Rumble (level/tail/colour/drive),
+  Texture (duck/width/movement/shape), Layer (mute). HOME returns to parent.
+  NEW SOUND randomises layer only, keeps nonzero level or enables it at 55.
+  NEW PATTERN and step keys do not alter the parent in child context.
+- Four Kick children are supported; list scrolls full rows when necessary.
+  Child selection invalidates safely if parent stops being Kick. Mute/level
+  follow parent. FX on child opens Layer; LFO opens Texture. Global FX is now
+  the first GLO page: FX bus/Master/Glue/Groove/Setup/Scene/Controls. FX on normal
+  tracks cycles Track FX and Mod. Assignments also offer all child parameters.
+- Format 19 appends nine T_R* values per track. Projects 1848 B, paired banks
+  3696 B (within sector). Old layouts read their correct T count/reserved bytes.
+  Undo allocation fixed at 17760 B instead of growing with sizeof(project_t).
+  REC supports layer controls/mute, not Shape. Old global 873 fields are retired.
+- Full host/UBSan/package/installer/scenario suite passes; final controls UBSan
+  and final rebuilt package CRC/installer checks pass. Tests cover source silence,
+  seeded differences, Side rejection, block invariance, live Shape fades, four
+  active layers, isolation/undo/save, navigation and changing instrument kind.
+  One/multiple-kick screenshots inspected. Sound quality and FM-1 load unverified.
+- Image 195748 B; data/BSS 87580/90112 B; RAM code 37864/40960 B;
+  pool 335368/344064 B. Logs build/wild-0.3.40-build.log and -tests.log.
+- Delivered ../Firmware Wild/Wild-0.3.40.fwsc, SHA256
+  7c5ca949ad76f0c950f77e49caf558cadd52b5eaa3d8fe87ebd5dd4886de6167.
+  Matching versioned ELF/dis/bin retained. No push/publication/device flashing.
+
+# Wild 0.3.39 / 873 - 2026-11-11
+
+- User authorized implementing a separate Rumble FX return plus assignable SELECT
+  and ALGORITHM, defaulting to their original Track/Page roles. Rumble must also
+  be available in FX. User explicitly waived old-project sound compatibility.
+- FX page 4: Rumble level (0 off), Tonality, Tail, Movement. GLO page 6: Controls,
+  with Select/Algorithm/Presets assignments. Existing PRESETS choices appended;
+  choice 41 for Select/Algorithm is Rumble. Page buttons permit recovery.
+- A fixed three-oscillator kick-excited dry return uses no FM voices or delay
+  buffers. Gliding sparse pitch motif, tempo tail and ducking, smoothed controls
+  and stop; four 150 Hz Side HP poles (gradual transition, not brick-wall mono).
+  FX split includes this render cost. Off/silent skip per-sample synthesis.
+- Actual successful kick events, including delayed sequencer/MIDI/live events,
+  excite the return. Muted and zero-level kicks do not. Scene root and acid Tune
+  inform pitch. Existing Rumble drum kind remains independent.
+- Format 18: six globals consume twelve reserved bytes; project remains 1776 B,
+  bank/journal size unchanged. Rumble is bank-local and automatable; assignments
+  persist across banks and cannot be automated. Mixer/list SELECT keeps priority.
+- Resource-checked firmware and entire host/UBSan/package/installer/scenario suite
+  pass. Additional controls UBSan test covers actual REC through assigned ALGO.
+  New pages' screenshots visually checked. FM-1 audio quality/load still untested.
+- Image 192856 B; data/BSS 81156/90112 B; RAM code 37036/40960 B;
+  pool 335368/344064 B. Logs: build/wild-0.3.39-build.log and -tests.log.
+- Delivered ../Firmware Wild/Wild-0.3.39.fwsc, SHA256
+  82a1fb9a2ac5dcf95236833e7b83b24a2c455b23332205f9e66958e1786b927f.
+  Versioned ELF/dis/bin retained. No push, publication or physical flashing.
+- Reference videos, extracted WAVs, frame sheet and analysis notes remain under
+  ignored build/rumble-references. No direct agent listening was available;
+  subjective sound quality must be judged by user, not inferred from measurements.
+
+# Wild 0.3.38 / 872 - 2026-11-11
+
+- User authorized improving PR #45 (ee603ef), imported locally onto wild by
+  fast-forward. No GitHub merge/push or device flashing.
+- Notes 0..100% now gives the exact rounded count in the playing length.
+  Correct the existing generated motif with position-weighted gate changes,
+  correcting identical motif copies together where the remaining count allows.
+  Slides/Accents remain weighted probabilities with exact 0/100 endpoints.
+  All three controls now display %.
+- Generated inactive steps carry pitch/accent/slide; actual white-key activation
+  retains them. Accent/plain/off cycle stays, off retains pitch and slide.
+- Regrid preserves inactive properties, sounding notes win collisions, and
+  inserted sixteenths inherit nearby properties with their gate off.
+  Format 17 and parameter indices unchanged; stored patterns are not regenerated.
+- Tests cover all Notes percentages, 1..4 bars, both grids and five Chaos levels,
+  latent 0/100 endpoints, Evolve gate preservation, collisions, actual key presses
+  and persistence. Deviance uses fixed notes rather than generated test music.
+- Glue music test keeps its upper-ceiling check. Separate fixed overload test
+  exercises the real final render limiter with Glue on/off. Disabling the limiter
+  in a temporary source copy correctly fails that test.
+- Final resource-checked firmware and entire host/package/installer/scenario suite
+  pass. Additional nacid UBSan run passes. Percentage screenshot visually checked.
+  Image 190760 B; data/BSS 81044/90112 B; RAM code 35988/40960 B;
+  pool 335364/344064 B. Real FM-1 performance and gestures need hardware QA.
+- Logs: build/wild-0.3.38-build.log, build/wild-0.3.38-tests.log,
+  build/wild-0.3.38-nacid-ubsan.log, build/wild-0.3.38-limiter-mutation.log.
+- Package SHA256 dbc09c2621fdba7d472f4b9b917d5cff87e88e8fdf7ddd99c7b55906ca78cb86.
+
 # Wild 0.3.37 / 871 - 2026-11-10
 
 - Drum HOME page: K2 Less and K3 Fill replace the old absolute min/max.

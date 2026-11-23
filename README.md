@@ -1,8 +1,30 @@
-# Wild 0.3.38 - experimental FM-1 firmware
+# Wild 0.3.43 - experimental FM-1 firmware
 
-**0.3.38: clear one track.** GLO + EDIT, and GLO + EDIT again to say yes: the selected track starts
-over (no hits or notes, its settings at their defaults, 1 bar Fixed, nothing by chance, its automation
-gone) while the others play on. Its kind, sound, mute and level stay; Undo brings it back.
+**0.3.43: the beat on the step keys, and clear one track.** The quarters (white keys 1, 5, 9 and 13;
+in triplets 1, 4, 7 and 10) glow faintly when empty, so you can see where the beat is. A soft hit
+lights dim, a strong one bright (the 303's notes stay bright). GLO + EDIT, and GLO + EDIT again to say
+yes: the selected track starts over (no hits or notes, its settings at their defaults, 1 bar Fixed,
+nothing by chance, its automation gone) while the others play on. Its kind, sound, mute and level
+stay; Undo brings it back.
+
+**0.3.42:** Rumble is a Kick effect, with no extra row or track selection.
+Kick ENV cycles Sound, Tone, Rumble, Texture and Layer. NEW SOUND on the three
+Rumble pages randomises only the effect. SELECT and OCT-/+ select the five main tracks.
+
+**0.3.41:** Rumble swells softly to full envelope level on the eighth after its own
+Kick. Duck defaults to 100 and NEW SOUND preserves your Duck setting.
+
+**0.3.40:** Each Kick has a selectable Rumble child row, without steps. Select it
+with SELECT or open its ENV pages; NEW SOUND changes only the layer. Three ENV pages
+provide level, tail, colour, drive, duck, width, movement, shape and mute. The layer
+now smears actual kick audio rather than adding a separate pitched oscillator.
+Global FX moved to GLO, with defaults Reverb 30 / Delay 50 / Filter 100 / Drive 100.
+
+**0.3.39:** Introduced assignable SELECT/ALGORITHM (default Track/Page). Its first
+Rumble prototype is replaced by the per-kick effect in 0.3.40.
+
+**0.3.38:** The 303's Notes sets an exact percentage of its playing steps, rounded
+to the nearest note. Inactive steps hold pitch, accent and slide for live activation.
 
 **0.3.37:** Fill and Less set drum pattern density as percentages, so it follows the track length.
 
@@ -92,8 +114,8 @@ phrase sound evolution and additional sound models are future work.
 
 - Source base: Saintpid/n001se commit b3a4ac2 (1.7.1).
 - Repository: https://github.com/Saintpid/Wild
-- Installable package: build/Wild-0.3.37.fwsc, identity FM-1_871.
-- USB name: Wild FM-1. Screen: Wild 0.3.37.
+- Installable package: build/Wild-0.3.42.fwsc, identity FM-1_876.
+- USB name: Wild FM-1. Screen: Wild 0.3.42.
 - [Architecture, results and remaining hardware checks](docs/WILD_ENGINE.md).
 - [Original request](docs/WILD_SPECIFICATION.txt). Wild overrides conflicting
   product names in that document.
@@ -101,7 +123,7 @@ phrase sound evolution and additional sound models are future work.
 With Linux/WSL prerequisites from BUILDING.md, the locally downloaded tools:
 
 ```sh
-JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.37 --id 871
+JIELI_TOOLCHAIN=build/jieli/toolchain AC79_SDK=build/sdk python3 tools/build.py --release 0.3.42 --id 876
 AC79_SDK=build/sdk CC=gcc sh tests/run_tests.sh
 ```
 
@@ -131,7 +153,7 @@ command.
 
 ## What it sounds like
 
-- **Four FM drums** (tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4): four operators in eight algorithms, noise and a resonator. Every
+- **Four FM drums** (tracks 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4): four operators in eight algorithms, noise and a resonator. Every
   hit varies around the sound's base (Deviance); from 90 the base itself wanders off, slowly, into
   something else (Wander). A new sound is drawn from a kind: kick, snare, hat,
   perc, click, metal, clap or rumble, and perc, click and metal land in a random octave. A rumble is a
@@ -149,12 +171,12 @@ command.
   drums: harder and busier drums take it to high resonance, a middle cutoff and more Env Mod, calm
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
   now and then a move against the rules; after playing hard a while it rests for about eight bars.
-- **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8 bars, acid 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4), so
+- **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars, acid 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), so
   the tracks drift against each other. Fill requests a percentage of the available steps, and Less lets
   the generator remove up to a percentage of those hits. Evolve now and then moves a hit when the
   loop comes round. Any track, the 303 too, can run in
   **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
-  keys 1–12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
+  keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
   quarters most: each is strong or soft (the step keys' two strengths), and **Dynamics** (Rhythm
   page) spreads them from there.
 - **Effects per track:** reverb and delay sends drawn per hit up to the level you set, a moving
@@ -167,35 +189,34 @@ command.
   **Drift** to Bypass and it goes straight to the master and the Glue, untouched by the glitches,
   with its filter standing still and its mutes left alone (a **B** on its row). Space stays for all.
   **Space** lets the reverb move between rooms (small room to large hall) and the delay between
-  lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4 bars and each
+  lengths (dotted eighth, eighth, sixteenth, quarter), slowly: a glide takes 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 bars and each
   place is held for a while. The delay glides like an analog delay, so its repeats bend in pitch.
 - **Master:** hi cut, lo cut, resonance and **Glue**, a light mastering chain that makes the mix
   tighter and more finished but not louder: a compressor in parallel (Glue mix) with a gentle
   transient expander, an EQ that leans the mix towards a pink slope with a little air, foundation and
   de-harsh (Glue EQ), an inflator (Color) and the width with the lows kept in mono (Width), on its own
-  Glue page. After it there is always a limiter (ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢1 dBFS with the Glue on, ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢0.3 dBFS off).
+  Glue page. After it there is always a limiter (ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢1 dBFS with the Glue on, ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢0.3 dBFS off).
 
 ## Live play in short
 
 | Control | Does |
 | --- | --- |
-| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1–12, three to a beat). A press: empty → strong → soft → off (303: accent → plain → off). Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
+| **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, three to a beat). A press: empty ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ strong ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ soft ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off (303: accent ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ plain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off). Lit: strong bright, soft dim, an empty quarter faint. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
 | **Black 3 / 4** | Undo / redo, 6 steps (within the bank) |
-| **Black 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9** | Mute tracks 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 |
+| **Black 5ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ9** | Mute tracks 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ5 |
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
 | **REC** | Automation: the knobs you turn while it plays are recorded (REC lit, its dot blinking in the header) until REC again; then they loop over 1, 2, 4 or 8 bars, in step with the phrase. A knob with automation has a red dot. Turned by hand it follows you, and the automation takes it back a second after. REC held + a knob: that knob's automation erased. A new pattern on a track erases that track's automation. GLO + REC: the selected track's automation erased |
-| **GLO + EDIT** | Clear the selected track: asks, GLO + EDIT again says yes (a key keeps it). No hits or notes, its settings at their defaults, 1 bar Fixed, nothing by chance, its automation gone; its kind, sound, mute and level stay, the other tracks play on. Undo brings it back |
 | **GLO + HOME** | Clear all: asks, GLO + HOME again says yes. Every bank empty, all automation gone, bank 1 empty (no hits or notes, 1 bar Fixed, nothing by chance); saved songs kept |
 | **SAVE / ARP** | Save / load a song, all its banks (64 slots). On the list: SEL copies the song (SEL again on a free slot), HOME deletes it (HOME again: yes), GLO + HOME erases all songs (GLO + HOME again: yes); any other button cancels that |
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
-| **SEL + white 1–12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
+| **SEL + white 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
 | **SEL + white 16** | Chance: a new scene by chance at every press (the bank keeps its original) |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
-In bars 4 and 8 of the phrase the beats 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“4 count big over the sequencer, so it is easy to place
+In bars 4 and 8 of the phrase the beats 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 count big over the sequencer, so it is easy to place
 breaks. When you turn a knob, the parameter's name and value show big. A quick turn moves most
 knobs further; Tune and Pitch always move a semitone every two detents.
 
@@ -216,7 +237,7 @@ To switch between Wild and NB303 (or any FM-1 firmware file) in either direction
 version number, use **FM-1 Switch** (`tools/fm1_switch.pyw`): a small window that lists the `.fwsc`
 files beside it, shows what the FM-1 runs and installs the one you pick. M-UPGRADE only takes a
 higher number than the one installed. If the FM-1 seems bricked, **Check FM-1** tells which state it
-is in and what to do. **Rescue…** puts M-VAVE's stock firmware back on an FM-1 whose firmware no
+is in and what to do. **RescueÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦** puts M-VAVE's stock firmware back on an FM-1 whose firmware no
 longer starts, through the chip's own update mode (Windows and Mac, no extra hardware, a backup of
 the whole flash first; see [BUILDING.md](BUILDING.md#fm-1-switch-installer-app)). `tools/build_switch_exe.bat` makes `FM1-Switch.exe` on
 Windows. For the Mac, `tools/export_switch_mac.cmd` sends the sources to the synced Mac Export
@@ -240,7 +261,7 @@ a script (`tests/scenarios/*.kal`): screenshots, audio and MIDI come out. The pi
 ## Family tree and thanks
 
 n001se stands on a chain of open firmware for the FM-1:
-[Felucca](https://github.com/hugelton/Felucca) (Leo Kuroshita, HÃƒÆ’Ã‚Â¼gelton Instruments) made the FM-1
+[Felucca](https://github.com/hugelton/Felucca) (Leo Kuroshita, HÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼gelton Instruments) made the FM-1
 programmable; [X0X](https://github.com/charlesvestal/fm1-x0x) and
 [FoMni](https://github.com/charlesvestal/fm1-fomni) (Charles Vestal) built other instruments on that
 platform and added the simulator; [FiMba-1](https://github.com/jadamsowers/fm1-fimba) (Adam Sowers)

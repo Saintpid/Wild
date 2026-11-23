@@ -26,6 +26,7 @@ expect patkeep0 0
 tap GLO
 tap GLO
 tap GLO
+tap GLO
 expect view 13
 spin K1 8
 expect gpar0 120

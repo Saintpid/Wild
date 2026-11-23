@@ -1,0 +1,35 @@
+# the step keys' lights: a strong hit bright, a soft one dim, the quarters' empty steps faint
+# (white 1 5 9 13; triplets 1 4 7 10); a quarter with a hit shows the hit. Empty start (CLEAR ALL)
+wait 200
+press GLO
+tap HOME
+tap HOME
+release GLO
+wait 20
+expect track 0
+expect hits 0
+leds
+expect faintkeys 2113665
+expect litkeys 0
+# a strong hit on 2, a soft one on 3, a strong one on the quarter 5 (w0 is key 1)
+tapkey w1
+tapkey w2
+tapkey w2
+tapkey w4
+wait 20
+expect vel1 100
+expect vel2 50
+expect vel4 100
+leds
+expect litkeys 132
+expect faintkeys 2113537
+expect dimkeys 1221680
+# triplets: the quarters move to 1 4 7 10 (keys 13-16 dark); the hit on 5 moved to 4, a quarter
+tap HOME
+spin K1 1
+wait 20
+expect tpar23 1
+tap HOME
+leds
+expect faintkeys 67585
+shot quarter-lights.png
