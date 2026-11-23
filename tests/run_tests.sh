@@ -53,7 +53,7 @@ run rumble sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_
     -o $OUT/rumble_test tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_test"
 run rumble-ubsan sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/rumble_ubsan tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_ubsan"
-run controls sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen \
+run controls sh -c "mkdir -p build/gen && { [ -f build/gen/felucca_font.h ] || ${PYTHON:-python3} tools/gen_font.py build/gen/felucca_font.h >/dev/null; } && $CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen \
     -o $OUT/controls_test tests/host/controls_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/controls_test"
 run switch python3 tests/switch_test.py
 run rescue python3 tests/rescue_test.py
