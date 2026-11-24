@@ -996,6 +996,9 @@ static void black_down(int b)
             say(a, sc_was[m][0] ? "MUTED AFTER" : "ON AFTER");
             return;
         }
+        /* (recorded like its knob: REC on and playing, a lane of its mutes; REC held, that lane erased) */
+        if (auto_touch(m == NE_ACID ? KA | A_MUTE : KT | T_MUTE, m == NE_ACID ? 0 : m))
+            return;
         undo_mark(0);
         if (m == NE_ACID)
             knob_set(KA | A_MUTE, !proj.a[A_MUTE]);
@@ -1784,6 +1787,9 @@ static float auto_frac(void)
     return f < 0.0f ? 0.0f : f > 0.999f ? 0.999f : f;
 }
 
+/* a knob that is a switch (Mute: off, on): its lane steps, never glides between its values */
+static int auto_switch(int k) { const ne_param_t *p = kinfo(k); return p->hi - p->lo <= 1; }
+
 /* a recording done: its sixteenths into a lane of 1, 2, 4 or 8 bars, AUTO_PTS values over it */
 static void auto_finish(int r)
 {
@@ -1813,7 +1819,8 @@ static void auto_finish(int r)
     for (i = 0; i < AUTO_PTS; i++) {                 /* over AUTO_PTS, between the sixteenths in a line */
         uint32_t x = (uint32_t)i * (uint32_t)n, a = x / AUTO_PTS, f = x % AUTO_PTS;
         int v0 = out[a], v1 = out[(a + 1u) % (uint32_t)n];
-        l->v[i] = (uint8_t)(v0 + ((v1 - v0) * (int)f + (v1 > v0 ? AUTO_PTS / 2 : -AUTO_PTS / 2)) / AUTO_PTS);
+        l->v[i] = auto_switch(l->k) ? (uint8_t)v0     /* (a switch: held to the next sixteenth, on its step) */
+                                    : (uint8_t)(v0 + ((v1 - v0) * (int)f + (v1 > v0 ? AUTO_PTS / 2 : -AUTO_PTS / 2)) / AUTO_PTS);
     }
     l->bars = (uint8_t)bars;
     proj_auto_dirty = 1;
@@ -1967,7 +1974,10 @@ static void auto_frame(void)
         a = (int)x;
         f = x - (float)a;
         p = kinfo(l->k);
-        v = p->lo + (int)((float)l->v[a % AUTO_PTS] + ((float)l->v[(a + 1) % AUTO_PTS] - (float)l->v[a % AUTO_PTS]) * f + 0.5f);
+        if (p->hi - p->lo <= 1)                      /* (a switch: as it was at this point, no midway) */
+            v = p->lo + l->v[a % AUTO_PTS];
+        else
+            v = p->lo + (int)((float)l->v[a % AUTO_PTS] + ((float)l->v[(a + 1) % AUTO_PTS] - (float)l->v[a % AUTO_PTS]) * f + 0.5f);
         v = v < p->lo ? p->lo : v > p->hi ? p->hi : v;
         if (v != auto_value(l))
             auto_set(l, v);

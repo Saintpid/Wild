@@ -5,11 +5,14 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.47
+## 0.3.48
 
-Firmware identity FM-1_881. The first generative sound: a new kind, Gen; and a low-pass on every track.
-(0.3.45 and 0.3.46, ids 879 and 880, were test builds of it.)
+Firmware identity FM-1_882. The first generative sound: a new kind, Gen; a low-pass on every track; and
+the mutes recorded. (0.3.45 to 0.3.47, ids 879 to 881, were test builds of it.)
 
+- REC records the mute keys (black 5 to 9) too, like a knob: with REC on and playing, each press goes
+  into a lane of that track's mutes, which plays back on the sixteenth it was pressed. REC held and the
+  mute key: that lane is erased.
 - Low-pass, on every drum track: a soft filter (12 dB an octave, no peak), the Tone page's KNOB 4.
   0 is open, as before; up from there the track grows duller, to about 140 Hz at 100. On a Gen track
   it is the Track FX page's third knob (its filter share has no hits to take) and sits after
