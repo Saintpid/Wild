@@ -5,6 +5,16 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.44
+
+Firmware identity FM-1_878. Room for the generative sounds to come; nothing new to play yet.
+
+- The screen's tall parts (the tracks, the song list, the start screen) are drawn in two strips, top
+  and bottom, instead of all at once. They look the same. This frees 34 KB of memory.
+- Undo (black 3) keeps seven edits, or two when a track has automation (it kept nine and three).
+  Two bank switches can still be undone. This frees 2.8 KB.
+- If the screen flickers or tears where it did not before, say so: that is what to look for.
+
 ## 0.3.43
 
 Firmware identity FM-1_877. The beat and the strengths on the step keys, and clearing one track.

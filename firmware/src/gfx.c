@@ -14,11 +14,15 @@ typedef struct {               /* proportional, see tools/gen_font.py */
 } felucca_font_t;
 #include "felucca_font.h"
 
-#define CV_MAX (240u * 144u)      /* X0X: the main area, both bands, is 240 x 144 */
+/* Half the main area: a taller canvas is drawn in strips, the same drawing once per strip (cv_pass),
+ * which leaves 34 KB of the pool to the generative sounds. */
+#define CV_MAX (240u * 72u)
 static uint16_t cv_px[CV_MAX] __attribute__((section(".pool")));
 static uint32_t cv_w, cv_h;
 static int32_t cv_oy;            /* y offset for graph drawing */
-static int32_t cv_y0, cv_y1;     /* X0X: the rows drawing may touch (cv_band) */
+static int32_t cv_y0, cv_y1;     /* the rows the strip holds, of the whole canvas */
+static uint16_t cv_bg;
+#define CV_AT(x, y) cv_px[(uint32_t)((y) - cv_y0) * cv_w + (uint32_t)(x)]
 
 #define RGB(r, g, b) ((uint16_t)((((r) >> 3) << 11) | (((g) >> 2) << 5) | ((b) >> 3)))
 #define C_BLACK 0x0000u
@@ -56,43 +60,49 @@ static void palette_set(uint32_t i)
 
 static inline uint16_t swap16(uint32_t c) { return (uint16_t)(((c >> 8) & 0xFFu) | ((c & 0xFFu) << 8)); }
 
+static void cv_fill(void)
+{
+    uint32_t i, n = cv_w * (uint32_t)(cv_y1 - cv_y0);
+    uint16_t c = swap16(cv_bg);
+    for (i = 0; i < n; i++)
+        cv_px[i] = c;
+}
+
+/* a canvas w x h: drawing goes to its first strip; cv_pass sends it and moves on */
 static void cv_begin(uint32_t w, uint32_t h, uint16_t bg)
 {
-    uint32_t i, n;
-    if (w * h > CV_MAX)
-        h = CV_MAX / w;
+    uint32_t rows = CV_MAX / w;
     lcd_sync();                     /* the last blit may still read cv_px */
     cv_w = w;
     cv_h = h;
+    cv_bg = bg;
     cv_oy = cv_y0 = 0;
-    cv_y1 = (int32_t)h;
-    n = w * h;
-    for (i = 0; i < n; i++)
-        cv_px[i] = swap16(bg);
+    cv_y1 = (int32_t)(h < rows ? h : rows);
+    cv_fill();
 }
 
-/* X0X: draw the next things as if the canvas were rows y0 .. y0+h-1 alone (one band of a
- * canvas that holds several, sent in one transfer so the bands change on screen together) */
-static void cv_band(int32_t y0, int32_t h)
+/* Send the strip drawn to screen (x, y + its first row). 1: another strip follows, draw it all again. */
+static int cv_pass(uint32_t x, uint32_t y)
 {
-    cv_oy = cv_y0 = y0;
-    cv_y1 = y0 + h;
+    uint32_t rows = CV_MAX / cv_w;
+    lcd_blit(x, y + (uint32_t)cv_y0, cv_w, (uint32_t)(cv_y1 - cv_y0), cv_px);
+    if ((uint32_t)cv_y1 >= cv_h)
+        return 0;
+    lcd_sync();
+    cv_y0 = cv_y1;
+    cv_y1 = (int32_t)((uint32_t)cv_y0 + rows < cv_h ? (uint32_t)cv_y0 + rows : cv_h);
+    cv_fill();
+    return 1;
 }
 
-static void cv_blit(uint32_t x, uint32_t y) { lcd_blit(x, y, cv_w, cv_h, cv_px); }
-
-/* canvas rows r0 .. cv_h-1 only, to screen row y + r0 */
-static void cv_blit_from(uint32_t x, uint32_t y, uint32_t r0)
-{
-    if (r0 < cv_h)
-        lcd_blit(x, y + r0, cv_w, cv_h - r0, cv_px + r0 * cv_w);
-}
+/* a canvas of one strip */
+static void cv_blit(uint32_t x, uint32_t y) { (void)cv_pass(x, y); }
 
 static inline void cv_pset(int32_t x, int32_t y, uint16_t c)
 {
     y += cv_oy;
     if ((uint32_t)x < cv_w && y >= cv_y0 && y < cv_y1)
-        cv_px[(uint32_t)y * cv_w + (uint32_t)x] = swap16(c);
+        CV_AT(x, y) = swap16(c);
 }
 
 static void cv_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c)
@@ -110,7 +120,7 @@ static void cv_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c)
         y1 = cv_y1;
     for (; y < y1; y++)
         for (i = x; i < x1; i++)
-            cv_px[(uint32_t)y * cv_w + (uint32_t)i] = sc;
+            CV_AT(i, y) = sc;
 }
 
 static void cv_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t c)
@@ -164,13 +174,13 @@ static int32_t cv_text(int32_t x, int32_t y, const felucca_font_t *f, const char
                 if (!a || (uint32_t)px >= cv_w || py < cv_y0 || py >= cv_y1)
                     continue;
                 if (a == 15u) {
-                    cv_px[(uint32_t)py * cv_w + (uint32_t)px] = swap16(c);
+                    CV_AT(px, py) = swap16(c);
                 } else {
-                    uint32_t bg = swap16(cv_px[(uint32_t)py * cv_w + (uint32_t)px]);
+                    uint32_t bg = swap16(CV_AT(px, py));
                     uint32_t br = bg >> 11, bgg = (bg >> 5) & 63u, bb = bg & 31u;
                     uint32_t nr = (r * a + br * (15u - a)) / 15u, ng = (g * a + bgg * (15u - a)) / 15u,
                              nb = (b * a + bb * (15u - a)) / 15u;
-                    cv_px[(uint32_t)py * cv_w + (uint32_t)px] = swap16((nr << 11) | (ng << 5) | nb);
+                    CV_AT(px, py) = swap16((nr << 11) | (ng << 5) | nb);
                 }
             }
         x += f->adv[gi];
@@ -181,7 +191,7 @@ static int32_t cv_text(int32_t x, int32_t y, const felucca_font_t *f, const char
 /* one pixel blended over the canvas: c at a / 256 */
 static inline void cv_blend(int32_t px, int32_t py, uint16_t c, uint32_t a)
 {
-    uint16_t *d = &cv_px[(uint32_t)py * cv_w + (uint32_t)px];
+    uint16_t *d = &CV_AT(px, py);
     int32_t bg, br, bgg, bb, k = (int32_t)a;
     if (a >= 256u) {
         *d = swap16(c);

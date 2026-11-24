@@ -297,7 +297,9 @@ static int track_bars(int t);
 #define SC_N 9
 static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
-#define UNDO_BYTES 17760u                      /* fixed budget, independent of project format growth */
+/* Fixed budget, independent of project format growth: two bank operations with their automation, seven
+ * edits, or two once a track has automation. 2.8 KB of it went to the generative sounds. */
+#define UNDO_BYTES 14980u
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;
@@ -2229,41 +2231,42 @@ static void draw_list(void)
         return;
     ui.sig[1] = h;
     cv_begin(240, MAIN_H, K_BG);
-    cv_text(10, 2, &FONT_S, ui.list == L_SAVE ? "SAVE SONG" : "LOAD SONG", K_ACC);
-    itoa_u(ui.nfree, f);
-    s_cpy(f + s_len(f), " free");
-    cv_text(230 - text_w(&FONT_XS, f), 6, &FONT_XS, f, K_DIM);
-    for (i = -2; i <= 2; i++) {
-        int n, used;
-        int32_t y = 22 + (i + 2) * 20;
-        char b[8];
-        if (p + i < 0 || p + i >= ui.nvis)
-            continue;
-        n = ui.vis[p + i];
-        used = slot_used(n);
-        slot_name(n, b);
-        if (!i)
-            cv_round(4, y - 2, 232, 20, 5, K_PANEL);
-        cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
-        if (n == ui.copy_from) {
-            cv_text(64, y + 2, &FONT_XS, "copy from here", K_ACC);
-        } else if (used && ui.parts[n]) {            /* a song: the slots it takes */
-            char m[16] = "song, ";
-            itoa_u(1u + ui.parts[n], m + 6);
-            s_cpy(m + s_len(m), " slots");
-            cv_text(64, y + 2, &FONT_XS, m, i ? K_DIM : K_ACC);
-        } else {
-            cv_text(64, y + 2, &FONT_XS, used ? "song" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+    do {
+        cv_text(10, 2, &FONT_S, ui.list == L_SAVE ? "SAVE SONG" : "LOAD SONG", K_ACC);
+        itoa_u(ui.nfree, f);
+        s_cpy(f + s_len(f), " free");
+        cv_text(230 - text_w(&FONT_XS, f), 6, &FONT_XS, f, K_DIM);
+        for (i = -2; i <= 2; i++) {
+            int n, used;
+            int32_t y = 22 + (i + 2) * 20;
+            char b[8];
+            if (p + i < 0 || p + i >= ui.nvis)
+                continue;
+            n = ui.vis[p + i];
+            used = slot_used(n);
+            slot_name(n, b);
+            if (!i)
+                cv_round(4, y - 2, 232, 20, 5, K_PANEL);
+            cv_text(14, y, i ? &FONT_S : &FONT_B, b, i ? K_DIM : K_TEXT);
+            if (n == ui.copy_from) {
+                cv_text(64, y + 2, &FONT_XS, "copy from here", K_ACC);
+            } else if (used && ui.parts[n]) {            /* a song: the slots it takes */
+                char m[16] = "song, ";
+                itoa_u(1u + ui.parts[n], m + 6);
+                s_cpy(m + s_len(m), " slots");
+                cv_text(64, y + 2, &FONT_XS, m, i ? K_DIM : K_ACC);
+            } else {
+                cv_text(64, y + 2, &FONT_XS, used ? "song" : "empty", used ? (i ? K_DIM : K_ACC) : K_LINE);
+            }
+            if (n == proj.preset)
+                cv_round(222, y + 6, 6, 6, 3, K_DIM);
         }
-        if (n == proj.preset)
-            cv_round(222, y + 6, 6, 6, 3, K_DIM);
-    }
-    if (ui.copy_from >= 0)
-        cv_text(10, 124, &FONT_XS, "SEL on a free slot: copy  other: cancel", K_DIM);
-    else
-        cv_text(10, 124, &FONT_XS, ui.list == L_SAVE ? "SAVE: save  SEL: copy  HOME: delete" :
-                                                       "ARP: load  SEL: copy  HOME: delete", K_DIM);
-    cv_blit(0, MAIN_Y);
+        if (ui.copy_from >= 0)
+            cv_text(10, 124, &FONT_XS, "SEL on a free slot: copy  other: cancel", K_DIM);
+        else
+            cv_text(10, 124, &FONT_XS, ui.list == L_SAVE ? "SAVE: save  SEL: copy  HOME: delete" :
+                                                           "ARP: load  SEL: copy  HOME: delete", K_DIM);
+    } while (cv_pass(0, MAIN_Y));
 }
 
 /* Over the tracks, see-through: in the phrase's fourth and eighth bars the beat counts big, each one
@@ -2362,20 +2365,21 @@ static void draw_grid(void)
         return;
     ui.sig[1] = h;
     cv_begin(240, MAIN_H, K_BG);
-    for (t=0;t<UI_TRACKS;++t) draw_track(t,2+t*ROW_H);
-    {   /* the bar numbers over the phrase, for the black keys: the one shown outlined */
-        int b, bars = track_bars(ui.track), sb = shown_bar();
-        for (b = 0; b < 8; b++) {
-            char d[2] = {(char)('1' + b), 0};
-            int32_t x = PH_X + b * PH_W;
-            text_c(x + (PH_W - 3) / 2, 110, &FONT_XS, d, b >= bars ? K_LINE : b == sb ? K_TEXT : K_DIM);
-            if (b == sb && ui.bar_lock)
-                cv_rect(x + (PH_W - 3) / 2 - 5, 124, 10, 1, K_TEXT);
+    do {
+        for (t=0;t<UI_TRACKS;++t) draw_track(t,2+t*ROW_H);
+        {   /* the bar numbers over the phrase, for the black keys: the one shown outlined */
+            int b, bars = track_bars(ui.track), sb = shown_bar();
+            for (b = 0; b < 8; b++) {
+                char d[2] = {(char)('1' + b), 0};
+                int32_t x = PH_X + b * PH_W;
+                text_c(x + (PH_W - 3) / 2, 110, &FONT_XS, d, b >= bars ? K_LINE : b == sb ? K_TEXT : K_DIM);
+                if (b == sb && ui.bar_lock)
+                    cv_rect(x + (PH_W - 3) / 2 - 5, 124, 10, 1, K_TEXT);
+            }
         }
-    }
-    draw_phrase(130);
-    draw_overlay(ba, pa);
-    cv_blit(0, MAIN_Y);
+        draw_phrase(130);
+        draw_overlay(ba, pa);
+    } while (cv_pass(0, MAIN_Y));
 }
 
 static void draw_main(void)

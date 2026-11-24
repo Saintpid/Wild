@@ -1,5 +1,8 @@
-# Wild 0.3.43 - experimental FM-1 firmware
+# Wild 0.3.44 - experimental FM-1 firmware
 
+**0.3.44:** room made for the generative sounds to come: the screen's tall parts are drawn in two
+strips (they look the same), and undo keeps seven edits (two with automation; it kept nine). Nothing
+else changes.
 **0.3.43: the beat on the step keys, and clear one track.** The quarters (white keys 1, 5, 9 and 13;
 in triplets 1, 4, 7 and 10) glow faintly when empty, so you can see where the beat is. A soft hit
 lights dim, a strong one bright (the 303's notes stay bright). GLO + EDIT, and GLO + EDIT again to say
@@ -203,7 +206,7 @@ command.
 | --- | --- |
 | **White keys** | The 16 steps of the bar shown (a track in triplets: keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, three to a beat). A press: empty ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ strong ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ soft ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off (303: accent ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ plain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ off). Lit: strong bright, soft dim, an empty quarter faint. Hold a step and turn for velocity and pitch (acid: note, accent, slide). In LIVE mode they play the sounds |
 | **Black 1 / 2** | Previous / next bar (both: follow the playback) |
-| **Black 3 / 4** | Undo / redo, 6 steps (within the bank) |
+| **Black 3 / 4** | Undo / redo, 7 steps, 2 with automation (within the bank) |
 | **Black 5ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ9** | Mute tracks 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ5 |
 | **Black 10 / 11** | New pattern / new sound on the selected track. With GLO held: on all tracks |
 | **PLAY / SEQ** | Start/stop / switch SEQ and LIVE |
