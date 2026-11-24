@@ -372,7 +372,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         uint32_t bar = 16u * (g->step_len ? g->step_len : (uint32_t)(0.125f * g->sr));
         float kk = 1.0f - fm_expf(-(float)m / (0.05f * g->sr)), mov, spread;
         float target, mt, k_amp, k_m, inertia, det, c0, c1, p0, p1, dp, depth, a_step;
-        float nb, nb_t, mo, lpk, kf[2], qn, side, bal, hpa, dhp;
+        float nb, nb_t, mo, kt[2], vb, kf[2], qn, side, bal, hpa, dhp;
         const int16_t *n0l = slot_at(g, g->cur, 0, 0), *n0r = slot_at(g, g->cur, 0, 1);
         const int16_t *n1l = slot_at(g, g->cur, 1, 0), *n1r = slot_at(g, g->cur, 1, 1);
         const int16_t *o0l = slot_at(g, g->old, 0, 0), *o0r = slot_at(g, g->old, 0, 1);
@@ -412,10 +412,9 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         g->morph += (mt - g->morph) * k_m;
         mo = fm_clampf(g->morph + 0.25f * mov * drift(g, 0) + 0.4f * mov * g->bloom, 0.0f, 1.0f);
         k_amp = 1.0f - fm_expf(-1.0f / (0.012f * g->sr));
-        /* the share of noise: around Noise, moved by its drift, the energy and each step's flash (always some) */
-        nb_t = fm_clampf(g->k_nz + 0.3f * (0.4f + mov) * drift(g, 1) + 0.25f * g->morph + 0.35f * g->bloom,
-                         0.03f, 0.95f);
-        nb = g->param[NGEN_NOISE] ? nb_t : 0.0f;    /* Noise 0: none at all */
+        /* the share of noise: half of Noise (default 17.5 %), moved +-7.5 % by its drift, a little up with energy and each step */
+        nb_t = fm_clampf(0.5f * g->k_nz + 0.075f * drift(g, 1) + 0.04f * (g->bloom + g->morph) - 0.03f, 0.0f, 0.45f);
+        nb = g->param[NGEN_NOISE] ? nb_t : 0.0f;    /* the noise's share of the power; Noise 0: none */
         /* the noise's resonances wander from partial to partial, every half bar a new one, gliding */
         if (g->since % (bar / 2u) < (uint32_t)m || g->nz_t[0] == 1000.0f) {
             g->nz_next++;
@@ -444,11 +443,23 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         g->step_t += (uint32_t)m;
         /* the readers: one shared (the stronger, the core), one each side detuned apart (more with energy) */
         det = spread * 0.005f * (0.4f + 0.6f * mo) * (1.0f + 0.3f * drift(g, 3));
-        lpk = fm_clampf(0.1f + 0.88f * mo * mo + 0.12f * mov * drift(g, 3), 0.05f, 1.0f);
+        /* the tones' low-pass per side: up with energy, each side's cutoff drifting its own way */
+        for (k = 0; k < 2; k++) {
+            float dr = nfm_sine(g->lfo[3] + 0.37f * (float)k + 0.11f * rnd01(g->seed, (uint32_t)k, 41u));
+            float fc = fm_minf(350.0f * fm_exp2f(4.3f * mo + 1.1f * mov * dr), 7000.0f);
+            kt[k] = 2.0f * nfm_sine(fc / (2.0f * g->sr));
+        }
+        /* vibrato: a few cents, the core one way and the detuned readers apart, 4-6.5 Hz from the seed */
+        g->vib += (float)m * (4.0f + 2.5f * rnd01(g->seed, 5u, 51u)) / g->sr;
+        if (g->vib >= 1.0f)
+            g->vib -= 1.0f;
+        vb = nfm_sine(g->vib) * mov * (0.6f + 0.4f * drift(g, 0));
         {
-            float inc0 = g->f0[g->cur] * (float)NGEN_LEN / g->sr, incl = inc0 * (1.0f + det), incr = inc0 * (1.0f - det);
-            float oinc0 = g->f0[g->old] * (float)NGEN_LEN / g->sr, oincl = oinc0 * (1.0f + det), oincr = oinc0 * (1.0f - det);
-            float sc = 1.0f / 65534.0f, tone = 1.0f - 0.7f * nb, noise = 2.2f * nb;
+            float inc0 = g->f0[g->cur] * (float)NGEN_LEN / g->sr * (1.0f + 0.0016f * vb);
+            float incl = inc0 * (1.0f + det + 0.003f * vb), incr = inc0 * (1.0f - det - 0.003f * vb);
+            float oinc0 = g->f0[g->old] * (float)NGEN_LEN / g->sr * (1.0f + 0.0016f * vb);
+            float oincl = oinc0 * (1.0f + det + 0.003f * vb), oincr = oinc0 * (1.0f - det - 0.003f * vb);
+            float sc = 1.0f / 65534.0f, pt = 0.0f, pn = 0.0f, gn = g->gn;
             for (i = 0; i < m; i++) {
                 float xl, xr, dl, dr, w, a, b, mid, sd, y[2], x[2], wc;
                 g->amp += (target - g->amp) * k_amp;
@@ -487,15 +498,19 @@ void ngen_render(ngen *g, float *l, float *r, int n)
                 xr = 1.2f * xr + 0.9f * b;
                 x[0] = xl * sc;
                 x[1] = xr * sc;
-                /* the noise: its own on each side, through its band-pass (Chamberlin); then both darkened
-                 * together when calm */
+                /* the tones through their low-pass, the noise through its band-pass (both Chamberlin) */
                 wc = white(g);                       /* half of it shared, so the sides stay related */
                 for (k = 0; k < 2; k++) {
-                    float hi = 0.6f * wc + 0.8f * white(g) - g->nz_lo[k] - qn * g->nz_bd[k];
+                    float hi = x[k] - g->tl_lo[k] - 0.8f * g->tl_bd[k], nz;
+                    g->tl_bd[k] += kt[k] * hi;
+                    g->tl_lo[k] += kt[k] * g->tl_bd[k];
+                    hi = 0.6f * wc + 0.8f * white(g) - g->nz_lo[k] - qn * g->nz_bd[k];
                     g->nz_bd[k] += kf[k] * hi;
                     g->nz_lo[k] += kf[k] * g->nz_bd[k];
-                    g->lp[k] += (x[k] * tone + g->nz_bd[k] * qn * noise - g->lp[k]) * lpk;
-                    y[k] = g->lp[k];
+                    nz = g->nz_bd[k] * qn;
+                    pt += g->tl_lo[k] * g->tl_lo[k];
+                    pn += nz * nz;
+                    y[k] = g->tl_lo[k] + nz * gn;
                 }
                 /* wider: more side, the middle kept; the image leaning */
                 mid = 0.5f * (y[0] + y[1]);
@@ -520,6 +535,14 @@ void ngen_render(ngen *g, float *l, float *r, int n)
                 g->ph[1] = wrap(g->ph[1] + incl);
                 g->ph[2] = wrap(g->ph[2] + incr);
             }
+            /* the noise's gain: its power to nb of the whole, measured as it plays (~70 ms) */
+            g->pt += (pt / (float)m - g->pt) * 0.02f;
+            g->pn += (pn / (float)m - g->pn) * 0.02f;
+            if (g->pn > 1e-12f && nb > 0.0f)
+                gn = fm_expf(0.5f * fm_logf(nb / (1.0f - nb) * g->pt / g->pn));
+            else
+                gn = 0.0f;
+            g->gn += (fm_minf(gn, 40.0f) - g->gn) * 0.05f;
         }
         done += m;
     }

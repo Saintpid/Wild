@@ -6,8 +6,9 @@
  * between them cannot click). Playback (ngen_render) only reads, morphs and crossfades them. A new set
  * is written into a free slot and faded in over a quarter; if it is late, the old one plays on.
  *
- * Beside the tones, noise through a resonant band-pass per side whose centre wanders between the
- * chord's partials; the share of noise and tone keeps moving (slow drifts, energy, each step's flash).
+ * The tones go through a low-pass per side, each cutoff drifting its own way, with a little vibrato.
+ * Beside the tones, noise (10-25 % of the power by default) through a resonant band-pass per side whose
+ * centre wanders between the chord's partials; the share of noise and tone keeps moving (slow drifts, energy, each step's flash).
  * Nothing below ~95 Hz: kick and rumble own that.
  *
  * Energy: a played step adds vel/127 of what is left to full (it saturates at 1); time takes it away,
@@ -36,7 +37,7 @@ enum {
     NGEN_SPREAD,       /* stereo width and detune */
     NGEN_INERTIA,      /* how slowly the timbre follows the energy */
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
-    NGEN_NOISE,        /* how much noise there is beside the tones (it moves around this) */
+    NGEN_NOISE,        /* noise's share of the power: half of this, moving +-7.5 % around it */
     NGEN_NPARAMS
 };
 
@@ -56,11 +57,14 @@ typedef struct {
     /* audio side */
     float e;                             /* energy 0..1 */
     float gate;                          /* 1 until a bar without steps, then away */
-    float amp, morph, lp[2], bloom;      /* bloom: a played step's flash, brighter and noisier */
+    float amp, morph, bloom;             /* bloom: a played step's flash, brighter and noisier */
+    float tl_lo[2], tl_bd[2];            /* the tones' low-pass per side (each its own drifting cutoff) */
+    float vib;                           /* vibrato, in cycles */
+    float pt, pn, gn;                    /* the tones' and the noise's power, the noise's gain to its share */
     float lfo[4];                        /* slow drifts, in cycles: timbre, noise share, place, brightness */
     float nz_lo[2], nz_bd[2], nz_c[2], nz_t[2];   /* the noise's band-pass per side: state, centre, target */
-    float hp_x[2][2], hp_y[2][2];
-    float dh_x[2], dh_y[2];              /* the detuned readers' high-pass (the lows stay shared) */        /* two poles of high-pass per side (nothing below ~95 Hz) */
+    float hp_x[2][2], hp_y[2][2];        /* two poles of high-pass per side (nothing below ~95 Hz) */
+    float dh_x[2], dh_y[2];              /* the detuned readers' high-pass (the lows stay shared) */
     uint32_t rng, nz_next;
     float k_sp, k_mov, k_nz;             /* Spread, Movement and Noise as they glide to a knob's value */
     float ph[3], po[3];                  /* readers (shared, left detuned, right detuned): the playing set's, the old's */
