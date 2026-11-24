@@ -237,6 +237,8 @@ SOUND (ENV, page 1)
 TONE (ENV, page 2)
   Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble, Gen (below). A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble: a low, driven tail at the kick's pitch that swells in, is ducked by every kick and plays between the beats (Spike drives it harder and opens it up). Takes effect with the next new sound (black 11).
   Ring tone  The resonance's pitch
+  Low-pass   A soft low-pass on the track (12 dB an octave, no peak): 0 open, up to ~140 Hz at 100.
+             On a Gen track it is on the Track FX page, in Filter's place.
   Tune       Tuning, ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢24 to +24 semitones
 
 GEN (Kind Gen, then NEW SOUND; one track at a time)

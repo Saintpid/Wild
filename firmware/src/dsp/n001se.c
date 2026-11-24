@@ -108,6 +108,7 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_GINERTIA] = {"Inertia", 0, 100, 40},
     [T_GDECAY] = {"Decay", 0, 100, 10},
     [T_GSEED] = {"DNA", 0, 255, 0},
+    [T_LPF] = {"Low-pass", 0, 100, 0},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -377,6 +378,24 @@ static ngen gen NE_POOL;
 static int16_t gen_mem[NGEN_MEM_WORDS] NE_POOL;
 static volatile int8_t gen_t = -1;               /* the track playing it, -1 none */
 static float gen_buf[2][64], gen_gain, gen_peak;
+/* LOW-PASS per track (T_LPF): two soft poles, 0 open .. 100 at ~140 Hz, gliding; open, out of the way.
+ * The drums' in each voice (nfm_engine.lp_k), the Gen track's after everything (tones and noise). */
+static float lp_x[NE_TRACKS] = {0.3f, 0.3f, 0.3f, 0.3f}, gen_lp[2][2];
+static float tan_pi(float x);
+static void lp_follow(void)
+{
+    int t;
+    for (t = 0; t < NE_TRACKS; t++) {
+        int v = tpar[t][T_LPF];
+        float xt = v ? 13000.0f / NE_SR * exp2_(-6.5f * pct(v)) : 0.3f, w;
+        lp_x[t] += (xt - lp_x[t]) * 0.1f;           /* (a block of 256: ~25 ms) */
+        if (!v && lp_x[t] > 0.295f)
+            lp_x[t] = 0.3f;
+        w = tan_pi(lp_x[t]);
+        fm.lp_k[t] = lp_x[t] < 0.3f ? w / (1.0f + w) : 0.0f;
+    }
+}
+static float tan_pi(float x);
 #define GEN_LEVEL 2.5f                           /* ngen's level to a drum's */
 static void rumble_stop(void)                    /* (the tails: the rumbles and the Gen track) */
 {
@@ -465,6 +484,24 @@ static void gen_render(float *l, float *r, float *rev, float *dly, int n)
     if (fm.dir_l && (fm.direct >> t & 1u)) {
         ol = fm.dir_l;
         or_ = fm.dir_r;
+    }
+    if (fm.lp_k[t] > 0.0f) {                         /* (the trapezoid's one-poles, twice) */
+        float k = fm.lp_k[t];
+        int c;
+        for (c = 0; c < 2; c++)
+            for (i = 0; i < n; i++) {
+                float x = gen_buf[c][i], y;
+                y = (x - gen_lp[c][0]) * k;
+                x = y + gen_lp[c][0];
+                gen_lp[c][0] = x + y;
+                y = (x - gen_lp[c][1]) * k;
+                x = y + gen_lp[c][1];
+                gen_lp[c][1] = x + y;
+                gen_buf[c][i] = x;
+            }
+    } else {                                         /* open: the poles follow, so closing it is smooth */
+        gen_lp[0][0] = gen_lp[0][1] = gen_buf[0][n - 1];
+        gen_lp[1][0] = gen_lp[1][1] = gen_buf[1][n - 1];
     }
     sr = pct(tpar[t][T_REVERB]) * 0.5f;
     sd = pct(tpar[t][T_DELAY]) * 0.5f;
@@ -1242,6 +1279,10 @@ void ne_init(void)
     ngen_init(&gen, gen_mem, NE_SR, gen_seed(0));
     gen_t = -1;
     gen_gain = gen_peak = 0.0f;
+    for (t = 0; t < NE_TRACKS; t++) {
+        lp_x[t] = 0.3f;
+        fm.lp_k[t] = 0.0f;
+    }
     fx.on_hit = rumble_hit;
     fm.tap = rumble_tap;
     nseq_init(&seq, &fm, 0x73657121u);
@@ -1494,6 +1535,7 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
     }
     drain();
     gen_follow();
+    lp_follow();
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
     if (!seq.playing) {

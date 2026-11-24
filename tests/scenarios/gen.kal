@@ -26,6 +26,13 @@ spin K1 -20
 expect tpar35 50
 wait 100
 shot gen-sound.png
+# its low-pass: the Track FX page's third knob (the Filter share has no hits to take)
+tap FX
+expect view 6
+spin K3 30
+expect tpar42 30
+spin K3 -30
+expect tpar42 0
 tapkey b9
 wait 50
 wav gen.wav
@@ -36,6 +43,7 @@ expect glevel >20
 tap OCT-
 expect track 2
 tap ENV
+tap ENV
 expect view 4
 spin K1 6
 expect tpar6 8
@@ -43,6 +51,12 @@ tapkey b10
 wait 50
 expect kind2 2
 expect gen 3
+# a drum's low-pass: the Tone page's fourth knob
+spin K4 25
+expect tpar42 25
+wait 100
+shot hat-lowpass.png
+spin K4 -25
 wait 100
 shot gen-refused.png
 # its steps cleared (GLO + EDIT twice): a bar's hold, then it fades

@@ -66,7 +66,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_GRID, KT | T_DYN, K_NONE, K_NONE},       /* HOME again: the steps, sixteenths or triplets; how soft */
     {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
-    {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
+    {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, KT | T_LPF},
     {K_NONE, K_NONE, K_NONE, K_NONE},                /* (the acid line's only) */
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
@@ -236,6 +236,8 @@ static int view_knob(int i)
 {
     if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
         return GEN_KNOB[ui.view == V_TONE][i];
+    if (ui.view == V_TFX && i == 2 && is_gen(ui.track))
+        return KT | T_LPF;                           /* (its Filter share has no hits to take: its low-pass) */
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
         return i ? K_NONE : KA | A_DRIFT;
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
@@ -307,7 +309,7 @@ static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
 /* Fixed budget, independent of project format growth: two bank operations with their automation, seven
  * edits, or two once a track has automation. 2.8 KB of it went to the generative sounds. */
-#define UNDO_BYTES 15204u
+#define UNDO_BYTES 15236u
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;

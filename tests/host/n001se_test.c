@@ -531,6 +531,30 @@ int main(int argc, char **argv)
         CHECK(odd && back == 16 && keep == 29 && gen == 32, "Fixed: drew odd %d, back %d, kept %d, new pattern %d",
               odd, back, keep, gen);
     }
+    /* LOW-PASS on a drum track: a hat through it at 100 keeps little of its peak; open again, all */
+    {
+        float open, shut, back;
+        ne_init();
+        ne_new_sound(2, NFM_KIND_HAT);
+        ne_tset(2, T_DEV, 0);                    /* (every hit the same, dry) */
+        ne_tset(2, T_REVERB, 0);
+        ne_tset(2, T_DELAY, 0);
+        ne_tset(2, T_FILTER, 0);
+        ne_tset(2, T_MODCHANCE, 0);
+        render(20, 0);
+        ne_hit(2, 127, 0);
+        open = render(20, 0);
+        ne_tset(2, T_LPF, 100);
+        render(40, 0);
+        ne_hit(2, 127, 0);
+        shut = render(20, 0);
+        ne_tset(2, T_LPF, 0);
+        render(40, 0);
+        ne_hit(2, 127, 0);
+        back = render(20, 0);
+        printf("low-pass: a hat's peak %.3f open, %.3f at 100, %.3f open again\n", (double)open, (double)shut, (double)back);
+        CHECK(shut < 0.3f * open && back > 0.8f * open, "low-pass: %f %f %f", (double)open, (double)shut, (double)back);
+    }
     /* GEN: a track of kind Gen plays ngen, its steps as energy; one at a time; muted, it fades; a bar
      * and more without steps, it goes quiet; its material made by ne_work */
     {
@@ -550,6 +574,20 @@ int main(int argc, char **argv)
                 lv_on = ne_track_level[3];
         }
         made = ne_gen_track();
+        {   /* its low-pass (T_LPF): at 100 most of it is gone */
+            float lv_f = 0.0f;
+            ne_tset(3, T_LPF, 100);
+            render(40, 0);
+            for (b = 0; b < 300; b++) {
+                render(1, 0);
+                ne_work();
+                if (ne_track_level[3] > lv_f)
+                    lv_f = ne_track_level[3];
+            }
+            printf("Gen: its low-pass at 100, level %.3f (open %.3f)\n", (double)lv_f, (double)lv_on);
+            CHECK(lv_f < 0.4f * lv_on, "Gen: low-pass %f, open %f", (double)lv_f, (double)lv_on);
+            ne_tset(3, T_LPF, 0);
+        }
         ne_new_sound(1, NFM_KIND_GEN);           /* a second one: the first plays on */
         render(4, 0);
         CHECK(made == 3 && ne_gen_track() == 3, "Gen: on track %d, then %d", made, ne_gen_track());

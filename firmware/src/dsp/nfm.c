@@ -726,6 +726,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->ins = 0;
     v->send_rev = v->send_dly = 0.0f;
     v->ins_s1 = v->ins_s2 = 0.0f;
+    v->lp_s[0] = v->lp_s[1] = 0.0f;
     nfm_sat_set(&v->sat, 0.0f);
     {   /* the sound's modulation effect, on a share of its hits */
         const nfm_mod *m = &e->mod[s];
@@ -1131,6 +1132,22 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
         } else
             v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
         x = (lp - v->r_dc) * v->r_duck * v->r_duck;
+    }
+
+    /* The slot's soft low-pass (Low-pass on the Tone page), two poles; off, its poles follow, so it
+     * comes in without a step */
+    {
+        float k = e->lp_k[v->slot];
+        if (k > 0.0f) {
+            float y = (x - v->lp_s[0]) * k;
+            x = y + v->lp_s[0];
+            v->lp_s[0] = x + y;
+            y = (x - v->lp_s[1]) * k;
+            x = y + v->lp_s[1];
+            v->lp_s[1] = x + y;
+        } else {
+            v->lp_s[0] = v->lp_s[1] = x;
+        }
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */

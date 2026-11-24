@@ -1,6 +1,7 @@
-# Wild 0.3.46 - experimental FM-1 firmware
+# Wild 0.3.47 - experimental FM-1 firmware
 
-**0.3.46: a new kind, Gen, the first generative sound.** On any one drum track (Tone page, Kind: Gen,
+**0.3.47: a low-pass on every track** (the Tone page's KNOB 4; on a Gen track the Track FX page's
+third knob): soft, 0 open, 100 at about 140 Hz. **And a new kind, Gen, the first generative sound.** On any one drum track (Tone page, Kind: Gen,
 then NEW SOUND) a stereo sound that is made, not played: a chord in the 303's key, nothing below
 ~95 Hz. Each DNA is its own sound: saws, squares, organ, vowels, soft, buzz or glass; a full chord,
 fifths, a drone or a ninth; held like a pad or struck like a stab. Its steps are energy, not hits: a step adds (by its strength), time takes

@@ -5,11 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.46
+## 0.3.47
 
-Firmware identity FM-1_880. The first generative sound: a new kind, Gen. (0.3.45, id 879, was a test
-build of it.)
+Firmware identity FM-1_881. The first generative sound: a new kind, Gen; and a low-pass on every track.
+(0.3.45 and 0.3.46, ids 879 and 880, were test builds of it.)
 
+- Low-pass, on every drum track: a soft filter (12 dB an octave, no peak), the Tone page's KNOB 4.
+  0 is open, as before; up from there the track grows duller, to about 140 Hz at 100. On a Gen track
+  it is the Track FX page's third knob (its filter share has no hits to take) and sits after
+  everything, tones and noise. It glides as you turn it and can be recorded with REC.
 - Set a drum track's Kind (Tone page, KNOB 1) to Gen and press NEW SOUND (black 11). The track now plays
   a stereo sound made in the background: a chord in the 303's key with a little noise beside it,
   nothing below ~95 Hz, so it leaves the room to the kick and the rumble.
@@ -23,10 +27,10 @@ build of it.)
 - Its own knobs: Sound page Complex, Movement, Spread, Noise; Tone page Kind, Inertia, Decay and DNA.
   NEW SOUND draws a new DNA. Noise at 100 is 10 % of the sound (the default 50: 5 %).
 - One Gen track at a time: a second is refused with "ONE GEN TRACK".
-- Its Reverb and Delay sends, Level, Mute and Bypass work as on other tracks; the hit effects (filter
-  share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
-- Audio Load's split shows G, the Gen track's share of the time. Projects gain seven values per track
-  (format 20); older ones load as before.
+- Its Reverb and Delay sends, Level, Mute, Low-pass and Bypass work as on other tracks; the hit effects
+  (filter share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
+- Audio Load's split shows G, the Gen track's share of the time. Projects gain the Gen track's seven values
+  and the low-pass (format 20); older ones load as before.
 
 ## 0.3.44
 

@@ -30,7 +30,7 @@
                                             17: drum hit counts become percentages (same layout);
                                             18: Rumble return and assignable SELECT/ALGORITHM;
                                             19: nine kick-layer parameters per drum track;
-                                            20: a Gen track's seven (T_GCOMPLEX..T_GSEED) */
+                                            20: a Gen track's seven (T_GCOMPLEX..T_GSEED) and a low-pass per track (T_LPF) */
 #define PROJ_G_OF(f) ((f) == 1u ? 12 : (f) <= 4u ? 17 : (f) <= 6u ? 18 : (f) <= 7u ? 19 : (f) <= 9u ? 20 : (f) <= 10u ? 21 : (f) <= 11u ? 25 : (f) <= 17u ? 26 : G_NPARAMS)   /* the values each format holds */
 #define PROJ_T_OF(f) ((f) == 1u ? 14 : (f) <= 3u ? 15 : (f) <= 5u ? 19 : (f) <= 13u ? 23 : (f) <= 14u ? 24 : (f) <= 15u ? 25 : (f) <= 18u ? 26 : (f) <= 19u ? 35 : T_NPARAMS)
 #define PROJ_A_OF(f) ((f) <= 2u ? 0 : (f) == 3u ? 16 : (f) <= 5u ? 20 : (f) <= 8u ? 24 : (f) <= 12u ? 25 : (f) <= 13u ? 26 : (f) <= 14u ? 27 : A_NPARAMS)
