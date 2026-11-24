@@ -1,0 +1,82 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* ngen: a generative stereo voice for one drum track. The steps are energy, not hits.
+ *
+ * Material is made ahead, in the background (ngen_work, small pieces): a set of stereo tables of one
+ * period, a calm and an intense state of the same sound (same period, same phases low down, so a morph
+ * between them cannot click). Playback (ngen_render) only reads, morphs and crossfades them. A new set
+ * is written into a free slot and faded in over a quarter; if it is late, the old one plays on.
+ *
+ * Energy: a played step adds vel/127 of what is left to full (it saturates at 1); time takes it away,
+ * tempo-synced. The sound does not go silent before a bar has passed without a played step. The
+ * planner reads the whole pattern ahead: the timbre leans towards what is coming (a build-up before a
+ * dense part), the energy itself never rises without a step.
+ *
+ * Portable C99, float, no libm, no allocation. ngen_render and ngen_step belong to the audio side,
+ * ngen_work and ngen_pattern to the foreground; they share only the slot hand-over. */
+#ifndef NGEN_H
+#define NGEN_H
+#include <stdint.h>
+
+#define NGEN_LEN 1024u        /* frames in one period */
+#define NGEN_SLOTS 3u         /* playing, fading out, being made */
+#define NGEN_STEPS 128
+#define NGEN_STATES 2         /* calm, intense */
+/* one slot: two states, two channels */
+#define NGEN_SLOT_WORDS (NGEN_STATES * 2u * NGEN_LEN)
+#define NGEN_MEM_WORDS (NGEN_SLOTS * NGEN_SLOT_WORDS)   /* int16: 24 KB */
+
+/* the percentages a player sets (0..100) */
+enum {
+    NGEN_COMPLEXITY,   /* how many tones and overtones the intense state has */
+    NGEN_MOVEMENT,     /* the pulse and drift energy brings */
+    NGEN_SPREAD,       /* stereo width and detune */
+    NGEN_INERTIA,      /* how slowly the timbre follows the energy */
+    NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
+    NGEN_NPARAMS
+};
+
+typedef struct {
+    int16_t *mem;                        /* NGEN_MEM_WORDS, owned by the caller (the pool) */
+    float sr;
+    uint32_t seed;
+    uint8_t param[NGEN_NPARAMS];
+    int8_t root;                         /* MIDI note of the key's root */
+    uint8_t minor;
+    /* the pattern and its plan */
+    uint8_t vel[NGEN_STEPS];
+    float plan[NGEN_STEPS];              /* what the timbre leans to at each step */
+    float pred[NGEN_STEPS];              /* the energy the pattern settles to there */
+    uint8_t len;
+    float global;                        /* the pattern's mean strength */
+    /* audio side */
+    float e;                             /* energy 0..1 */
+    float gate;                          /* 1 until a bar without steps, then away */
+    float amp, morph, lp[2], pulse;
+    float ph[3], inc, det;               /* readers: shared, left detuned, right detuned */
+    uint32_t since, step_len, step_t;
+    uint8_t pos, live;
+    volatile uint8_t cur, old, ready;    /* slots: playing, fading out (old == cur: none), ready to play */
+    uint32_t fade, fade_len;
+    /* foreground: the set being made */
+    uint8_t wr, job, state, it_t, it_n, have;
+    float scratch[2][NGEN_LEN];          /* one state, both channels, before it is scaled to int16 */
+    uint32_t made;                       /* sets made (tests) */
+} ngen;
+
+void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed);
+void ngen_set_param(ngen *g, int p, int value);
+void ngen_set_key(ngen *g, int root_note, int minor);
+/* a new sound: a new seed; the set is remade and faded in */
+void ngen_new_sound(ngen *g, uint32_t seed);
+/* the pattern, len steps of velocities (0: empty); replans from the next step */
+void ngen_pattern(ngen *g, const uint8_t *vel, int len);
+/* step pos begins now; it lasts step_len samples */
+void ngen_step(ngen *g, int pos, uint32_t step_len);
+/* add n frames to l and r */
+void ngen_render(ngen *g, float *l, float *r, int n);
+/* one small piece of background work; 0: nothing to do */
+int ngen_work(ngen *g);
+/* 1 while it sounds or something is coming */
+int ngen_active(const ngen *g);
+void ngen_stop(ngen *g);
+#endif
