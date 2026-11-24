@@ -101,6 +101,13 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_RMOTION] = {"Movement", 0, 100, 25},
     [T_RSEED] = {"Shape", 0, 127, 0},
     [T_RMUTE] = {"Mute", 0, 1, 0},
+    [T_GCOMPLEX] = {"Complex", 0, 100, 70},
+    [T_GMOVE] = {"Movement", 0, 100, 60},
+    [T_GSPREAD] = {"Spread", 0, 100, 75},
+    [T_GNOISE] = {"Noise", 0, 100, 35},
+    [T_GINERTIA] = {"Inertia", 0, 100, 40},
+    [T_GDECAY] = {"Decay", 0, 100, 10},
+    [T_GSEED] = {"DNA", 0, 255, 0},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -173,7 +180,7 @@ const ne_param_t *ne_param_info(int i)
 const ne_param_t *ne_tparam_info(int i) { return &TP[(unsigned)i < T_NPARAMS ? i : 0]; }
 int ne_tparam_def(int t, int i) { return i >= T_RLEVEL && i < T_NPARAMS ? TP[i].def : T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
 
-static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap", "Rumble"};
+static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap", "Rumble", "Gen"};
 const char *ne_kind_name(int k) { return (unsigned)k < NFM_KINDS ? KIND_NAME[k] : "?"; }
 
 static void itoa_s(int v, char *b)
@@ -363,9 +370,120 @@ NFM_HOT static float exp2_(float x)                      /* (nfx.c's) */
 #include "nrumble.h"
 static nrumble rumble[NE_TRACKS];
 static float rumble_input[NE_TRACKS][64];
-static void rumble_stop(void)
+/* GEN: one track (the first of kind Gen) plays ngen instead of an FM voice, its steps as energy. Its
+ * tables and state in the pool (33 kB); its material made in the main loop (ne_work). */
+#include "ngen.h"
+static ngen gen NE_POOL;
+static int16_t gen_mem[NGEN_MEM_WORDS] NE_POOL;
+static volatile int8_t gen_t = -1;               /* the track playing it, -1 none */
+static float gen_buf[2][64], gen_gain, gen_peak;
+#define GEN_LEVEL 2.5f                           /* ngen's level to a drum's */
+static void rumble_stop(void)                    /* (the tails: the rumbles and the Gen track) */
 {
     for (int t=0;t<NE_TRACKS;++t) nr_stop(&rumble[t]);
+    ngen_stop(&gen);
+}
+int ne_gen_track(void) { return gen_t; }
+void ne_work(void)
+{
+    int i;
+    if (gen_t < 0)
+        return;
+    for (i = 0; i < 4 && ngen_work(&gen); i++)
+        ;
+}
+static uint32_t gen_seed(int v) { return 0x9e3779b9u * (uint32_t)(v + 1) ^ 0x67656e21u; }
+/* each block: which track, its knobs, the 303's key (its root, Tune, minor unless the scale is major) */
+static void gen_follow(void)
+{
+    int t, g = -1;
+    if (gen_t >= 0 && fm.slot[gen_t].kind == NFM_KIND_GEN)
+        g = gen_t;                               /* (it stays where it is; the UI allows one) */
+    for (t = 0; t < NE_TRACKS && g < 0; t++)
+        if (fm.slot[t].kind == NFM_KIND_GEN)
+            g = t;
+    if (g != gen_t) {
+        ngen_stop(&gen);
+        gen_gain = 0.0f;
+        gen_t = (int8_t)g;
+    }
+    if (g < 0)
+        return;
+    ngen_set_param(&gen, NGEN_COMPLEXITY, tpar[g][T_GCOMPLEX]);
+    ngen_set_param(&gen, NGEN_MOVEMENT, tpar[g][T_GMOVE]);
+    ngen_set_param(&gen, NGEN_SPREAD, tpar[g][T_GSPREAD]);
+    ngen_set_param(&gen, NGEN_NOISE, tpar[g][T_GNOISE]);
+    ngen_set_param(&gen, NGEN_INERTIA, tpar[g][T_GINERTIA]);
+    ngen_set_param(&gen, NGEN_DECAY, tpar[g][T_GDECAY]);
+    ngen_new_sound(&gen, gen_seed(tpar[g][T_GSEED]));
+    {
+        float tu = acid.tune;
+        int k = 36 + seq.root + (int)(tu < 0.0f ? tu - 0.5f : tu + 0.5f);
+        ngen_set_key(&gen, k, acid.scale != NACID_SCALES - 1);
+    }
+}
+/* at each of its steps: the pattern as it is now (replanned if it moved), then the step's energy */
+static void gen_step(uint32_t step, float step_len)
+{
+    nseq_track *tr;
+    int i, ch;
+    if (gen_t < 0)
+        return;
+    tr = &seq.track[gen_t];
+    if ((tr->triplet && step % 4u == 3u) || tr->last < 0 || !tr->length)
+        return;
+    ch = tr->length != gen.len;
+    for (i = 0; i < tr->length; i++) {
+        uint8_t v = tr->step[i].on ? tr->step[i].vel : 0u;
+        if (gen.vel[i] != v) {
+            gen.vel[i] = v;
+            ch = 1;
+        }
+    }
+    if (ch)
+        ngen_pattern(&gen, gen.vel, tr->length);
+    if (!tr->mute)
+        ngen_step(&gen, tr->last, (uint32_t)(tr->triplet ? step_len * (4.0f / 3.0f) : step_len));
+}
+/* into the effects' source: its level, its mute (a glide, ~20 ms), its sends; the direct bus at Bypass */
+static void gen_render(float *l, float *r, float *rev, float *dly, int n)
+{
+    int t = gen_t, i;
+    float to, g, dg, *ol = l, *or_ = r, sr, sd, pk = 0.0f;
+    if (t < 0 || n > 64)
+        return;
+    to = seq.track[t].mute ? 0.0f : GEN_LEVEL * fm.master * pct(tpar[t][T_LEVEL]);
+    if (to <= 0.0f && gen_gain <= 0.0f && !ngen_active(&gen))
+        return;
+    nfm_zero(gen_buf, sizeof gen_buf);
+    ngen_render(&gen, gen_buf[0], gen_buf[1], n);
+    g = gen_gain;
+    dg = to - g;
+    if (dg > (float)n * (1.0f / 882.0f)) dg = (float)n * (1.0f / 882.0f);
+    if (dg < -(float)n * (1.0f / 882.0f)) dg = -(float)n * (1.0f / 882.0f);
+    dg /= (float)n;
+    if (fm.dir_l && (fm.direct >> t & 1u)) {
+        ol = fm.dir_l;
+        or_ = fm.dir_r;
+    }
+    sr = pct(tpar[t][T_REVERB]) * 0.5f;
+    sd = pct(tpar[t][T_DELAY]) * 0.5f;
+    for (i = 0; i < n; i++) {
+        float a, b;
+        g += dg;
+        a = gen_buf[0][i] * g;
+        b = gen_buf[1][i] * g;
+        ol[i] += a;
+        or_[i] += b;
+        if (rev) rev[i] += (a + b) * sr;
+        if (dly) dly[i] += (a + b) * sd;
+        a = a < 0.0f ? -a : a;
+        b = b < 0.0f ? -b : b;
+        if (a > pk) pk = a;
+        if (b > pk) pk = b;
+    }
+    gen_gain = g < 0.0f ? 0.0f : g;
+    gen_peak = pk > gen_peak ? pk : gen_peak * 0.9f;
 }
 static void rumble_hit(int slot, float velocity)
 {
@@ -1063,13 +1181,14 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (apar[A_DEV] > 0 && step % 4u == 0u)
         acid_mood = drum_mood();
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
+    gen_step(step, step_len);
     glitch_step(step, delay, step_len);
     mutate_step(step);
     wander_step();
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
-static uint32_t sp_acid, sp_seq, sp_all, sp_frames;   /* Audio Load's split (ne_take_split) */
+static uint32_t sp_acid, sp_gen, sp_seq, sp_all, sp_frames;   /* Audio Load's split (ne_take_split) */
 NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
     uint32_t t0 = nfm_clock ? nfm_clock() : 0u;
@@ -1089,6 +1208,9 @@ NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float
         nr_render(&rumble[t],rumble_input[t],ol,or_,n,fm.master*pct(tpar[t][T_LEVEL]));
         nfm_zero(rumble_input[t],sizeof rumble_input[t]);
     }
+    t0 = nfm_clock ? nfm_clock() : 0u;
+    gen_render(l, r, rev, dly, n);
+    if (nfm_clock) sp_gen += nfm_clock() - t0;
 }
 
 static void new_sound(int t, int kind)
@@ -1117,6 +1239,9 @@ void ne_init(void)
     nfx_init(&fx, NE_SR, 0x6e736521u);
     for (int t=0;t<NE_TRACKS;++t) nr_init(&rumble[t]);
     nfm_zero(rumble_input,sizeof rumble_input);
+    ngen_init(&gen, gen_mem, NE_SR, gen_seed(0));
+    gen_t = -1;
+    gen_gain = gen_peak = 0.0f;
     fx.on_hit = rumble_hit;
     fm.tap = rumble_tap;
     nseq_init(&seq, &fm, 0x73657121u);
@@ -1325,8 +1450,11 @@ static void drain(void)
         case C_CLEAR: {                /* CLEAR ALL (-1), CLEAR TRACK (the one): no hits, no notes */
             if (c.t < 0)
                 rumble_stop();
-            else if (c.t < NE_TRACKS)
+            else if (c.t < NE_TRACKS) {
                 nr_stop(&rumble[c.t]);
+                if (c.t == gen_t)
+                    ngen_stop(&gen);
+            }
             int t, s;
             for (t = 0; t < NE_TRACKS; t++)
                 if (c.t < 0 || c.t == t)
@@ -1365,6 +1493,7 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         return;
     }
     drain();
+    gen_follow();
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
     if (!seq.playing) {
@@ -1469,6 +1598,8 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         for (v = 0; v < NFM_VOICES; v++)
             if (fm.voice[v].slot == t && fm.voice[v].peak > lv)
                 lv = fm.voice[v].peak;
+        if (t == gen_t)
+            lv = gen_peak;
         ne_track_level[t] = lv;
         if (lv > mixer_peaks[t]) mixer_peaks[t] = lv;
     }
@@ -1491,10 +1622,11 @@ uint32_t ne_take_split(uint32_t ticks[NE_SPLITS])
     __asm__ volatile("" ::: "memory");
     ticks[NE_SPLIT_DRUMS] = v;
     ticks[NE_SPLIT_ACID] = sp_acid;
-    ticks[NE_SPLIT_FX] = sp_seq - v - sp_acid;   /* the sequencer, the hits, the reverb and delay */
+    ticks[NE_SPLIT_FX] = sp_seq - v - sp_acid - sp_gen;   /* the sequencer, the hits, the reverb and delay */
+    ticks[NE_SPLIT_GEN] = sp_gen;
     ticks[NE_SPLIT_MASTER] = sp_all - sp_seq;    /* glitches, master filter, Glue, limiter */
     f = sp_frames;
-    nfm_voice_ticks = sp_acid = sp_seq = sp_all = sp_frames = 0u;
+    nfm_voice_ticks = sp_acid = sp_gen = sp_seq = sp_all = sp_frames = 0u;
     __asm__ volatile("" ::: "memory");
     hold = 0;
     return f;

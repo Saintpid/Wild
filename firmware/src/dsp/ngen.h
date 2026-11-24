@@ -16,8 +16,8 @@
  * planner reads the whole pattern ahead: the timbre leans towards what is coming (a build-up before a
  * dense part), the energy itself never rises without a step.
  *
- * Portable C99, float, no libm, no allocation. ngen_render and ngen_step belong to the audio side,
- * ngen_work and ngen_pattern to the foreground; they share only the slot hand-over. */
+ * Portable C99, float, no libm, no allocation. ngen_work belongs to the foreground, the rest to the audio
+ * side; they share only the slot hand-over and a request count (a new set asked for). */
 #ifndef NGEN_H
 #define NGEN_H
 #include <stdint.h>
@@ -69,6 +69,7 @@ typedef struct {
     float k_sp, k_mov, k_nz;             /* Spread, Movement and Noise as they glide to a knob's value */
     float ph[3], po[3];                  /* readers (shared, left detuned, right detuned): the playing set's, the old's */
     float f0[NGEN_SLOTS];                /* each slot's fundamental, as it was made (a new key comes with its set) */
+    float dk[NGEN_SLOTS], dl;            /* each slot's dullness (from its seed), and the one heard now */
     float job_f0;
     uint32_t since, step_len, step_t;
     uint8_t pos, live;
@@ -76,6 +77,8 @@ typedef struct {
     uint32_t fade, fade_len;
     /* foreground: the set being made */
     uint8_t wr, job, state, it_t, it_n, have;
+    volatile uint8_t req;                /* a new set asked for (either side may ask), and the last begun */
+    uint8_t req_done;
     float scratch[2][NGEN_LEN];          /* one state, both channels, before it is scaled to int16 */
     uint32_t made;                       /* sets made (tests) */
 } ngen;

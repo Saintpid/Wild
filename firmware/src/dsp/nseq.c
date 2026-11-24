@@ -25,6 +25,7 @@ NFM_DATA static const uint8_t profile[NFM_KINDS][NSEQ_BAR] = {
     [NFM_KIND_METAL] = {  4, 1, 2, 1,  2, 1, 3, 1,  3, 1, 2, 1,  2, 1, 3, 1 },
     [NFM_KIND_CLAP]  = {  1, 1, 1, 1,  9, 1, 1, 2,  1, 1, 2, 1,  9, 1, 3, 2 },
     [NFM_KIND_RUMBLE] = { 1, 5, 6, 4,  1, 5, 6, 4,  1, 5, 6, 4,  1, 5, 6, 5 },   /* between the kicks */
+    [NFM_KIND_GEN]   = {  8, 1, 3, 2,  4, 1, 3, 2,  6, 1, 3, 2,  4, 2, 5, 3 },   /* energy: the beats, a push before them */
 };
 
 /* The same in triplets, three a quarter: the beats, the shuffle's late third (hats), the middle one
@@ -38,6 +39,7 @@ NFM_DATA static const uint8_t profile3[NFM_KINDS][NSEQ_TBAR] = {
     [NFM_KIND_METAL] = {  4, 1, 2,  2, 1, 3,  3, 1, 2,  2, 1, 3 },
     [NFM_KIND_CLAP]  = {  1, 1, 1,  9, 1, 2,  1, 1, 2,  9, 1, 3 },
     [NFM_KIND_RUMBLE] = { 1, 5, 6,  1, 5, 6,  1, 5, 6,  1, 5, 6 },
+    [NFM_KIND_GEN]   = {  8, 2, 3,  4, 2, 3,  6, 2, 3,  4, 3, 5 },
 };
 
 /* Minor pentatonic: percussion pitched to it rarely clashes. */

@@ -41,8 +41,8 @@ int main(int argc, char **argv)
     int t, k, i;
     static ne_state_t a, b;
     ne_init();
-    /* every kind, many times: a sound that blows up or stays silent fails */
-    for (k = 0; k < NFM_KINDS; k++)
+    /* every kind, many times: a sound that blows up or stays silent fails (Gen: below) */
+    for (k = 0; k < NFM_KIND_GEN; k++)
         for (i = 0; i < 20; i++) {
             ne_new_sound(0, k);
             ne_hit(0, 127, 0);
@@ -530,6 +530,51 @@ int main(int argc, char **argv)
         gen = tr->length;
         CHECK(odd && back == 16 && keep == 29 && gen == 32, "Fixed: drew odd %d, back %d, kept %d, new pattern %d",
               odd, back, keep, gen);
+    }
+    /* GEN: a track of kind Gen plays ngen, its steps as energy; one at a time; muted, it fades; a bar
+     * and more without steps, it goes quiet; its material made by ne_work */
+    {
+        int s, b, made = 0;
+        float lv_on = 0.0f, lv_mute = 1.0f, lv_quiet = 1.0f, lv_back = 0.0f;
+        ne_init();
+        ne_set(G_TEMPO, 120);
+        ne_new_sound(3, NFM_KIND_GEN);
+        ne_tset(3, T_BARS, 1);
+        for (s = 0; s < 16; s++)
+            ne_step(3, s, s % 4 == 0 || s == 14, s % 8 ? 70 : 120, 0);
+        ne_play(1);
+        for (b = 0; b < 500; b++) {              /* (~2.9 s, a bar is 2 s: 344 blocks) */
+            render(1, 0);
+            ne_work();
+            if (b > 300 && ne_track_level[3] > lv_on)
+                lv_on = ne_track_level[3];
+        }
+        made = ne_gen_track();
+        ne_new_sound(1, NFM_KIND_GEN);           /* a second one: the first plays on */
+        render(4, 0);
+        CHECK(made == 3 && ne_gen_track() == 3, "Gen: on track %d, then %d", made, ne_gen_track());
+        ne_new_sound(1, NFM_KIND_SNARE);
+        ne_tset(3, T_MUTE, 1);
+        render(20, 0);                           /* 116 ms */
+        lv_mute = ne_track_level[3];
+        ne_tset(3, T_MUTE, 0);
+        for (b = 0; b < 80; b++) {
+            render(1, 0);
+            if (ne_track_level[3] > lv_back) lv_back = ne_track_level[3];
+        }
+        ne_clear_track(3);
+        for (b = 0; b < 1400; b++) {             /* 4 bars without a step */
+            render(1, 0);
+            ne_work();
+        }
+        lv_quiet = ne_track_level[3];
+        printf("Gen: level %.3f playing, %.5f muted, %.3f back, %.5f after 4 empty bars\n", (double)lv_on,
+               (double)lv_mute, (double)lv_back, (double)lv_quiet);
+        CHECK(lv_on > 0.03f && lv_on < 1.0f, "Gen: level %f", (double)lv_on);
+        CHECK(lv_mute < 0.002f && lv_back > 0.03f, "Gen: muted %f, back %f", (double)lv_mute, (double)lv_back);
+        CHECK(lv_quiet < 0.002f, "Gen: no steps %f", (double)lv_quiet);
+        ne_play(0);
+        ne_init();
     }
     /* saved and restored: the same */
     ne_snapshot(&a);

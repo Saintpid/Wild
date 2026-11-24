@@ -1,5 +1,12 @@
-# Wild 0.3.44 - experimental FM-1 firmware
+# Wild 0.3.45 - experimental FM-1 firmware
 
+**0.3.45: a new kind, Gen, the first generative sound.** On any one drum track (Tone page, Kind: Gen,
+then NEW SOUND) a stereo sound that is made, not played: a chord in the 303's key, tones and moving
+noise, nothing below ~95 Hz. Its steps are energy, not hits: a step adds (by its strength), time takes
+away, and it never goes silent until a bar has passed without one. It looks ahead in its pattern and
+grows brighter before a busy part. Sound page: Complex, Movement, Spread, Noise; Tone page: Kind,
+Inertia, Decay, DNA (each a different sound; NEW SOUND draws one, a third of them dull). One Gen track
+at a time. Audio Load's split has a G for it.
 **0.3.44:** room made for the generative sounds to come: the screen's tall parts are drawn in two
 strips (they look the same), and undo keeps seven edits (two with automation; it kept nine). Nothing
 else changes.

@@ -38,6 +38,12 @@ static int ntones(const ngen *g, int state)
 {
     return state ? NG_CALM + (int)(pct(g, NGEN_COMPLEXITY) * (NG_NTONES - NG_CALM) + 0.5f) : NG_CALM;
 }
+/* a third of the seeds are dull sounds, the low partials leading and the filters lower: 0 bright .. 1 dull */
+static float dull(const ngen *g)
+{
+    float d = rnd01(g->seed, 9u, 61u);
+    return d < 0.34f ? 1.0f - d * (1.0f / 0.34f) : 0.0f;
+}
 static int nharm(const ngen *g, int state) { return state ? 4 + (int)(pct(g, NGEN_COMPLEXITY) * 20.0f) : 3; }
 
 static int16_t *slot_at(const ngen *g, int slot, int state, int ch)
@@ -81,7 +87,7 @@ void ngen_set_param(ngen *g, int p, int value)
         return;
     g->param[p] = (uint8_t)value;
     if (p == NGEN_COMPLEXITY || p == NGEN_SPREAD)
-        g->job = 1;                         /* the material changes: made anew, faded in */
+        g->req++;                           /* the material changes: made anew, faded in */
     if (p == NGEN_DECAY)
         ngen_pattern(g, g->vel, g->len);
 }
@@ -97,13 +103,15 @@ void ngen_set_key(ngen *g, int root_note, int minor)
         return;
     g->root = (int8_t)root_note;
     g->minor = minor != 0;
-    g->job = 1;
+    g->req++;
 }
 
 void ngen_new_sound(ngen *g, uint32_t seed)
 {
+    if (g->seed == seed)
+        return;
     g->seed = seed;
-    g->job = 1;
+    g->req++;
 }
 
 /* energy's decay: from 1 to about 5 % over Decay's half a bar .. 3 bars */
@@ -233,7 +241,7 @@ static int next_partial(ngen *g)
             a *= (f - NG_CUT) / (NG_LOW - NG_CUT);
         a *= 0.6f + 0.8f * rnd01(g->seed, h, 2u);
         /* the tilt: calm leans to the low partials, intense to the high ones */
-        a *= fm_powf(f * (1.0f / 400.0f), g->state ? 0.45f : -0.6f);
+        a *= fm_powf(f * (1.0f / 400.0f), g->state ? 0.45f - 0.75f * dull(g) : -0.6f - 0.4f * dull(g));
         /* stereo: low down one centred core, above it each partial its own place and phase */
         pl = rnd01(g->seed, h, 3u);
         if (f < 200.0f) {
@@ -285,6 +293,10 @@ int ngen_work(ngen *g)
 {
     if (g->ready)
         return 0;                           /* the last one has not been taken yet */
+    if (g->req != g->req_done) {            /* asked for (again): start over */
+        g->req_done = g->req;
+        g->job = 1;
+    }
     if (g->job == 1) {                      /* start: a slot neither playing nor fading out */
         uint8_t s;
         for (s = 0; s < NGEN_SLOTS; s++)
@@ -307,6 +319,7 @@ int ngen_work(ngen *g)
         return 1;
     g->job = 0;
     g->f0[g->wr] = g->job_f0;
+    g->dk[g->wr] = dull(g);
     g->made++;
     NG_FENCE();
     g->ready = 1;
@@ -372,7 +385,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         uint32_t bar = 16u * (g->step_len ? g->step_len : (uint32_t)(0.125f * g->sr));
         float kk = 1.0f - fm_expf(-(float)m / (0.05f * g->sr)), mov, spread;
         float target, mt, k_amp, k_m, inertia, det, c0, c1, p0, p1, dp, depth, a_step;
-        float nb, nb_t, mo, kt[2], vb, kf[2], qn, side, bal, hpa, dhp;
+        float nb, nb_t, mo, dl, kt[2], vb, kf[2], qn, side, bal, hpa, dhp;
         const int16_t *n0l = slot_at(g, g->cur, 0, 0), *n0r = slot_at(g, g->cur, 0, 1);
         const int16_t *n1l = slot_at(g, g->cur, 1, 0), *n1r = slot_at(g, g->cur, 1, 1);
         const int16_t *o0l = slot_at(g, g->old, 0, 0), *o0r = slot_at(g, g->old, 0, 1);
@@ -422,7 +435,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
             g->nz_t[1] = noise_centre(g, 1);
         }
         for (k = 0; k < 2; k++) {
-            g->nz_c[k] += (g->nz_t[k] * (0.35f + 1.3f * mo) - g->nz_c[k]) * (1.0f - fm_expf(-(float)m / (0.25f * (float)bar)));
+            g->nz_c[k] += (g->nz_t[k] * (0.35f + 1.3f * mo) * (1.0f - 0.45f * g->dl) - g->nz_c[k]) * (1.0f - fm_expf(-(float)m / (0.25f * (float)bar)));
             kf[k] = 2.0f * nfm_sine(fm_minf(g->nz_c[k], 7000.0f) / (2.0f * g->sr));
         }
         qn = 0.08f + 0.5f * (1.0f - mo);             /* calm: a narrow, singing band; intense: wider, rougher */
@@ -444,9 +457,12 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         /* the readers: one shared (the stronger, the core), one each side detuned apart (more with energy) */
         det = spread * 0.005f * (0.4f + 0.6f * mo) * (1.0f + 0.3f * drift(g, 3));
         /* the tones' low-pass per side: up with energy, each side's cutoff drifting its own way */
+        /* how dull: the playing set's, gliding over a quarter as a new one comes in */
+        g->dl += (g->dk[g->cur] - g->dl) * (1.0f - fm_expf(-(float)m / (4.0f * (float)(g->step_len ? g->step_len : 5512u))));
+        dl = g->dl;
         for (k = 0; k < 2; k++) {
             float dr = nfm_sine(g->lfo[3] + 0.37f * (float)k + 0.11f * rnd01(g->seed, (uint32_t)k, 41u));
-            float fc = fm_minf(350.0f * fm_exp2f(4.3f * mo + 1.1f * mov * dr), 7000.0f);
+            float fc = fm_minf(350.0f * fm_exp2f(4.3f * mo * (1.0f - 0.45f * dl) + 1.1f * mov * dr - 0.8f * dl), 7000.0f);
             kt[k] = 2.0f * nfm_sine(fc / (2.0f * g->sr));
         }
         /* vibrato: a few cents, the core one way and the detuned readers apart, 4-6.5 Hz from the seed */

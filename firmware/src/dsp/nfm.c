@@ -168,7 +168,7 @@ NFM_CODE static float param_unmap(int i, float v)
 }
 
 static const char *const macro_names[NFM_MACROS] = { "deviance", "stress", "spike", "bleed", "fluid" };
-static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap", "rumble" };
+static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap", "rumble", "gen" };
 
 /* Carriers per algorithm, bit k = op k+1 (see nfm.h). */
 NFM_DATA static const uint8_t algo_carriers[NFM_ALGOS] = { 1, 1, 1 | 4, 1 | 2 | 4, 1, 1, 1 | 2, 15 };
@@ -345,13 +345,13 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     uint32_t *r = &e->rng;
     if (kind < 0 || kind >= NFM_KINDS) {
         /* Rhythm first: drums are drawn more often than the tonal kinds. */
-        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1 };
+        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1, 0 };
         unsigned total = 0, pick;
         for (int k = 0; k < NFM_KINDS; ++k) total += weights[k];
         pick = rng_next(r) % total;
         for (kind = 0; pick >= weights[kind]; ++kind) pick -= weights[kind];
     }
-    const recipe *rc = &recipes[kind];
+    const recipe *rc = &recipes[kind == NFM_KIND_GEN ? NFM_KIND_PERC : kind];   /* (a patch kept, unheard) */
     for (int i = 0; i < NFM_PARAMS; ++i) sl->walk[i] = 0.0f;
 
     /* Algorithm: one of the kind's, evenly. */
@@ -562,7 +562,7 @@ NFM_CODE static float svf_g(nfm_engine *e, float f) /* tan(pi f / sr) */
 
 NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
 {
-    if (!slot_ok(s)) return -1;
+    if (!slot_ok(s) || e->slot[s].kind == NFM_KIND_GEN) return -1;   /* (ngen plays it) */
     nfm_slot *sl = &e->slot[s];
     float n[NFM_PARAMS], val[NFM_PARAMS];
     velocity = clamp01(velocity);

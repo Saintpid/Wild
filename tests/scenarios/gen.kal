@@ -1,0 +1,59 @@
+# the last kind: Gen (the Tone page's KNOB 1), on track 4: NEW SOUND makes it the Gen track, a
+# generative stereo sound whose steps are energy. Its Sound and Tone pages turn its own knobs; a second
+# Gen track is refused; it plays, and goes quiet a bar after its last step
+wait 200
+tap OCT+
+tap OCT+
+tap OCT+
+expect track 3
+tap ENV
+tap ENV
+expect view 4
+spin K1 5
+expect tpar6 8
+expect gen -1
+tapkey b10
+wait 50
+expect kind3 8
+expect gen 3
+spin K2 -10
+expect tpar39 30
+wait 100
+shot gen-tone.png
+tap ENV
+expect view 3
+spin K1 -20
+expect tpar35 50
+wait 100
+shot gen-sound.png
+tapkey b9
+wait 50
+wav gen.wav
+tap PLAY
+wait 6000
+expect glevel >20
+# a second Gen track: refused, the first plays on
+tap OCT-
+expect track 2
+tap ENV
+expect view 4
+spin K1 6
+expect tpar6 8
+tapkey b10
+wait 50
+expect kind2 2
+expect gen 3
+wait 100
+shot gen-refused.png
+# its steps cleared (GLO + EDIT twice): a bar's hold, then it fades
+tap OCT+
+press GLO
+tap EDIT
+release GLO
+press GLO
+tap EDIT
+release GLO
+wait 5000
+expect glevel <2
+tap PLAY
+wavstop

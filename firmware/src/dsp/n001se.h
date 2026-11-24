@@ -75,6 +75,8 @@ enum {
     T_DYN,                                           /* Dynamics: how soft a new pattern's hits may be (0: all full) */
     T_RLEVEL, T_RTAIL, T_RCOLOR, T_RDRIVE,
     T_RDUCK, T_RWIDTH, T_RMOTION, T_RSEED, T_RMUTE, /* kick child effect panel, no sequence */
+    T_GCOMPLEX, T_GMOVE, T_GSPREAD, T_GNOISE,        /* a Gen track's (kind Gen: ngen, its steps as energy) */
+    T_GINERTIA, T_GDECAY, T_GSEED,                   /* ...how slowly it follows, how long energy lasts, its DNA */
     T_NPARAMS
 };
 /* the acid line's parameters */
@@ -135,6 +137,9 @@ void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12.
 void ne_regrid(int track, int triplet);
 void ne_clear(void);                                 /* every pattern empty, the 303's too (lengths stay) */
 void ne_clear_track(int track);                      /* ...one track's (NE_ACID: the 303's) */
+/* the Gen track's background work, a little at a time (the main loop, often): its material is made here */
+void ne_work(void);
+int ne_gen_track(void);                              /* the track playing Gen (kind Gen: only one), -1 none */
 /* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */
 
 /* ---- the whole state, for saving: the patterns, lengths and base patches (normalised x 65535) */
@@ -162,7 +167,7 @@ int ne_render_available(void);
 void ne_take_peaks(float out[NE_TRACKS + 1]);
 /* Audio Load's split: with a tick counter set (the device's), the ticks spent since the last take on
  * NE_SPLIT_* and the frames rendered meanwhile. Off (NULL) costs nothing. */
-enum { NE_SPLIT_DRUMS, NE_SPLIT_ACID, NE_SPLIT_FX, NE_SPLIT_MASTER, NE_SPLITS };
+enum { NE_SPLIT_DRUMS, NE_SPLIT_ACID, NE_SPLIT_FX, NE_SPLIT_MASTER, NE_SPLIT_GEN, NE_SPLITS };
 void ne_set_clock(uint32_t (*ticks)(void));
 uint32_t ne_take_split(uint32_t ticks[NE_SPLITS]);
 void ne_render(int32_t *out_lr, uint32_t n, uint32_t gain_q12);

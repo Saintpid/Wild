@@ -5,6 +5,24 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.45
+
+Firmware identity FM-1_879. The first generative sound: a new kind, Gen.
+
+- Set a drum track's Kind (Tone page, KNOB 1) to Gen and press NEW SOUND (black 11). The track now plays
+  a stereo sound made in the background: a chord in the 303's key, tones with moving noise beside them,
+  nothing below ~95 Hz, so it leaves the room to the kick and the rumble.
+- Its steps are energy, not hits. A step adds energy (a strong one more), time takes it away, and the
+  sound never goes silent until a bar has passed without a step. It looks ahead: before a busy part of
+  the pattern it grows brighter.
+- Its own knobs: Sound page Complex, Movement, Spread, Noise; Tone page Kind, Inertia, Decay and DNA.
+  Every DNA is a different sound; NEW SOUND draws one, and about a third of them are dull and dark.
+- One Gen track at a time: a second is refused with "ONE GEN TRACK".
+- Its Reverb and Delay sends, Level, Mute and Bypass work as on other tracks; the hit effects (filter
+  share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
+- Audio Load's split shows G, the Gen track's share of the time. Projects gain seven values per track
+  (format 20); older ones load as before.
+
 ## 0.3.44
 
 Firmware identity FM-1_878. Room for the generative sounds to come; nothing new to play yet.

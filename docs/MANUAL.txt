@@ -235,9 +235,22 @@ SOUND (ENV, page 1)
   Ring       Resonance and ring
 
 TONE (ENV, page 2)
-  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble. A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble: a low, driven tail at the kick's pitch that swells in, is ducked by every kick and plays between the beats (Spike drives it harder and opens it up). Takes effect with the next new sound (black 11).
+  Kind       The kind of sound: Kick, Snare, Hat, Perc, Click, Metal, Clap, Rumble, Gen (below). A clap is three or four quick bursts of noise and then its tail, a little different on every hit. A rumble is a techno rumble: a low, driven tail at the kick's pitch that swells in, is ducked by every kick and plays between the beats (Spike drives it harder and opens it up). Takes effect with the next new sound (black 11).
   Ring tone  The resonance's pitch
   Tune       Tuning, ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢24 to +24 semitones
+
+GEN (Kind Gen, then NEW SOUND; one track at a time)
+  A generative stereo sound in place of the drum: a chord in the 303's key (its root, Tune and Scale;
+  major only with the major scale), tones and moving noise, nothing below ~95 Hz. Its steps are energy,
+  not hits: each adds by its strength, time takes it away, and it never falls silent until a bar has
+  passed without a step. It looks ahead in its pattern: before a busy part it grows brighter. Its
+  Reverb and Delay sends, Level, Mute and Drift (Bypass) work as on any track; the hit effects (Filter
+  share, Drive, Mod) do not reach it. A second track set to Gen is refused ("ONE GEN TRACK").
+  Sound page: Complex (how many tones and overtones at full energy), Movement (the pulse and the
+  drifts), Spread (stereo width and detune), Noise (its share: half of this, moving +-7.5 %).
+  Tone page: Kind, Inertia (how slowly the timbre follows the energy), Decay (how long energy lasts:
+  half a bar to 3 bars), DNA (0-255, each a different sound; NEW SOUND draws a new one, and about a
+  third of them are dull and dark).
 
 TRACK FX (FX, page 1)
   Reverb     Send to the reverb. The amount is random per hit up to the level you set, and sometimes nothing is sent at all.

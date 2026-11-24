@@ -226,8 +226,16 @@ static int view_here(int v)
     if (rumble_view(v)) return has_rumble(ui.track);
     return v!=V_ADEV || ui.track==NE_ACID;
 }
+/* a Gen track: its own knobs on the Sound and Tone pages (it has no FM voice to shape) */
+static int is_gen(int t) { return t < NE_TRACKS && ne_fm()->slot[t].kind == NFM_KIND_GEN; }
+static const uint8_t GEN_KNOB[2][4] = {
+    {KT | T_GCOMPLEX, KT | T_GMOVE, KT | T_GSPREAD, KT | T_GNOISE},
+    {KT | T_KIND, KT | T_GINERTIA, KT | T_GDECAY, KT | T_GSEED},
+};
 static int view_knob(int i)
 {
+    if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
+        return GEN_KNOB[ui.view == V_TONE][i];
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
         return i ? K_NONE : KA | A_DRIFT;
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
@@ -299,7 +307,7 @@ static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
 /* Fixed budget, independent of project format growth: two bank operations with their automation, seven
  * edits, or two once a track has automation. 2.8 KB of it went to the generative sounds. */
-#define UNDO_BYTES 14980u
+#define UNDO_BYTES 15204u
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;
@@ -720,8 +728,25 @@ static void new_rumble(int t)
     tpar_set(t,T_RSEED,(proj.t[t][T_RSEED]+rnd_in(1,127))&127);
     if (!proj.t[t][T_RLEVEL]) tpar_set(t,T_RLEVEL,55);
 }
-static void new_sound(int t)
+static const char *const TRACK_NO[NE_TRACKS] = {"TRACK 1", "TRACK 2", "TRACK 3", "TRACK 4"};
+/* 0: refused (one Gen track at a time) */
+static int new_sound(int t)
 {
+    if (t < NE_TRACKS && proj.t[t][T_KIND] == NFM_KIND_GEN) {
+        int g = ne_gen_track(), u;
+        for (u = 0; u < NE_TRACKS; u++)              /* (the engine's, or one just asked for) */
+            if (u != t && (u == g || (ne_fm()->slot[u].kind == NFM_KIND_GEN)))
+                break;
+        if (u < NE_TRACKS) {
+            say("ONE GEN TRACK", TRACK_NO[u]);
+            return 0;
+        }
+        ne_new_sound(t, NFM_KIND_GEN);
+        ui_rng ^= plat_ms();
+        tpar_set(t, T_GSEED, (proj.t[t][T_GSEED] + rnd_in(1, 255)) & 255);
+        proj.t[t][T_TUNE] = 0;
+        return 1;
+    }
     if (t == NE_ACID) {
         ui_rng ^= plat_ms();
         knob_set(KA | A_CUTOFF, rnd_in(10, 55));
@@ -731,7 +756,7 @@ static void new_sound(int t)
         knob_set(KA | A_ACCENT, rnd_in(30, 90));
         knob_set(KA | A_WAVE, rnd_in(NACID_SAW, proj.g[G_ACIDWAVES] ? NACID_WAVES - 1 : NACID_SQUARE));
         knob_set(KA | A_TUNE, 12 * rnd_in(-2, 2));
-        return;
+        return 1;
     }
     ne_new_sound(t, proj.t[t][T_KIND]);              /* (the engine's Tune: 0) */
     proj.t[t][T_TUNE] = 0;
@@ -742,6 +767,7 @@ static void new_sound(int t)
             tpar_set(t, T_TUNE, 12 * rnd_in(-2, 2));
         }
     }
+    return 1;
 }
 
 /* a new sound on every track that plays (GLO + black 11, CC 117) */
@@ -997,7 +1023,8 @@ static void black_down(int b)
         say("NEW PATTERN", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
         undo_mark(0);
-        if (rumble_editing()) new_rumble(t); else new_sound(t);
+        if (rumble_editing()) new_rumble(t);
+        else if (!new_sound(t)) return;
         mark_dirty();
         if (rumble_editing()) { say("NEW RUMBLE", "KICK UNCHANGED"); return; }
         say("NEW SOUND", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
@@ -2577,15 +2604,15 @@ static void draw_diagnostics(void)
     diagnostic_row(2, "Render peak", d.render_peak, "%");
     {   /* the output's and the screen's peaks on one row; the render's split (% of the budget, since
          * the last read: the drum voices, the 303, the sequencer with the hits and the reverb and delay,
-         * the master's chain) on the next */
-        static const char *const part[] = {"D ", "  A ", "  F ", "  M "};
+         * the master's chain, the Gen track) on the next */
+        static const char *const part[] = {"D ", " A ", " F ", " M ", " G "};
         char t[40];
         int w = 0, i;
         w = diag_put(t, w, (int32_t)d.irq_peak_us, " us  ");
         diag_put(t, w, (int32_t)(d.ui_peak_us / 1000u), " ms");
         diagnostic_text(3, "IRQ / screen", t);
         w = 0;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 5; i++) {
             w = diag_put(t, w, -1, part[i]);
             w = diag_put(t, w, (int32_t)d.split[i], "");
         }
@@ -2665,6 +2692,7 @@ void ui_frame(void)
 {
     int t;
     input();
+    ne_work();
     for (t = 0; t < UI_TRACKS; t++) {               /* the meters: up at once, down slowly */
         float l = (t == NE_ACID ? ne_acid_level : ne_track_level[t]) * 2.0f;
         ui.meter[t] = l > ui.meter[t] ? (l > 1.0f ? 1.0f : l) : ui.meter[t] * 0.82f;
@@ -2694,4 +2722,5 @@ void ui_frame(void)
     ui.frame++;
 }
 
-void ui_input_only(void) { input(); }
+/* (the Gen track's material is made between frames, a little each time: ne_work) */
+void ui_input_only(void) { input(); ne_work(); }

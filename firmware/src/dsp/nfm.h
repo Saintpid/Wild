@@ -106,6 +106,7 @@ enum nfm_kind {
     NFM_KIND_METAL,   /* bells, cowbells, clangs: the tonal end */
     NFM_KIND_CLAP,    /* hand claps: a few quick bursts of noise, then its tail */
     NFM_KIND_RUMBLE,  /* techno rumble: a kick's tail, smeared, driven and kept low, ducked by the kicks */
+    NFM_KIND_GEN,     /* not an FM voice: the track plays ngen (n001se.c), its steps as energy; never drawn */
     NFM_KINDS
 };
 
