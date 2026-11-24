@@ -278,15 +278,14 @@ static void splash(void)
 {
     lcd_fill(0, 0, 240, 240, RGB(16, 16, 18));
     cv_begin(240, 84, RGB(16, 16, 18));
-    {
+    do {
         int32_t w = text_w(&FONT_L, "Wild");
         cv_text((240 - w) / 2, 0, &FONT_L, "Wild", RGB(232, 232, 236));
         w = text_w(&FONT_S, "Generative buffered audio");
         cv_text((240 - w) / 2, 42, &FONT_S, "Generative buffered audio", RGB(229, 72, 77));
         w = text_w(&FONT_XS, OM_VERSION);              /* "DEV", or a release's "0.1.0 BETA" */
         cv_text((240 - w) / 2, 66, &FONT_XS, OM_VERSION, RGB(118, 118, 126));
-    }
-    cv_blit(0, 92);
+    } while (cv_pass(0, 92));
     lcd_sync();
 }
 

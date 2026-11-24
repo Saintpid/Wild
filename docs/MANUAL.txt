@@ -184,7 +184,7 @@ BLACK KEYS (11, from the left)
       (GLO held for these keeps its page: GLO is not pressed as a page button)
 
 UNDO/REDO:
-  Undo crosses bank changes and restores overwritten banks, their automation and your previous bank as one operation. Redo repeats it. The memory budget holds up to 9 ordinary edits without automation, 3 with automation, or 2 complete bank copies; mixed history varies. Oldest steps expire when space runs out. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes (loading a song starts undo afresh). Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
+  Undo crosses bank changes and restores overwritten banks, their automation and your previous bank as one operation. Redo repeats it. The memory budget holds up to 7 ordinary edits without automation, 2 with automation, or 2 complete bank copies; mixed history varies. Oldest steps expire when space runs out. One knob turn counts as one step, and so does a held step with what you change while holding it. Undo works on settings, patterns, sounds, mutes (loading a song starts undo afresh). Settings are undone without a break in the sound. Undoing a pattern or a sound gives a very short break.
 
 ====================================================================
 
