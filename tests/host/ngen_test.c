@@ -287,25 +287,55 @@ static void demo_changes(void)
     wav("ngen-handover.wav", &s);
 }
 
-/* three sounds from three seeds on one groove, then the same with more noise */
+/* ten sounds on one groove, two bars each: the families, voicings and characters */
+static const uint8_t GROOVE[32] = {127, 0, 0, 64, 0, 0, 90, 0, 0, 0, 0, 0, 127, 0, 64, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 100, 0, 127, 127, 127, 127};
 static void demo_sounds(void)
 {
-    static const uint8_t pat[32] = {127, 0, 0, 64, 0, 0, 90, 0, 0, 0, 0, 0, 127, 0, 64, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 100, 0, 127, 127, 127, 127};
+    /* (chosen to show the range: a pad of saws, a struck vowel an octave up, half-struck squares, an organ
+     * drone, struck buzz, soft, a vowel pad, struck saws, glass, squares without the root) */
+    static const uint32_t seeds[10] = {6u, 43u, 193u, 67u, 38u, 202u, 69u, 136u, 470u, 61u};
     run_t s = start(126.0f, 8);
-    uint32_t seeds[3] = {11u, 2222u, 909u};
     int k;
     ngen_init(&ga, mem_a, SR, seeds[0]);
-    ngen_pattern(&ga, pat, 32);
+    ngen_pattern(&ga, GROOVE, 32);
     prime(&ga);
-    for (k = 0; k < 6; k++) {
+    for (k = 0; k < 10; k++) {
         if (k)
-            ngen_new_sound(&ga, seeds[k % 3]);
-        ngen_set_param(&ga, NGEN_NOISE, k < 3 ? 35 : 65);
-        ngen_set_key(&ga, k < 3 ? 45 : 41, 1);
-        run(&ga, &s, (int)s.step_len * 48);
+            ngen_new_sound(&ga, seeds[k]);
+        ngen_set_key(&ga, k < 5 ? 45 : 41, k % 3 != 2);
+        run(&ga, &s, (int)s.step_len * 32);
     }
     wav("ngen-sounds.wav", &s);
+}
+
+/* many seeds, many sounds: each plays (not silent, no blow-up), and their brightness spreads wide */
+static void test_variety(void)
+{
+    double lo = 1e9, hi = 0, qlo = 1e9, qhi = 0;
+    int k;
+    for (k = 0; k < 32; k++) {
+        run_t s = start(126.0f, 8);
+        double b, q;
+        int i, bar;
+        float pk = 0.0f;
+        ngen_init(&ga, mem_a, SR, 7u + 7919u * (uint32_t)k);
+        ngen_pattern(&ga, GROOVE, 32);
+        prime(&ga);
+        run(&ga, &s, (int)s.step_len * 32);
+        bar = (int)s.step_len * 16;
+        for (i = 0; i < s.n; i++) {
+            assert(s.l[i] == s.l[i] && s.r[i] == s.r[i]);
+            if (fabsf(s.l[i]) > pk) pk = fabsf(s.l[i]);
+        }
+        b = bright(s.l, bar, 2 * bar);
+        q = rms(s.l, bar, 2 * bar);
+        assert(q > 0.003 && pk < 1.5f);
+        lo = b < lo ? b : lo; hi = b > hi ? b : hi;
+        qlo = q < qlo ? q : qlo; qhi = q > qhi ? q : qhi;
+    }
+    printf("variety: 32 seeds, brightness %.3f .. %.3f, level %.4f .. %.4f\n", lo, hi, qlo, qhi);
+    assert(hi > 3.0 * lo);
 }
 
 /* the background never runs: what plays plays on, a new sound waits */
@@ -387,6 +417,7 @@ int main(void)
     test_handover();
     demo_changes();
     demo_sounds();
+    test_variety();
     test_starved();
     test_stereo_and_seed();
     printf("ngen tests passed\n");

@@ -15,11 +15,24 @@ float nfm_sine(float phase);               /* nfm.c's shared table, phase in cyc
 #define NG_RMS 0.2f
 
 /* A chord's tones as multiples of one fundamental, so a period holds all of them (just intonation):
- * calm first, then what complexity adds. Minor over root/10, major over root/4. */
-static const uint8_t TONES_MIN[] = {10, 15, 20, 12, 18, 24, 30, 36, 45};
-static const uint8_t TONES_MAJ[] = {4, 6, 8, 5, 10, 12, 9, 7, 16};
+ * calm first, then what complexity adds. Minor over root/10, major over root/4. The seed picks the
+ * voicing: a full chord, fifths, a drone in octaves, a ninth chord, the upper notes without the root. */
+#define NG_VOICINGS 5
 #define NG_NTONES 9
 #define NG_CALM 3
+static const uint8_t TONES_MIN[NG_VOICINGS][NG_NTONES] = {
+    {10, 15, 20, 12, 18, 24, 30, 36, 45}, {10, 15, 20, 30, 40, 60}, {10, 20, 30, 40},
+    {10, 15, 12, 18, 24, 30, 45, 36},     {20, 24, 30, 36, 45, 40, 48, 60},
+};
+static const uint8_t TONES_MAJ[NG_VOICINGS][NG_NTONES] = {
+    {4, 6, 8, 5, 10, 12, 9, 7, 16}, {4, 6, 8, 12, 16, 24}, {4, 8, 12, 16},
+    {4, 6, 5, 7, 9, 10, 12, 14},    {8, 10, 12, 9, 15, 16, 18, 24},
+};
+static const uint8_t NTONES[NG_VOICINGS] = {9, 6, 4, 8, 8};
+
+/* The seed's family: what its partials are like. Weighted: the bells are the rarest. */
+enum { FAM_SAW, FAM_SQUARE, FAM_ORGAN, FAM_VOWEL, FAM_SOFT, FAM_BUZZ, FAM_GLASS, NG_FAMS };
+static const uint8_t FAM_W[NG_FAMS] = {3, 2, 2, 3, 2, 2, 1};
 
 static uint32_t hash32(uint32_t x)
 {
@@ -33,23 +46,71 @@ static float rnd01(uint32_t seed, uint32_t a, uint32_t b) { return (float)(hash3
 static float pct(const ngen *g, int p) { return (float)g->param[p] * 0.01f; }
 static float root_hz(const ngen *g) { return 440.0f * fm_exp2f(((float)g->root - 69.0f) * (1.0f / 12.0f)); }
 static float fund_hz(const ngen *g) { return root_hz(g) / (g->minor ? 10.0f : 4.0f); }
-static const uint8_t *tones(const ngen *g) { return g->minor ? TONES_MIN : TONES_MAJ; }
+static int voicing(const ngen *g) { return (int)(rnd01(g->seed, 1u, 81u) * NG_VOICINGS) % NG_VOICINGS; }
+static const uint8_t *tones(const ngen *g) { return g->minor ? TONES_MIN[voicing(g)] : TONES_MAJ[voicing(g)]; }
 static int ntones(const ngen *g, int state)
 {
-    return state ? NG_CALM + (int)(pct(g, NGEN_COMPLEXITY) * (NG_NTONES - NG_CALM) + 0.5f) : NG_CALM;
+    int n = NTONES[voicing(g)];
+    return state ? NG_CALM + (int)(pct(g, NGEN_COMPLEXITY) * (float)(n - NG_CALM) + 0.5f) : NG_CALM;
 }
+static int family(const ngen *g)
+{
+    uint32_t w = (uint32_t)(rnd01(g->seed, 2u, 82u) * 15.0f), f;
+    for (f = 0; f < NG_FAMS - 1u && w >= FAM_W[f]; f++)
+        w -= FAM_W[f];
+    return (int)f;
+}
+/* a third of the seeds an octave up, airy; the drone and the upper voicing stay where they are */
+static uint32_t reg(const ngen *g) { return voicing(g) < 2 && rnd01(g->seed, 3u, 83u) < 0.33f ? 2u : 1u; }
 /* a third of the seeds are dull sounds, the low partials leading and the filters lower: 0 bright .. 1 dull */
 static float dull(const ngen *g)
 {
     float d = rnd01(g->seed, 9u, 61u);
     return d < 0.34f ? 1.0f - d * (1.0f / 0.34f) : 0.0f;
 }
-static int nharm(const ngen *g, int state) { return state ? 4 + (int)(pct(g, NGEN_COMPLEXITY) * 20.0f) : 3; }
+static int nharm(const ngen *g, int state)
+{
+    int f = family(g), n = state ? 4 + (int)(pct(g, NGEN_COMPLEXITY) * 20.0f) : 3;
+    if (f == FAM_SOFT)
+        return state ? 3 + n / 4 : 2;
+    if (f == FAM_ORGAN)
+        return state ? 16 : 8;
+    if (f == FAM_SAW || f == FAM_BUZZ || f == FAM_VOWEL)
+        return state ? n + 8 : 8;
+    return n;
+}
+/* a harmonic's level (n from 1) in the seed's family; the vowel's two formants by its seed */
+static float fam_amp(const ngen *g, uint32_t n, float f, int state)
+{
+    float x = (float)n;
+    switch (family(g)) {
+    case FAM_SAW: return fm_powf(x, state ? -0.9f : -1.5f);
+    case FAM_SQUARE: return (n & 1u) ? fm_powf(x, state ? -0.9f : -1.4f) : 0.03f / x;
+    case FAM_ORGAN: {                        /* drawbars: 1 2 3 4 6 8, the intense one 5 10 12 16 too */
+        static const uint8_t BAR[16] = {1, 1, 1, 1, 2, 1, 0, 1, 0, 2, 0, 2, 0, 0, 0, 2};
+        uint32_t b = n <= 16u ? BAR[n - 1u] : 0u;
+        if (!b || (b == 2u && !state))
+            return 0.0f;
+        return 0.2f + 0.8f * rnd01(g->seed, n, 71u);
+    }
+    case FAM_VOWEL: {
+        static const float F1[4] = {700.0f, 450.0f, 400.0f, 300.0f}, F2[4] = {1200.0f, 800.0f, 2000.0f, 2300.0f};
+        uint32_t v = (uint32_t)(rnd01(g->seed, 4u, 84u) * 4.0f) & 3u;
+        float d1 = (f - F1[v]) * (1.0f / 180.0f), d2 = (f - F2[v]) * (1.0f / 300.0f);
+        return fm_powf(x, -0.7f) * (0.06f + fm_expf(-d1 * d1) + 0.7f * fm_expf(-d2 * d2)) * (state ? 1.0f : 0.8f);
+    }
+    case FAM_SOFT: return fm_powf(x, state ? -1.6f : -2.6f);
+    case FAM_BUZZ: return fm_powf(x, state ? -0.55f : -1.0f) * ((n & 1u) ? 1.0f : 0.6f);
+    default: return fm_powf(x, state ? -0.95f : -1.8f);   /* the glass: as the first ones were */
+    }
+}
 
 static int16_t *slot_at(const ngen *g, int slot, int state, int ch)
 {
     return g->mem + (uint32_t)slot * NGEN_SLOT_WORDS + ((uint32_t)state * 2u + (uint32_t)ch) * NGEN_LEN;
 }
+
+static void character(const ngen *g, float *c);
 
 void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
 {
@@ -62,7 +123,7 @@ void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
     g->seed = seed;
     g->param[NGEN_COMPLEXITY] = 70;
     g->param[NGEN_MOVEMENT] = 60;
-    g->param[NGEN_NOISE] = 35;
+    g->param[NGEN_NOISE] = 50;
     g->param[NGEN_SPREAD] = 75;
     g->param[NGEN_INERTIA] = 40;
     g->param[NGEN_DECAY] = 10;
@@ -76,6 +137,13 @@ void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
     g->k_mov = pct(g, NGEN_MOVEMENT);
     g->k_nz = pct(g, NGEN_NOISE);
     g->nz_c[0] = g->nz_c[1] = g->nz_t[0] = g->nz_t[1] = 1000.0f;
+    {
+        int i, k;
+        for (i = 0; i < (int)NGEN_SLOTS; i++)
+            character(g, g->chr[i]);
+        for (k = 0; k < NGEN_CHARS; k++)
+            g->ch[k] = g->chr[0][k];
+    }
 }
 
 void ngen_set_param(ngen *g, int p, int value)
@@ -172,6 +240,7 @@ void ngen_step(ngen *g, int pos, uint32_t step_len)
         g->e += NG_INJECT * v * (1.0f - g->e);
         if (v > g->bloom)
             g->bloom = v;
+        g->stab = v;
         g->since = 0;
         g->gate = 1.0f;
         g->live = 1;
@@ -189,8 +258,14 @@ int ngen_active(const ngen *g) { return g->live || g->amp > 1e-4f; }
 
 /* --------------------------------------------------------------- the material --- */
 
-/* inharmonic partials: on the period's grid (any whole multiple of the fundamental), not on the chord's */
-static int ninharm(const ngen *g, int state) { return state ? 8 + (int)(pct(g, NGEN_COMPLEXITY) * 40.0f) : 4; }
+/* inharmonic partials: on the period's grid (any whole multiple of the fundamental), not on the chord's;
+ * only the glass family has them (they ring like bells) */
+static int ninharm(const ngen *g, int state)
+{
+    if (family(g) != FAM_GLASS)
+        return 0;
+    return state ? 8 + (int)(pct(g, NGEN_COMPLEXITY) * 40.0f) : 4;
+}
 
 /* one partial of the set being made (tone it_t, harmonic it_n; after the tones, the inharmonic ones) into
  * the scratch; 0 when none is left */
@@ -220,7 +295,7 @@ static int next_partial(ngen *g)
             a = (0.08f + 0.22f * rnd01(g->seed, (uint32_t)g->it_n, 12u)) * (g->state ? 1.0f : 0.5f);
             g->it_n++;
         } else {
-            q = tn[g->it_t];
+            q = tn[g->it_t] * reg(g);
             h = q * (uint32_t)(g->it_n + 1u);
             f = f0 * (float)h;
             if (g->it_n >= nharm(g, g->state) || h >= NGEN_LEN / 2u || f > NG_HIGH) {
@@ -229,10 +304,12 @@ static int next_partial(ngen *g)
                 continue;
             }
             g->it_n++;
-            /* level: calm overtones fall fast, intense ones slowly; odd or even ones favoured by the seed */
-            a = fm_powf((float)g->it_n, g->state ? -0.95f : -1.8f);
+            /* level: by the family, calm overtones falling faster; odd or even ones favoured by the seed */
+            a = fam_amp(g, g->it_n, f, g->state);
+            if (a <= 0.0f)
+                continue;
             if (g->it_n > 1)
-                a *= (g->it_n & 1) ? 0.6f + 0.8f * odd : 1.4f - 0.8f * odd;
+                a *= (g->it_n & 1) ? 0.8f + 0.4f * odd : 1.2f - 0.4f * odd;
             a *= g->it_t == 0 ? 1.0f : g->it_t < NG_CALM ? 0.75f : 0.55f;
         }
         if (f < NG_CUT)
@@ -241,7 +318,7 @@ static int next_partial(ngen *g)
             a *= (f - NG_CUT) / (NG_LOW - NG_CUT);
         a *= 0.6f + 0.8f * rnd01(g->seed, h, 2u);
         /* the tilt: calm leans to the low partials, intense to the high ones */
-        a *= fm_powf(f * (1.0f / 400.0f), g->state ? 0.45f - 0.75f * dull(g) : -0.6f - 0.4f * dull(g));
+        a *= fm_powf(f * (1.0f / 400.0f), g->state ? 0.25f - 0.75f * dull(g) : -0.4f - 0.4f * dull(g));
         /* stereo: low down one centred core, above it each partial its own place and phase */
         pl = rnd01(g->seed, h, 3u);
         if (f < 200.0f) {
@@ -289,6 +366,30 @@ static void finish_state(ngen *g)
     }
 }
 
+/* the seed's character as it plays: the filter's damping (low: a resonant peak), its cutoff's scale, the
+ * vibrato's and the pulse's depth */
+static void character(const ngen *g, float *c)
+{
+    int f = family(g);
+    c[0] = 0.45f + 0.95f * rnd01(g->seed, 6u, 91u);
+    c[1] = fm_exp2f(-0.7f + 1.6f * rnd01(g->seed, 6u, 92u));
+    c[2] = 0.2f + 1.6f * rnd01(g->seed, 6u, 93u);
+    c[3] = 0.2f + 1.1f * rnd01(g->seed, 6u, 94u);
+    if (f == FAM_GLASS || f == FAM_SOFT) {   /* (pure partials: no peak, little vibrato) */
+        c[0] = 1.2f;
+        c[2] *= 0.3f;
+    }
+    if (f == FAM_SOFT)
+        c[1] *= 0.6f;
+    /* how each step is played: held (a drone, a pad), half, or struck (a stab that dies within the step
+     * or two, a floor kept under it) */
+    {
+        float a = rnd01(g->seed, 6u, 95u);
+        c[4] = a < 0.4f ? 0.0f : a < 0.7f ? 0.5f : 0.9f;
+        c[5] = 0.5f + 2.0f * rnd01(g->seed, 6u, 96u);   /* ...its stab's length, in steps */
+    }
+}
+
 int ngen_work(ngen *g)
 {
     if (g->ready)
@@ -320,6 +421,7 @@ int ngen_work(ngen *g)
     g->job = 0;
     g->f0[g->wr] = g->job_f0;
     g->dk[g->wr] = dull(g);
+    character(g, g->chr[g->wr]);
     g->made++;
     NG_FENCE();
     g->ready = 1;
@@ -342,7 +444,7 @@ static float noise_centre(ngen *g, int side)
 {
     const uint8_t *tn = tones(g);
     uint32_t k = g->nz_next * 2u + (uint32_t)side;
-    float f = fund_hz(g) * (float)tn[(uint32_t)(rnd01(g->seed, k, 21u) * (float)ntones(g, 1)) % NG_NTONES] *
+    float f = fund_hz(g) * (float)tn[(uint32_t)(rnd01(g->seed, k, 21u) * (float)ntones(g, 1)) % (uint32_t)ntones(g, 1)] *
               (float)(2u + (uint32_t)(rnd01(g->seed, k, 22u) * 8.0f));
     while (f > 5000.0f)
         f *= 0.5f;
@@ -385,7 +487,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         uint32_t bar = 16u * (g->step_len ? g->step_len : (uint32_t)(0.125f * g->sr));
         float kk = 1.0f - fm_expf(-(float)m / (0.05f * g->sr)), mov, spread;
         float target, mt, k_amp, k_m, inertia, det, c0, c1, p0, p1, dp, depth, a_step;
-        float nb, nb_t, mo, dl, kt[2], vb, kf[2], qn, side, bal, hpa, dhp;
+        float kc, nb, nb_t, mo, dl, kt[2], vb, kf[2], qn, side, bal, hpa, dhp;
         const int16_t *n0l = slot_at(g, g->cur, 0, 0), *n0r = slot_at(g, g->cur, 0, 1);
         const int16_t *n1l = slot_at(g, g->cur, 1, 0), *n1r = slot_at(g, g->cur, 1, 1);
         const int16_t *o0l = slot_at(g, g->old, 0, 0), *o0r = slot_at(g, g->old, 0, 1);
@@ -397,9 +499,16 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         g->k_nz += (pct(g, NGEN_NOISE) - g->k_nz) * kk;
         mov = g->k_mov;
         spread = g->k_sp;
+        /* the playing set's character (how dull, its filter, vibrato, pulse), gliding over a quarter as a
+         * new one comes in */
+        kc = 1.0f - fm_expf(-(float)m / (4.0f * (float)(g->step_len ? g->step_len : 5512u)));
+        g->dl += (g->dk[g->cur] - g->dl) * kc;
+        for (k = 0; k < NGEN_CHARS; k++)
+            g->ch[k] += (g->chr[g->cur][k] - g->ch[k]) * kc;
         /* energy: time takes it away; after a bar without steps the hold lets go */
         g->e *= fm_expf(-3.0f * (float)m / ((float)bar * decay_bars(g)));
         g->bloom *= fm_expf(-(float)m / (1.5f * (float)(g->step_len ? g->step_len : 5512u)));
+        g->stab *= fm_expf(-(float)m / (g->ch[5] * (float)(g->step_len ? g->step_len : 5512u)));
         g->since += (uint32_t)m;
         if (g->since >= bar) {
             g->gate *= fm_expf(-4.0f * (float)m / (float)bar);
@@ -415,7 +524,8 @@ void ngen_render(ngen *g, float *l, float *r, int n)
                 g->lfo[k] -= 1.0f;
         }
         /* level: energy squared over a low floor, and each step's flash on top */
-        target = g->gate * (NG_FLOOR + (1.0f - NG_FLOOR) * g->e * g->e) * (1.0f + 0.35f * mov * g->bloom);
+        target = g->gate * (NG_FLOOR + (1.0f - NG_FLOOR) * g->e * g->e) * (1.0f + 0.35f * mov * g->bloom) *
+                 (1.0f - g->ch[4] + g->ch[4] * (0.15f + 1.1f * g->stab));
         /* timbre: the energy, leaning towards what the plan says is coming, followed with inertia */
         mt = g->e;
         if (g->live && g->plan[g->pos] > mt)
@@ -426,7 +536,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         mo = fm_clampf(g->morph + 0.25f * mov * drift(g, 0) + 0.4f * mov * g->bloom, 0.0f, 1.0f);
         k_amp = 1.0f - fm_expf(-1.0f / (0.012f * g->sr));
         /* the share of noise: half of Noise (default 17.5 %), moved +-7.5 % by its drift, a little up with energy and each step */
-        nb_t = fm_clampf(0.5f * g->k_nz + 0.075f * drift(g, 1) + 0.04f * (g->bloom + g->morph) - 0.03f, 0.0f, 0.45f);
+        nb_t = 0.1f * g->k_nz * fm_clampf(1.0f + 0.5f * drift(g, 1) + 0.3f * (g->bloom + g->morph) - 0.2f, 0.0f, 2.0f);
         nb = g->param[NGEN_NOISE] ? nb_t : 0.0f;    /* the noise's share of the power; Noise 0: none */
         /* the noise's resonances wander from partial to partial, every half bar a new one, gliding */
         if (g->since % (bar / 2u) < (uint32_t)m || g->nz_t[0] == 1000.0f) {
@@ -444,7 +554,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         hpa = 1.0f / (1.0f + FM_TWO_PI * NG_CUT / g->sr);
         dhp = 1.0f / (1.0f + FM_TWO_PI * 350.0f / g->sr);
         /* a pulse on the sixteenths, deeper with energy; raised cosine, so a step's edge does not click */
-        depth = mov * g->morph * 0.6f;
+        depth = fm_minf(mov * g->morph * 0.6f * g->ch[3], 0.9f);
         a_step = g->step_len ? 1.0f / (float)g->step_len : 0.0f;
         p0 = (float)g->step_t * a_step;
         p1 = (float)(g->step_t + (uint32_t)m) * a_step;
@@ -457,19 +567,17 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         /* the readers: one shared (the stronger, the core), one each side detuned apart (more with energy) */
         det = spread * 0.005f * (0.4f + 0.6f * mo) * (1.0f + 0.3f * drift(g, 3));
         /* the tones' low-pass per side: up with energy, each side's cutoff drifting its own way */
-        /* how dull: the playing set's, gliding over a quarter as a new one comes in */
-        g->dl += (g->dk[g->cur] - g->dl) * (1.0f - fm_expf(-(float)m / (4.0f * (float)(g->step_len ? g->step_len : 5512u))));
         dl = g->dl;
         for (k = 0; k < 2; k++) {
             float dr = nfm_sine(g->lfo[3] + 0.37f * (float)k + 0.11f * rnd01(g->seed, (uint32_t)k, 41u));
-            float fc = fm_minf(350.0f * fm_exp2f(4.3f * mo * (1.0f - 0.45f * dl) + 1.1f * mov * dr - 0.8f * dl), 7000.0f);
+            float fc = fm_minf(350.0f * g->ch[1] * fm_exp2f(4.3f * mo * (1.0f - 0.45f * dl) + 1.1f * mov * dr - 0.8f * dl), 7000.0f);
             kt[k] = 2.0f * nfm_sine(fc / (2.0f * g->sr));
         }
         /* vibrato: a few cents, the core one way and the detuned readers apart, 4-6.5 Hz from the seed */
         g->vib += (float)m * (4.0f + 2.5f * rnd01(g->seed, 5u, 51u)) / g->sr;
         if (g->vib >= 1.0f)
             g->vib -= 1.0f;
-        vb = nfm_sine(g->vib) * mov * (0.6f + 0.4f * drift(g, 0));
+        vb = nfm_sine(g->vib) * mov * (0.6f + 0.4f * drift(g, 0)) * g->ch[2];
         {
             float inc0 = g->f0[g->cur] * (float)NGEN_LEN / g->sr * (1.0f + 0.0016f * vb);
             float incl = inc0 * (1.0f + det + 0.003f * vb), incr = inc0 * (1.0f - det - 0.003f * vb);
@@ -517,7 +625,7 @@ void ngen_render(ngen *g, float *l, float *r, int n)
                 /* the tones through their low-pass, the noise through its band-pass (both Chamberlin) */
                 wc = white(g);                       /* half of it shared, so the sides stay related */
                 for (k = 0; k < 2; k++) {
-                    float hi = x[k] - g->tl_lo[k] - 0.8f * g->tl_bd[k], nz;
+                    float hi = x[k] - g->tl_lo[k] - g->ch[0] * g->tl_bd[k], nz;
                     g->tl_bd[k] += kt[k] * hi;
                     g->tl_lo[k] += kt[k] * g->tl_bd[k];
                     hi = 0.6f * wc + 0.8f * white(g) - g->nz_lo[k] - qn * g->nz_bd[k];

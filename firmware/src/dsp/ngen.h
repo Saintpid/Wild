@@ -7,7 +7,7 @@
  * is written into a free slot and faded in over a quarter; if it is late, the old one plays on.
  *
  * The tones go through a low-pass per side, each cutoff drifting its own way, with a little vibrato.
- * Beside the tones, noise (10-25 % of the power by default) through a resonant band-pass per side whose
+ * Beside the tones, a little noise (5 % of the power by default) through a resonant band-pass per side whose
  * centre wanders between the chord's partials; the share of noise and tone keeps moving (slow drifts, energy, each step's flash).
  * Nothing below ~95 Hz: kick and rumble own that.
  *
@@ -26,6 +26,7 @@
 #define NGEN_SLOTS 3u         /* playing, fading out, being made */
 #define NGEN_STEPS 128
 #define NGEN_STATES 2         /* calm, intense */
+#define NGEN_CHARS 6          /* a set's character as it plays: filter damping and cutoff, vibrato, pulse, struck or held */
 /* one slot: two states, two channels */
 #define NGEN_SLOT_WORDS (NGEN_STATES * 2u * NGEN_LEN)
 #define NGEN_MEM_WORDS (NGEN_SLOTS * NGEN_SLOT_WORDS)   /* int16: 24 KB */
@@ -37,7 +38,7 @@ enum {
     NGEN_SPREAD,       /* stereo width and detune */
     NGEN_INERTIA,      /* how slowly the timbre follows the energy */
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
-    NGEN_NOISE,        /* noise's share of the power: half of this, moving +-7.5 % around it */
+    NGEN_NOISE,        /* noise's share of the power: a tenth of this (100: 10 %), moving with it */
     NGEN_NPARAMS
 };
 
@@ -58,6 +59,7 @@ typedef struct {
     float e;                             /* energy 0..1 */
     float gate;                          /* 1 until a bar without steps, then away */
     float amp, morph, bloom;             /* bloom: a played step's flash, brighter and noisier */
+    float stab;                          /* a struck sound's envelope (its character: how struck) */
     float tl_lo[2], tl_bd[2];            /* the tones' low-pass per side (each its own drifting cutoff) */
     float vib;                           /* vibrato, in cycles */
     float pt, pn, gn;                    /* the tones' and the noise's power, the noise's gain to its share */
@@ -70,6 +72,7 @@ typedef struct {
     float ph[3], po[3];                  /* readers (shared, left detuned, right detuned): the playing set's, the old's */
     float f0[NGEN_SLOTS];                /* each slot's fundamental, as it was made (a new key comes with its set) */
     float dk[NGEN_SLOTS], dl;            /* each slot's dullness (from its seed), and the one heard now */
+    float chr[NGEN_SLOTS][NGEN_CHARS], ch[NGEN_CHARS];   /* ...and its character (ngen.c's character()) */
     float job_f0;
     uint32_t since, step_len, step_t;
     uint8_t pos, live;

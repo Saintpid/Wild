@@ -5,18 +5,23 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.45
+## 0.3.46
 
-Firmware identity FM-1_879. The first generative sound: a new kind, Gen.
+Firmware identity FM-1_880. The first generative sound: a new kind, Gen. (0.3.45, id 879, was a test
+build of it.)
 
 - Set a drum track's Kind (Tone page, KNOB 1) to Gen and press NEW SOUND (black 11). The track now plays
-  a stereo sound made in the background: a chord in the 303's key, tones with moving noise beside them,
+  a stereo sound made in the background: a chord in the 303's key with a little noise beside it,
   nothing below ~95 Hz, so it leaves the room to the kick and the rumble.
+- Every sound is different: its DNA picks a family (saws, squares, organ, vowels, soft, buzz, and now
+  and then glass bells), a voicing (a full chord, fifths, a drone in octaves, a ninth chord, the upper
+  notes), the register, its filter (smooth or resonant, low or open), vibrato and pulse, and whether
+  each step is held (a pad, a drone) or struck (a stab). About a third are dull and dark.
 - Its steps are energy, not hits. A step adds energy (a strong one more), time takes it away, and the
   sound never goes silent until a bar has passed without a step. It looks ahead: before a busy part of
   the pattern it grows brighter.
 - Its own knobs: Sound page Complex, Movement, Spread, Noise; Tone page Kind, Inertia, Decay and DNA.
-  Every DNA is a different sound; NEW SOUND draws one, and about a third of them are dull and dark.
+  NEW SOUND draws a new DNA. Noise at 100 is 10 % of the sound (the default 50: 5 %).
 - One Gen track at a time: a second is refused with "ONE GEN TRACK".
 - Its Reverb and Delay sends, Level, Mute and Bypass work as on other tracks; the hit effects (filter
   share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
