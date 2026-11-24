@@ -18,6 +18,7 @@ typedef struct {
     uint32_t step_len;
     int step;
     uint32_t t;        /* samples into the current step */
+    int swap;          /* frame where a new set first took over (-1: none) */
 } run_t;
 
 static float buf_l[SR * 40], buf_r[SR * 40];
@@ -34,7 +35,12 @@ static void run(ngen *g, run_t *s, int frames)
         assert(s->n + m <= s->cap);
         for (i = 0; i < m; i++)
             s->l[s->n + i] = s->r[s->n + i] = 0.0f;
-        ngen_render(g, s->l + s->n, s->r + s->n, m);
+        {
+            uint8_t was = g->cur;
+            ngen_render(g, s->l + s->n, s->r + s->n, m);
+            if (g->cur != was && s->swap < 0)
+                s->swap = s->n;                      /* where a new set took over */
+        }
         s->n += m;
         s->t += (uint32_t)m;
         if (s->t >= s->step_len) {
@@ -56,6 +62,7 @@ static run_t start(float bpm, int work)
     s.cap = SR * 40;
     s.work = work;
     s.step_len = (uint32_t)(SR * 60.0 / bpm / 4.0 + 0.5);
+    s.swap = -1;
     return s;
 }
 
@@ -86,19 +93,6 @@ static double bright(const float *x, int a, int b)
         e += (double)x[i] * x[i];
     }
     return e > 0 ? sqrt(d / e) : 0.0;
-}
-
-/* the largest bend (second difference) in [a, b): a click is a sudden bend, the music's own are smooth */
-static double max_step(const float *x, int a, int b)
-{
-    double m = 0;
-    int i;
-    for (i = a + 2; i < b; i++) {
-        double d = fabs((double)x[i] - 2.0 * x[i - 1] + x[i - 2]);
-        if (d > m)
-            m = d;
-    }
-    return m;
 }
 
 static void wav(const char *name, const run_t *s)
@@ -147,7 +141,7 @@ static void test_example(void)
     printf("example: rms middle %.4f, last quarter %.4f\n", early, late);
     assert(late > 1.3 * early);
     {   /* intensity is more than level: the climax is brighter (more of its power in the highs) */
-        double be = bright(s.l, 7 * bar + 4 * (int)s.step_len, 7 * bar + 12 * (int)s.step_len);
+        double be = bright(s.l, 7 * bar + 8 * (int)s.step_len, 7 * bar + 12 * (int)s.step_len);
         double bl = bright(s.l, 7 * bar + 12 * (int)s.step_len, 8 * bar);
         printf("example: brightness %.3f -> %.3f\n", be, bl);
         assert(bl > 1.3 * be);
@@ -156,6 +150,21 @@ static void test_example(void)
     /* the plan leans the timbre up before the climax: step 10 plans higher than its own energy */
     assert(ga.plan[10] > ga.pred[10] + 0.05f);
     assert(ga.pred[15] > ga.pred[0]);
+    {   /* nothing much below ~95 Hz: under 60 Hz (four poles) at least 30 dB below the whole */
+        double a1 = 1.0 - exp(-2.0 * 3.14159265358979 * 60.0 / SR), y[4] = {0}, lo = 0, all = 0;
+        int i, p;
+        for (i = bar; i < s.n; i++) {
+            double x = s.l[i];
+            all += x * x;
+            for (p = 0; p < 4; p++) {
+                y[p] += a1 * (x - y[p]);
+                x = y[p];
+            }
+            lo += x * x;
+        }
+        printf("example: below 60 Hz %.1f dB\n", 10.0 * log10(lo / all));
+        assert(lo < all * 1e-3);
+    }
     wav("ngen-example.wav", &s);
 }
 
@@ -200,49 +209,103 @@ static void test_saturation(void)
     printf("saturation: e %.3f\n", ga.e);
 }
 
-/* a new sound, a new key, new settings and a new pattern while it plays: no jumps beyond the music's own */
+/* A change while it plays, against the same run without it: the difference must grow in smoothly. The
+ * two runs are the same up to the change (noise and all), so any jump in the difference is the change's. */
+static float ref_l[SR * 8], ref_r[SR * 8];
+static void handover(const char *what, void (*change)(ngen *), int at_swap)
+{
+    uint8_t pat[16] = {127, 0, 64, 0, 127, 0, 0, 90, 0, 127, 0, 0, 127, 64, 0, 0};
+    run_t s = start(128.0f, 8), t;
+    int i, n0 = -1, bar;
+    double peak = 0, jump = 0;
+    ngen_init(&ga, mem_a, SR, 42u);
+    ngen_set_param(&ga, NGEN_NOISE, 0);             /* the tones alone: the noise's resonances follow the seed */
+    ngen_pattern(&ga, pat, 16);
+    prime(&ga);
+    run(&ga, &s, (int)s.step_len * 32);
+    bar = (int)s.step_len * 16;
+    gb = ga;                                         /* the same state, on its own memory */
+    gb.mem = mem_b;
+    memcpy(mem_b, mem_a, sizeof mem_b);
+    t = s;
+    t.l = ref_l; t.r = ref_r; t.n = 0; t.cap = SR * 8;
+    s.n = 0;
+    s.swap = -1;
+    change(&ga);
+    run(&ga, &s, 2 * bar);
+    run(&gb, &t, 2 * bar);
+    for (i = 0; i < s.n; i++) {
+        double d = fabs((double)s.l[i] - ref_l[i]) + fabs((double)s.r[i] - ref_r[i]);
+        if (n0 < 0 && d > 1e-7)
+            n0 = i;
+        if (d > peak)
+            peak = d;
+    }
+    assert(n0 >= 0);
+    if (at_swap && s.swap >= 0)
+        n0 = s.swap;                 /* (a new sound: from where its set took over; the drifts move before) */
+    for (i = n0; i < n0 + 32 && i < s.n; i++) {     /* its first 32 samples: a hard switch is all there at once */
+        double d = fabs((double)s.l[i] - ref_l[i]) + fabs((double)s.r[i] - ref_r[i]);
+        if (d > jump)
+            jump = d;
+    }
+    printf("handover, %s: in its first 32 samples the difference reaches %.2f %% of its peak\n", what, 100.0 * jump / peak);
+    assert(jump < 0.05 * peak);
+}
+static void ch_sound(ngen *g) { ngen_new_sound(g, 777u); }
+static void ch_key(ngen *g) { ngen_set_key(g, 50, 0); }
+static void ch_complex(ngen *g) { ngen_set_param(g, NGEN_COMPLEXITY, 100); }
+static void ch_spread(ngen *g) { ngen_set_param(g, NGEN_SPREAD, 10); }
+
 static void test_handover(void)
+{
+    handover("new sound", ch_sound, 1);
+    handover("new key", ch_key, 0);
+    handover("Complexity", ch_complex, 0);
+    handover("Spread", ch_spread, 0);
+}
+
+/* a pattern that keeps changing while it plays: one long demo */
+static void demo_changes(void)
 {
     uint8_t pat[16] = {127, 0, 64, 0, 127, 0, 0, 90, 0, 127, 0, 0, 127, 64, 0, 0};
     run_t s = start(128.0f, 8);
-    int bar, a;
-    double base, worst = 0;
+    int bar;
     ngen_init(&ga, mem_a, SR, 42u);
     ngen_pattern(&ga, pat, 16);
     prime(&ga);
     run(&ga, &s, (int)s.step_len * 32);
     bar = (int)s.step_len * 16;
-    base = max_step(s.l, bar, 2 * bar);
-    if (max_step(s.r, bar, 2 * bar) > base)
-        base = max_step(s.r, bar, 2 * bar);
-    a = s.n;
     ngen_new_sound(&ga, 777u);
     run(&ga, &s, bar);
     ngen_set_key(&ga, 50, 0);
-    run(&ga, &s, bar / 2);
+    run(&ga, &s, bar);
     ngen_set_param(&ga, NGEN_COMPLEXITY, 100);
-    ngen_set_param(&ga, NGEN_SPREAD, 100);
-    run(&ga, &s, bar / 2);
-    pat[3] = pat[5] = 127;
+    pat[3] = pat[5] = pat[11] = 127;
     ngen_pattern(&ga, pat, 16);
-    ngen_set_param(&ga, NGEN_INERTIA, 0);
     run(&ga, &s, 2 * bar);
-    {   /* where it has settled with the last settings: their own largest jump */
-        int z = s.n, e;
-        run(&ga, &s, 2 * bar);
-        e = s.n;
-        if (max_step(s.l, z, e) > base)
-            base = max_step(s.l, z, e);
-        if (max_step(s.r, z, e) > base)
-            base = max_step(s.r, z, e);
-        worst = max_step(s.l, a, z);
-        if (max_step(s.r, a, z) > worst)
-            worst = max_step(s.r, a, z);
-    }
-    printf("handover: largest jump %.4f, steady %.4f, sets made %u\n", worst, base, (unsigned)ga.made);
-    assert(ga.made >= 3);
-    assert(worst < 1.25 * base);
     wav("ngen-handover.wav", &s);
+}
+
+/* three sounds from three seeds on one groove, then the same with more noise */
+static void demo_sounds(void)
+{
+    static const uint8_t pat[32] = {127, 0, 0, 64, 0, 0, 90, 0, 0, 0, 0, 0, 127, 0, 64, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 100, 0, 127, 127, 127, 127};
+    run_t s = start(126.0f, 8);
+    uint32_t seeds[3] = {11u, 2222u, 909u};
+    int k;
+    ngen_init(&ga, mem_a, SR, seeds[0]);
+    ngen_pattern(&ga, pat, 32);
+    prime(&ga);
+    for (k = 0; k < 6; k++) {
+        if (k)
+            ngen_new_sound(&ga, seeds[k % 3]);
+        ngen_set_param(&ga, NGEN_NOISE, k < 3 ? 35 : 65);
+        ngen_set_key(&ga, k < 3 ? 45 : 41, 1);
+        run(&ga, &s, (int)s.step_len * 48);
+    }
+    wav("ngen-sounds.wav", &s);
 }
 
 /* the background never runs: what plays plays on, a new sound waits */
@@ -280,9 +343,25 @@ static void test_stereo_and_seed(void)
     }
     corr = slr / sqrt(sl * sr_);
     mono = (sl + sr_ + 2 * slr) / 4 / ((sl + sr_) / 2);
-    printf("stereo: correlation %.3f, mono keeps %.0f %% of the power\n", corr, mono * 100);
-    assert(corr > 0.15 && corr < 0.97);
-    assert(mono > 0.55);
+    {   /* the low core (below ~250 Hz) is shared: there the sides move together */
+        double a1 = 1.0 - exp(-2.0 * 3.14159265358979 * 250.0 / SR), yl[4] = {0}, yr[4] = {0}, ll = 0, rr = 0, lr = 0;
+        int p;
+        for (i = a; i < s.n; i++) {
+            double xl = s.l[i], xr = s.r[i];
+            for (p = 0; p < 4; p++) {               /* four poles: the highs out of the way */
+                yl[p] += a1 * (xl - yl[p]);
+                yr[p] += a1 * (xr - yr[p]);
+                xl = yl[p];
+                xr = yr[p];
+            }
+            ll += xl * xl; rr += xr * xr; lr += xl * xr;
+        }
+        printf("stereo: correlation %.3f (below 250 Hz %.3f), mono keeps %.0f %% of the power\n",
+               corr, lr / sqrt(ll * rr), mono * 100);
+        assert(lr / sqrt(ll * rr) > 0.6);
+    }
+    assert(corr > 0.0 && corr < 0.9);           /* wide, never mostly out of phase */
+    assert(mono > 0.5);
     wav("ngen-pulse.wav", &s);
     /* the same seed and pattern: the same sound, sample for sample */
     {
@@ -306,6 +385,8 @@ int main(void)
     test_hold(300.0f);
     test_saturation();
     test_handover();
+    demo_changes();
+    demo_sounds();
     test_starved();
     test_stereo_and_seed();
     printf("ngen tests passed\n");

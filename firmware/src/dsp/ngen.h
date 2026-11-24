@@ -6,6 +6,10 @@
  * between them cannot click). Playback (ngen_render) only reads, morphs and crossfades them. A new set
  * is written into a free slot and faded in over a quarter; if it is late, the old one plays on.
  *
+ * Beside the tones, noise through a resonant band-pass per side whose centre wanders between the
+ * chord's partials; the share of noise and tone keeps moving (slow drifts, energy, each step's flash).
+ * Nothing below ~95 Hz: kick and rumble own that.
+ *
  * Energy: a played step adds vel/127 of what is left to full (it saturates at 1); time takes it away,
  * tempo-synced. The sound does not go silent before a bar has passed without a played step. The
  * planner reads the whole pattern ahead: the timbre leans towards what is coming (a build-up before a
@@ -32,6 +36,7 @@ enum {
     NGEN_SPREAD,       /* stereo width and detune */
     NGEN_INERTIA,      /* how slowly the timbre follows the energy */
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
+    NGEN_NOISE,        /* how much noise there is beside the tones (it moves around this) */
     NGEN_NPARAMS
 };
 
@@ -51,8 +56,16 @@ typedef struct {
     /* audio side */
     float e;                             /* energy 0..1 */
     float gate;                          /* 1 until a bar without steps, then away */
-    float amp, morph, lp[2], pulse;
-    float ph[3], inc, det;               /* readers: shared, left detuned, right detuned */
+    float amp, morph, lp[2], bloom;      /* bloom: a played step's flash, brighter and noisier */
+    float lfo[4];                        /* slow drifts, in cycles: timbre, noise share, place, brightness */
+    float nz_lo[2], nz_bd[2], nz_c[2], nz_t[2];   /* the noise's band-pass per side: state, centre, target */
+    float hp_x[2][2], hp_y[2][2];
+    float dh_x[2], dh_y[2];              /* the detuned readers' high-pass (the lows stay shared) */        /* two poles of high-pass per side (nothing below ~95 Hz) */
+    uint32_t rng, nz_next;
+    float k_sp, k_mov, k_nz;             /* Spread, Movement and Noise as they glide to a knob's value */
+    float ph[3], po[3];                  /* readers (shared, left detuned, right detuned): the playing set's, the old's */
+    float f0[NGEN_SLOTS];                /* each slot's fundamental, as it was made (a new key comes with its set) */
+    float job_f0;
     uint32_t since, step_len, step_t;
     uint8_t pos, live;
     volatile uint8_t cur, old, ready;    /* slots: playing, fading out (old == cur: none), ready to play */

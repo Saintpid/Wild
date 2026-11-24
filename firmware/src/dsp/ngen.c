@@ -8,8 +8,9 @@ float nfm_sine(float phase);               /* nfm.c's shared table, phase in cyc
 #define NG_FENCE() __asm__ volatile("" ::: "memory")
 #define NG_BLOCK 32                        /* frames per control step */
 #define NG_INJECT 0.55f                    /* share of what is left to full a full-strength step adds */
-#define NG_FLOOR 0.3f                      /* amplitude at no energy, while the bar's hold lasts */
-#define NG_LOW 110.0f                      /* Hz: below this the overtones fall away (kick and 303 own it) */
+#define NG_FLOOR 0.16f                     /* amplitude at no energy, while the bar's hold lasts */
+#define NG_CUT 95.0f                       /* Hz: nothing below (kick and rumble own it) */
+#define NG_LOW 150.0f                      /* Hz: from NG_CUT up to here partials come in gradually */
 #define NG_HIGH 15000.0f
 #define NG_RMS 0.2f
 
@@ -53,9 +54,10 @@ void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
     g->mem = mem;
     g->sr = sr;
     g->seed = seed;
-    g->param[NGEN_COMPLEXITY] = 50;
-    g->param[NGEN_MOVEMENT] = 40;
-    g->param[NGEN_SPREAD] = 60;
+    g->param[NGEN_COMPLEXITY] = 70;
+    g->param[NGEN_MOVEMENT] = 60;
+    g->param[NGEN_NOISE] = 35;
+    g->param[NGEN_SPREAD] = 75;
     g->param[NGEN_INERTIA] = 40;
     g->param[NGEN_DECAY] = 10;
     g->root = 45;                           /* A2 */
@@ -63,6 +65,11 @@ void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
     g->len = 16;
     g->job = 1;
     g->wr = 1;
+    g->rng = seed | 1u;
+    g->k_sp = pct(g, NGEN_SPREAD);
+    g->k_mov = pct(g, NGEN_MOVEMENT);
+    g->k_nz = pct(g, NGEN_NOISE);
+    g->nz_c[0] = g->nz_c[1] = g->nz_t[0] = g->nz_t[1] = 1000.0f;
 }
 
 void ngen_set_param(ngen *g, int p, int value)
@@ -155,6 +162,8 @@ void ngen_step(ngen *g, int pos, uint32_t step_len)
     v = (float)g->vel[g->pos] * (1.0f / 127.0f);
     if (v > 0.0f) {
         g->e += NG_INJECT * v * (1.0f - g->e);
+        if (v > g->bloom)
+            g->bloom = v;
         g->since = 0;
         g->gate = 1.0f;
         g->live = 1;
@@ -172,42 +181,67 @@ int ngen_active(const ngen *g) { return g->live || g->amp > 1e-4f; }
 
 /* --------------------------------------------------------------- the material --- */
 
-/* one partial of the set being made (tone it_t, harmonic it_n) into the scratch; 0 when none is left */
+/* inharmonic partials: on the period's grid (any whole multiple of the fundamental), not on the chord's */
+static int ninharm(const ngen *g, int state) { return state ? 8 + (int)(pct(g, NGEN_COMPLEXITY) * 40.0f) : 4; }
+
+/* one partial of the set being made (tone it_t, harmonic it_n; after the tones, the inharmonic ones) into
+ * the scratch; 0 when none is left */
 static int next_partial(ngen *g)
 {
     const uint8_t *tn = tones(g);
-    float f0 = fund_hz(g), width = pct(g, NGEN_SPREAD) * (g->state ? 1.0f : 0.45f);
+    float f0 = fund_hz(g), width = pct(g, NGEN_SPREAD) * (g->state ? 1.0f : 0.7f);
     float odd = rnd01(g->seed, 7u, 1u);
+    int nt = ntones(g, g->state);
     for (;;) {
         uint32_t h, i, q;
         float f, a, pan, pl, pr, gl, gr, dph;
-        if (g->it_t >= ntones(g, g->state))
+        if (g->it_t > nt)
             return 0;
-        q = tn[g->it_t];
-        h = q * (uint32_t)(g->it_n + 1u);
-        f = f0 * (float)h;
-        if (g->it_n >= nharm(g, g->state) || h >= NGEN_LEN / 2u || f > NG_HIGH) {
-            g->it_t++;
-            g->it_n = 0;
-            continue;
+        if (g->it_t == nt) {                 /* the inharmonic ones: scattered, quiet, wide */
+            uint32_t lo = (uint32_t)(NG_CUT / f0) + 1u, span;
+            if (g->it_n >= ninharm(g, g->state)) {
+                g->it_t++;
+                continue;
+            }
+            span = NGEN_LEN / 2u - lo;
+            if (f0 * (float)(lo + span) > NG_HIGH)
+                span = (uint32_t)(NG_HIGH / f0) - lo;
+            /* the same seed draws the same ones in both states: the intense one has more of them */
+            h = lo + (uint32_t)(rnd01(g->seed, (uint32_t)g->it_n, 11u) * (float)span);
+            f = f0 * (float)h;
+            a = (0.08f + 0.22f * rnd01(g->seed, (uint32_t)g->it_n, 12u)) * (g->state ? 1.0f : 0.5f);
+            g->it_n++;
+        } else {
+            q = tn[g->it_t];
+            h = q * (uint32_t)(g->it_n + 1u);
+            f = f0 * (float)h;
+            if (g->it_n >= nharm(g, g->state) || h >= NGEN_LEN / 2u || f > NG_HIGH) {
+                g->it_t++;
+                g->it_n = 0;
+                continue;
+            }
+            g->it_n++;
+            /* level: calm overtones fall fast, intense ones slowly; odd or even ones favoured by the seed */
+            a = fm_powf((float)g->it_n, g->state ? -0.95f : -1.8f);
+            if (g->it_n > 1)
+                a *= (g->it_n & 1) ? 0.6f + 0.8f * odd : 1.4f - 0.8f * odd;
+            a *= g->it_t == 0 ? 1.0f : g->it_t < NG_CALM ? 0.75f : 0.55f;
         }
-        g->it_n++;
-        /* level: calm overtones fall fast, intense ones slowly; odd or even ones favoured by the seed */
-        a = fm_powf((float)g->it_n, g->state ? -1.15f : -2.2f);
-        if (g->it_n > 1)
-            a *= (g->it_n & 1) ? 0.6f + 0.8f * odd : 1.4f - 0.8f * odd;
-        a *= g->it_t == 0 ? 1.0f : g->it_t < NG_CALM ? 0.75f : 0.55f;
+        if (f < NG_CUT)
+            continue;
         if (f < NG_LOW)
-            a *= (f / NG_LOW) * (f / NG_LOW);
-        a *= 0.8f + 0.4f * rnd01(g->seed, h, 2u);
+            a *= (f - NG_CUT) / (NG_LOW - NG_CUT);
+        a *= 0.6f + 0.8f * rnd01(g->seed, h, 2u);
+        /* the tilt: calm leans to the low partials, intense to the high ones */
+        a *= fm_powf(f * (1.0f / 400.0f), g->state ? 0.45f : -0.6f);
         /* stereo: low down one centred core, above it each partial its own place and phase */
         pl = rnd01(g->seed, h, 3u);
-        if (f < 220.0f) {
+        if (f < 200.0f) {
             pan = 0.5f;
             dph = 0.0f;
         } else {
             pan = 0.5f + (rnd01(g->seed, h, 4u) - 0.5f) * width;
-            dph = (rnd01(g->seed, h, 5u) - 0.5f) * 0.5f * width;
+            dph = (rnd01(g->seed, h, 5u) - 0.5f) * 0.35f * width;
         }
         pr = pl + dph;
         gl = nfm_sine(0.25f * (1.0f - pan));    /* equal power */
@@ -257,6 +291,7 @@ int ngen_work(ngen *g)
             if (s != g->cur && s != g->old)
                 break;
         g->wr = s;
+        g->job_f0 = fund_hz(g);
         g->state = 0;
         g->it_t = g->it_n = 0;
         g->job = 2;
@@ -271,6 +306,7 @@ int ngen_work(ngen *g)
     if (++g->state < NGEN_STATES)
         return 1;
     g->job = 0;
+    g->f0[g->wr] = g->job_f0;
     g->made++;
     NG_FENCE();
     g->ready = 1;
@@ -288,6 +324,31 @@ static inline float rd(const int16_t *t, float ph)
 
 static inline float wrap(float ph) { return ph >= (float)NGEN_LEN ? ph - (float)NGEN_LEN : ph; }
 
+/* the noise's next resonance: one of the chord's partials (any of its tones, overtone 2..9), 300 Hz..5 kHz */
+static float noise_centre(ngen *g, int side)
+{
+    const uint8_t *tn = tones(g);
+    uint32_t k = g->nz_next * 2u + (uint32_t)side;
+    float f = fund_hz(g) * (float)tn[(uint32_t)(rnd01(g->seed, k, 21u) * (float)ntones(g, 1)) % NG_NTONES] *
+              (float)(2u + (uint32_t)(rnd01(g->seed, k, 22u) * 8.0f));
+    while (f > 5000.0f)
+        f *= 0.5f;
+    while (f < 700.0f)
+        f *= 2.0f;
+    return f;
+}
+
+static inline float white(ngen *g)
+{
+    uint32_t x = g->rng;
+    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+    g->rng = x;
+    return (float)(int32_t)x * (1.0f / 2147483648.0f);
+}
+
+/* slow drifts: each its own length in bars (2..8, from the seed), a sine */
+static float drift(const ngen *g, int i) { return nfm_sine(g->lfo[i]); }
+
 void ngen_render(ngen *g, float *l, float *r, int n)
 {
     int done = 0;
@@ -295,6 +356,9 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         NG_FENCE();
         g->old = g->have ? g->cur : g->wr;
         g->cur = g->wr;
+        g->po[0] = g->ph[0];                     /* the old set reads on where it was */
+        g->po[1] = g->ph[1];
+        g->po[2] = g->ph[2];
         g->fade = 0;
         g->fade_len = g->step_len ? 4u * g->step_len : (uint32_t)(0.5f * g->sr);
         g->have = 1;
@@ -304,16 +368,25 @@ void ngen_render(ngen *g, float *l, float *r, int n)
     if (!g->have)
         return;
     while (done < n) {
-        int m = n - done > NG_BLOCK ? NG_BLOCK : n - done, i;
+        int m = n - done > NG_BLOCK ? NG_BLOCK : n - done, i, k;
         uint32_t bar = 16u * (g->step_len ? g->step_len : (uint32_t)(0.125f * g->sr));
+        float kk = 1.0f - fm_expf(-(float)m / (0.05f * g->sr)), mov, spread;
         float target, mt, k_amp, k_m, inertia, det, c0, c1, p0, p1, dp, depth, a_step;
+        float nb, nb_t, mo, lpk, kf[2], qn, side, bal, hpa, dhp;
         const int16_t *n0l = slot_at(g, g->cur, 0, 0), *n0r = slot_at(g, g->cur, 0, 1);
         const int16_t *n1l = slot_at(g, g->cur, 1, 0), *n1r = slot_at(g, g->cur, 1, 1);
         const int16_t *o0l = slot_at(g, g->old, 0, 0), *o0r = slot_at(g, g->old, 0, 1);
         const int16_t *o1l = slot_at(g, g->old, 1, 0), *o1r = slot_at(g, g->old, 1, 1);
         int fading = g->old != g->cur;
+        /* a knob's change glides in over ~50 ms */
+        g->k_sp += (pct(g, NGEN_SPREAD) - g->k_sp) * kk;
+        g->k_mov += (pct(g, NGEN_MOVEMENT) - g->k_mov) * kk;
+        g->k_nz += (pct(g, NGEN_NOISE) - g->k_nz) * kk;
+        mov = g->k_mov;
+        spread = g->k_sp;
         /* energy: time takes it away; after a bar without steps the hold lets go */
         g->e *= fm_expf(-3.0f * (float)m / ((float)bar * decay_bars(g)));
+        g->bloom *= fm_expf(-(float)m / (1.5f * (float)(g->step_len ? g->step_len : 5512u)));
         g->since += (uint32_t)m;
         if (g->since >= bar) {
             g->gate *= fm_expf(-4.0f * (float)m / (float)bar);
@@ -322,7 +395,14 @@ void ngen_render(ngen *g, float *l, float *r, int n)
                 g->live = 0;
             }
         }
-        target = g->gate * (NG_FLOOR + (1.0f - NG_FLOOR) * g->e * g->e);
+        for (k = 0; k < 4; k++) {                    /* the drifts: 2, 3, 5 and 8 bars, scaled by the seed */
+            static const float BARS[4] = {2.0f, 3.0f, 5.0f, 8.0f};
+            g->lfo[k] += (float)m / ((float)bar * BARS[k] * (0.75f + 0.5f * rnd01(g->seed, (uint32_t)k, 31u)));
+            if (g->lfo[k] >= 1.0f)
+                g->lfo[k] -= 1.0f;
+        }
+        /* level: energy squared over a low floor, and each step's flash on top */
+        target = g->gate * (NG_FLOOR + (1.0f - NG_FLOOR) * g->e * g->e) * (1.0f + 0.35f * mov * g->bloom);
         /* timbre: the energy, leaning towards what the plan says is coming, followed with inertia */
         mt = g->e;
         if (g->live && g->plan[g->pos] > mt)
@@ -330,9 +410,29 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         inertia = (0.25f + 3.75f * pct(g, NGEN_INERTIA)) * (float)(g->step_len ? g->step_len : 5512u);
         k_m = 1.0f - fm_expf(-(float)m / inertia);
         g->morph += (mt - g->morph) * k_m;
+        mo = fm_clampf(g->morph + 0.25f * mov * drift(g, 0) + 0.4f * mov * g->bloom, 0.0f, 1.0f);
         k_amp = 1.0f - fm_expf(-1.0f / (0.012f * g->sr));
+        /* the share of noise: around Noise, moved by its drift, the energy and each step's flash (always some) */
+        nb_t = fm_clampf(g->k_nz + 0.3f * (0.4f + mov) * drift(g, 1) + 0.25f * g->morph + 0.35f * g->bloom,
+                         0.03f, 0.95f);
+        nb = g->param[NGEN_NOISE] ? nb_t : 0.0f;    /* Noise 0: none at all */
+        /* the noise's resonances wander from partial to partial, every half bar a new one, gliding */
+        if (g->since % (bar / 2u) < (uint32_t)m || g->nz_t[0] == 1000.0f) {
+            g->nz_next++;
+            g->nz_t[0] = noise_centre(g, 0);
+            g->nz_t[1] = noise_centre(g, 1);
+        }
+        for (k = 0; k < 2; k++) {
+            g->nz_c[k] += (g->nz_t[k] * (0.35f + 1.3f * mo) - g->nz_c[k]) * (1.0f - fm_expf(-(float)m / (0.25f * (float)bar)));
+            kf[k] = 2.0f * nfm_sine(fm_minf(g->nz_c[k], 7000.0f) / (2.0f * g->sr));
+        }
+        qn = 0.08f + 0.5f * (1.0f - mo);             /* calm: a narrow, singing band; intense: wider, rougher */
+        side = 1.0f + 0.15f * spread * mo;
+        bal = 0.3f * mov * drift(g, 2);              /* the image leans slowly from side to side */
+        hpa = 1.0f / (1.0f + FM_TWO_PI * NG_CUT / g->sr);
+        dhp = 1.0f / (1.0f + FM_TWO_PI * 350.0f / g->sr);
         /* a pulse on the sixteenths, deeper with energy; raised cosine, so a step's edge does not click */
-        depth = pct(g, NGEN_MOVEMENT) * g->morph * 0.7f;
+        depth = mov * g->morph * 0.6f;
         a_step = g->step_len ? 1.0f / (float)g->step_len : 0.0f;
         p0 = (float)g->step_t * a_step;
         p1 = (float)(g->step_t + (uint32_t)m) * a_step;
@@ -342,43 +442,80 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         c1 = 1.0f - depth * 0.5f * (1.0f - nfm_sine(p1 + 0.25f));
         dp = (c1 - c0) / (float)m;
         g->step_t += (uint32_t)m;
-        /* the readers: one shared, one each side detuned apart (more with energy) */
-        g->inc = fund_hz(g) * (float)NGEN_LEN / g->sr;
-        det = pct(g, NGEN_SPREAD) * 0.0035f * (0.4f + 0.6f * g->morph);
+        /* the readers: one shared (the stronger, the core), one each side detuned apart (more with energy) */
+        det = spread * 0.005f * (0.4f + 0.6f * mo) * (1.0f + 0.3f * drift(g, 3));
+        lpk = fm_clampf(0.1f + 0.88f * mo * mo + 0.12f * mov * drift(g, 3), 0.05f, 1.0f);
         {
-            float lpk = 0.06f + 0.92f * g->morph * g->morph, mo = g->morph;
-            float inc0 = g->inc, incl = g->inc * (1.0f + det), incr = g->inc * (1.0f - det);
-            float sc = 1.0f / 65534.0f;
+            float inc0 = g->f0[g->cur] * (float)NGEN_LEN / g->sr, incl = inc0 * (1.0f + det), incr = inc0 * (1.0f - det);
+            float oinc0 = g->f0[g->old] * (float)NGEN_LEN / g->sr, oincl = oinc0 * (1.0f + det), oincr = oinc0 * (1.0f - det);
+            float sc = 1.0f / 65534.0f, tone = 1.0f - 0.7f * nb, noise = 2.2f * nb;
             for (i = 0; i < m; i++) {
-                float xl, xr, w = 1.0f, a, b;
+                float xl, xr, dl, dr, w, a, b, mid, sd, y[2], x[2], wc;
                 g->amp += (target - g->amp) * k_amp;
-                a = rd(n0l, g->ph[0]) + rd(n0l, g->ph[1]);
-                b = rd(n1l, g->ph[0]) + rd(n1l, g->ph[1]);
-                xl = a + (b - a) * mo;
-                a = rd(n0r, g->ph[0]) + rd(n0r, g->ph[2]);
-                b = rd(n1r, g->ph[0]) + rd(n1r, g->ph[2]);
-                xr = a + (b - a) * mo;
+                /* each side: the shared reader (the core) and its own detuned one, whose lows are taken
+                 * away, so below a few hundred Hz both sides are the same */
+                a = rd(n0l, g->ph[0]); b = rd(n1l, g->ph[0]); xl = a + (b - a) * mo;
+                a = rd(n0r, g->ph[0]); b = rd(n1r, g->ph[0]); xr = a + (b - a) * mo;
+                a = rd(n0l, g->ph[1]); b = rd(n1l, g->ph[1]); dl = a + (b - a) * mo;
+                a = rd(n0r, g->ph[2]); b = rd(n1r, g->ph[2]); dr = a + (b - a) * mo;
                 if (fading) {
-                    float ol, orr;
+                    float ol, orr, odl, odr;
                     w = (float)g->fade / (float)g->fade_len;
-                    a = rd(o0l, g->ph[0]) + rd(o0l, g->ph[1]);
-                    b = rd(o1l, g->ph[0]) + rd(o1l, g->ph[1]);
-                    ol = a + (b - a) * mo;
-                    a = rd(o0r, g->ph[0]) + rd(o0r, g->ph[2]);
-                    b = rd(o1r, g->ph[0]) + rd(o1r, g->ph[2]);
-                    orr = a + (b - a) * mo;
+                    a = rd(o0l, g->po[0]); b = rd(o1l, g->po[0]); ol = a + (b - a) * mo;
+                    a = rd(o0r, g->po[0]); b = rd(o1r, g->po[0]); orr = a + (b - a) * mo;
+                    a = rd(o0l, g->po[1]); b = rd(o1l, g->po[1]); odl = a + (b - a) * mo;
+                    a = rd(o0r, g->po[2]); b = rd(o1r, g->po[2]); odr = a + (b - a) * mo;
                     xl = ol + (xl - ol) * w;
                     xr = orr + (xr - orr) * w;
+                    dl = odl + (dl - odl) * w;
+                    dr = odr + (dr - odr) * w;
+                    g->po[0] = wrap(g->po[0] + oinc0);
+                    g->po[1] = wrap(g->po[1] + oincl);
+                    g->po[2] = wrap(g->po[2] + oincr);
                     if (++g->fade >= g->fade_len) {
                         g->old = g->cur;
                         fading = 0;
                     }
                 }
-                g->lp[0] += (xl - g->lp[0]) * lpk;
-                g->lp[1] += (xr - g->lp[1]) * lpk;
+                a = dhp * (g->dh_y[0] + dl - g->dh_x[0]);
+                g->dh_x[0] = dl;
+                g->dh_y[0] = a;
+                b = dhp * (g->dh_y[1] + dr - g->dh_x[1]);
+                g->dh_x[1] = dr;
+                g->dh_y[1] = b;
+                xl = 1.2f * xl + 0.9f * a;
+                xr = 1.2f * xr + 0.9f * b;
+                x[0] = xl * sc;
+                x[1] = xr * sc;
+                /* the noise: its own on each side, through its band-pass (Chamberlin); then both darkened
+                 * together when calm */
+                wc = white(g);                       /* half of it shared, so the sides stay related */
+                for (k = 0; k < 2; k++) {
+                    float hi = 0.6f * wc + 0.8f * white(g) - g->nz_lo[k] - qn * g->nz_bd[k];
+                    g->nz_bd[k] += kf[k] * hi;
+                    g->nz_lo[k] += kf[k] * g->nz_bd[k];
+                    g->lp[k] += (x[k] * tone + g->nz_bd[k] * qn * noise - g->lp[k]) * lpk;
+                    y[k] = g->lp[k];
+                }
+                /* wider: more side, the middle kept; the image leaning */
+                mid = 0.5f * (y[0] + y[1]);
+                sd = 0.5f * (y[0] - y[1]) * side;
+                y[0] = (mid + sd) * (1.0f - bal);
+                y[1] = (mid - sd) * (1.0f + bal);
+                /* nothing below ~95 Hz: two poles of high-pass */
+                for (k = 0; k < 2; k++) {
+                    x[k] = y[k];
+                    y[k] = hpa * (g->hp_y[k][0] + x[k] - g->hp_x[k][0]);
+                    g->hp_x[k][0] = x[k];
+                    g->hp_y[k][0] = y[k];
+                    x[k] = y[k];
+                    y[k] = hpa * (g->hp_y[k][1] + x[k] - g->hp_x[k][1]);
+                    g->hp_x[k][1] = x[k];
+                    g->hp_y[k][1] = y[k];
+                }
                 c0 += dp;
-                l[done + i] += g->lp[0] * sc * g->amp * c0;
-                r[done + i] += g->lp[1] * sc * g->amp * c0;
+                l[done + i] += y[0] * g->amp * c0;
+                r[done + i] += y[1] * g->amp * c0;
                 g->ph[0] = wrap(g->ph[0] + inc0);
                 g->ph[1] = wrap(g->ph[1] + incl);
                 g->ph[2] = wrap(g->ph[2] + incr);
