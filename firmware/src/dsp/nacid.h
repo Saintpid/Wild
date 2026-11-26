@@ -149,6 +149,12 @@ void nacid_apply_event(nacid *a, const nacid_event *event);
 void nacid_init(nacid *a, float sr, uint32_t seed);
 void nacid_generate(nacid *a);
 void nacid_set_length(nacid *a, int steps);
+/* ...the same, but longer it repeats what it had into its new steps (1 bar to 2: bar 1 twice) */
+void nacid_resize(nacid *a, int steps);
+/* notes on or off (each rest keeps its pitch, accent and slide: it may sound again), by chance, until
+ * `count` play within the length: weak places go first, strong ones come first; a bar's copies with it */
+void nacid_fit(nacid *a, int count);
+int nacid_notes(const nacid *a);   /* notes within the length */
 void nacid_set_step(nacid *a, int step, int flags, int note);
 /* Triplets (1) or sixteenths (0): the flag alone (nacid_set_grid), or the pattern moved along to the
  * nearest steps in time, the length the same time (nacid_regrid; as nseq_regrid). */

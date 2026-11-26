@@ -70,6 +70,11 @@ expect hits >0
 expect velmin >49
 spin K2 100
 expect tpar25 100
+# (enough hits for a soft one: Fill 50 on the Pattern page)
+tap HOME
+expect view 0
+spin K2 37
+expect tpar3 50
 tapkey b9
 wait 20
 expect velmin <49

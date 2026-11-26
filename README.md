@@ -1,5 +1,7 @@
 # Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.54: Fill and Notes play the intensity, live.** Less is gone. Turning Fill (drums, now KNOB 2 on the Pattern page, where the 303's Notes is) or Notes adds or takes away hits at once, by chance, towards that %. A pattern made by hand counts as if it matched the knob: four quarters at Fill 80 fill slowly as you turn up, and nothing goes as you turn down until Fill reaches 25. A longer Bars repeats the pattern into the new bars at once.
+
 **0.3.53: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end, and **Chords** (Gen's Track page, KNOB 2) moves its chords: Stab (techno stabs: another chord of the scale on a chosen offbeat for a sixteenth or an eighth, straight back), Pop (another chord for a bar or two now and then), Dub (the two traded on the steps) or Hold. On a Gen track up to 89 each
 step moves the sound around its own, from 90 it wanders on from step to step. Its chords follow the
 303's scale, from a single note to a ninth, and the intense side may move to another chord. Muted,
@@ -194,8 +196,12 @@ command.
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
   now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars, acid 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), so
-  the tracks drift against each other. Fill requests a percentage of the available steps, and Less lets
-  the generator remove up to a percentage of those hits. Evolve now and then moves a hit when the
+  the tracks drift against each other. **Fill** (drums) and **Notes** (the 303), KNOB 2 on the
+  Pattern page, are how busy: a new pattern fills that % of the steps, and turned they add or take away
+  hits at once, by chance, so you play the intensity. A pattern that doesn't match the knob (made by
+  hand, or the knob turned meanwhile) counts as if it did: turned away from its own % it moves at once
+  in proportion, towards it nothing changes until the knob gets there. **Bars** takes effect at once;
+  longer, the pattern repeats into the new bars (1 bar to 2: bar 1 twice). Evolve now and then moves a hit when the
   loop comes round. **Rnd len** (Rhythm page) gives that % of a track's new patterns a length of
   their own (1-8 bars, now and then a bar short), else they play Bars. Every track counts its place
   from one shared clock, so tracks of one length stay together whatever you turn. Any track, the 303 too, can run in
