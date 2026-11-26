@@ -546,6 +546,14 @@ static int expect(const char *what, const char *val)
         got = ui.bank_select;
     else if (!strcmp(what, "bank"))              /* the bank playing (0..) */
         got = proj.bank;
+    else if (!strcmp(what, "bankwait"))          /* a bank waiting for Switch's 1 (its number + 1, 0 none) */
+        got = ui.bank_wait;
+    else if (!strcmp(what, "aligned")) {         /* 1: every drum track on the same sixteenth of its bar as track 1 */
+        int t;
+        for (got = 1, t = 1; t < NE_TRACKS; t++)
+            got &= ne_seq()->track[t].last % 16 == ne_seq()->track[0].last % 16;
+    } else if (!strncmp(what, "last", 4))        /* last<t>: the step track t played last */
+        got = ne_seq()->track[atoi(what + 4) & 3].last;
     else if (!strcmp(what, "banks")) {           /* the banks holding a project (bits) */
         int n;
         for (got = 0, n = 0; n < PROJ_BANKS; n++)

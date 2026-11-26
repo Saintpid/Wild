@@ -5,29 +5,12 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.49
+## 0.3.50
 
-Firmware identity FM-1_883. Gen moves more: Deviance, chords that change within the 303's scale, and it
-rings out instead of stopping short.
-
-- Deviance on a Gen track: the Track page, in Pitch's place (its Sound page has its own knobs). Up to
-  89 each step moves the sound around its own (its filter, brightness, vibrato, pulse, noise, place in
-  the stereo, detune), further the higher you turn it, and never far from where it began. From 90 it
-  no longer comes back: each step goes on from where the last one left off, further the nearer 100,
-  and once a bar the sound's material wanders too. A new sound (NEW SOUND, DNA) starts from its own
-  again. The default is 40.
-- Its chords follow the 303's scale (all seven, not just minor and major), and the intense side of a
-  sound may move to another chord that fits, mostly the fourth or the fifth. How full a chord is
-  differs from sound to sound: sometimes a single note, mostly three or four, now and then a seventh
-  or a ninth. Complex lets the intense side grow fuller.
-- Mute rings out: Gen fades over a second or two instead of cutting off, and comes back quickly when
-  unmuted. Stopping, clearing it, and switching to a bank or kind without Gen let it ring out the same
-  way, with the level and sends it had. Panic still stops it at once.
-
-## 0.3.48
-
-Firmware identity FM-1_882. The first generative sound: a new kind, Gen; a low-pass on every track; and
-the mutes recorded. (0.3.45 to 0.3.47, ids 879 to 881, were test builds of it.)
+Firmware identity FM-1_884. The first generative sound: a new kind, Gen, with Deviance, chords in the
+303's scale, and a ring-out instead of a sudden stop; a low-pass on every track; and the mutes recorded.
+(0.3.45 to 0.3.48, ids 879 to 882, and a 0.3.49 with id 883 were test builds of it; the 0.3.49 below is
+the banks' release.)
 
 - REC records the mute keys (black 5 to 9) too, like a knob: with REC on and playing, each press goes
   into a lane of that track's mutes, which plays back on the sixteenth it was pressed. REC held and the
@@ -52,7 +35,44 @@ the mutes recorded. (0.3.45 to 0.3.47, ids 879 to 881, were test builds of it.)
 - Its Reverb and Delay sends, Level, Mute, Low-pass and Bypass work as on other tracks; the hit effects
   (filter share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
 - Audio Load's split shows G, the Gen track's share of the time. Projects gain the Gen track's seven values
-  and the low-pass (format 20); older ones load as before.
+  and the low-pass (format 21); older ones load as before.
+- Deviance on a Gen track: the Track page, in Pitch's place (its Sound page has its own knobs). Up to
+  89 each step moves the sound around its own (its filter, brightness, vibrato, pulse, noise, place in
+  the stereo, detune), further the higher you turn it, and never far from where it began. From 90 it
+  no longer comes back: each step goes on from where the last one left off, further the nearer 100,
+  and once a bar the sound's material wanders too. A new sound (NEW SOUND, DNA) starts from its own
+  again. The default is 40.
+- Its chords follow the 303's scale (all seven, not just minor and major), and the intense side of a
+  sound may move to another chord that fits, mostly the fourth or the fifth. How full a chord is
+  differs from sound to sound: sometimes a single note, mostly three or four, now and then a seventh
+  or a ninth. Complex lets the intense side grow fuller.
+- Mute rings out: Gen fades over a second or two instead of cutting off, and comes back quickly when
+  unmuted. Stopping, clearing it, and switching to a bank or kind without Gen let it ring out the same
+  way, with the level and sends it had. Panic still stops it at once.
+
+## 0.3.49
+
+Firmware identity FM-1_883. Tracks that stay together, and banks that change in time.
+
+- Tracks of the same length no longer drift apart. Before, turning a track's Bars, a bank change or
+  an undo in the middle of a bar could start one track's bar again while the others went on, so a
+  1-bar hat could end up some sixteenths off a 1-bar kick until you stopped. Now every track counts
+  its place from one shared clock, the 303 too.
+- **EDIT twice: the new Banks page.** Its two settings are the same for every bank.
+- **Sync** (On to start): when the bank changes, every track falls in line with track 1. Track 1
+  goes on exactly where it is, never cut or moved; the others play as if they had started together
+  with track 1's current loop. Off: they go on from where they were.
+- **Switch** (Now to start, or 1, 4 or 8 bars): a change of bank waits for the 1 of the next round of
+  that many bars. The rounds are the phrase's (the 8 bars on the screen, counted from PLAY), not
+  counted from your press: with 4 bars, a bank chosen in bar 3 comes in on bar 5, one chosen in bar 6
+  on the next bar 1. While it waits SEL blinks, and on the bank keys the bank waiting blinks. Choose
+  another bank to change your mind, the bank playing to cancel. Stopping makes it at once, and a
+  copy (SEL held) is always at once.
+- At a change of bank while playing, what sounds rings out into the new bank instead of being cut.
+- **Rnd len** moved to the Rhythm page (HOME twice, KNOB 3) and is now a %: how many of the track's
+  new patterns get a length by chance (1 to 8 bars, sometimes a bar short), instead of Bars. 0 % to
+  start, so every new pattern plays Bars. Songs saved with a random length (1-N bars) load as 100 %.
+- The starting set's Perc track no longer draws a random length (its Rnd len is 0 too).
 
 ## 0.3.44
 

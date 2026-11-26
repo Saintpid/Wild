@@ -126,6 +126,10 @@ tap HOME
 expect view 0
 tap EDIT
 expect view 2
+tap EDIT
+expect view 20
+tap EDIT
+expect view 2
 tap ENV
 expect view 3
 tap FX
@@ -152,7 +156,11 @@ expect view 15
 turn ALGO 1
 expect view 17
 turn ALGO 1
+expect view 20
+turn ALGO 1
 expect view 0
+turn ALGO -1
+expect view 20
 turn ALGO -1
 expect view 17
 turn ALGO -1

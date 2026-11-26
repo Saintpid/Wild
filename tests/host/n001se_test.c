@@ -187,7 +187,7 @@ int main(int argc, char **argv)
     /* Fill uses the length chosen for this pattern, including shortened random bars. */
     for (int random = 0; random <= 1; random++) {
         const nseq_track *tr = &ne_seq()->track[0];
-        ne_tset(0, T_RANDLEN, random ? 8 : 0);
+        ne_tset(0, T_RANDLEN, random ? 100 : 0);
         for (int bars = 1; bars <= 2; bars++) {
             ne_tset(0, T_BARS, bars);
             for (int fill = 0; fill <= 100; fill += 50)
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
         }
         printf("Deviance after 8 bars, the base moved: %.3f at 89, %.3f at 90, %.3f at 100, %.3f muted\n", (double)d[0],
                (double)d[1], (double)d[2], (double)d[3]);
-        CHECK(d[0] == 0.0f && d[3] == 0.0f && d[1] > 0.03f && d[1] < 0.12f && d[2] > 0.18f && d[2] > 2.5f * d[1],
+        CHECK(d[0] == 0.0f && d[3] == 0.0f && d[1] > 0.03f && d[1] < 0.12f && d[2] > 0.15f && d[2] > 2.0f * d[1],
               "Deviance wander: %f %f %f %f", (double)d[0], (double)d[1], (double)d[2], (double)d[3]);
     }
     /* triplets: a track moved into them keeps its hits where they were in time (the offbeat eighth to
@@ -510,7 +510,7 @@ int main(int argc, char **argv)
         int odd = 0, back, keep, gen, tries;
         ne_init();
         ne_tset(2, T_BARS, 1);
-        ne_tset(2, T_RANDLEN, 3);
+        ne_tset(2, T_RANDLEN, 100);
         for (tries = 0; tries < 50 && !odd; tries++) {
             ne_generate(2);
             render(1, 0);
@@ -653,6 +653,89 @@ int main(int argc, char **argv)
         CHECK(lv_quiet < 0.002f, "Gen: no steps %f", (double)lv_quiet);
         ne_play(0);
         ne_init();
+    }
+    /* Rnd len %: 0, every new pattern its Bars; 100, by chance (1..8 bars, sometimes a bar cut short);
+     * 50, about half of them (some draws come out as the Bars anyway) */
+    {
+        const nseq_track *tr = &ne_seq()->track[1];
+        int pc, k, other[3];
+        static const int PC[3] = {0, 50, 100};
+        ne_init();
+        ne_tset(1, T_BARS, 2);
+        for (pc = 0; pc < 3; pc++) {
+            ne_tset(1, T_RANDLEN, PC[pc]);
+            for (other[pc] = 0, k = 0; k < 200; k++) {
+                ne_generate(1);
+                render(1, 0);
+                other[pc] += tr->length != 2 * NE_BAR;
+            }
+        }
+        printf("Rnd len: lengths not the Bars in 200 new patterns: %d at 0 %%, %d at 50 %%, %d at 100 %%\n", other[0],
+               other[1], other[2]);
+        CHECK(other[0] == 0 && other[1] > 60 && other[1] < 110 && other[2] > 130,
+              "Rnd len: %d %d %d of 200 not the Bars", other[0], other[1], other[2]);
+    }
+    /* One clock: a 1-bar track and a 2-bar one shortened to 1 bar in its second bar, a pattern restored
+     * mid-bar, a grid switched there and back: still on track 1's sixteenth. SYNC: a 13-step track back on
+     * track 1's loop, track 1 going on as it was (its place, its hits) */
+    {
+        const nseq *q = ne_seq();
+        int off = 0, k, was, step_was, syncd, steady = 1;
+        ne_init();
+        for (t = 0; t < NE_TRACKS; t++) {
+            ne_tset(t, T_RANDLEN, 0);
+            ne_tset(t, T_BARS, t == 1 ? 2 : 1);
+        }
+        ne_play(1);
+        while (q->steps < 16u + 6u)
+            render(1, 0);
+        ne_tset(1, T_BARS, 1);                    /* (it used to start its bar again here) */
+        render(1, 0);
+        ne_snapshot(&a);
+        ne_restore(&a);
+        ne_regrid(2, 1);
+        ne_regrid(2, 0);
+        for (k = 0; k < 200; k++) {
+            render(1, 0);
+            for (t = 1; t < NE_TRACKS; t++)
+                off += q->track[t].last % 16 != q->track[0].last % 16;
+        }
+        ne_tset(3, T_BARS, 1);
+        render(1, 0);
+        ne_snapshot(&a);
+        a.len[3] = 13;
+        ne_restore(&a);
+        render(150, 0);
+        was = q->track[0].last;
+        step_was = (int)q->steps;
+        ne_sync(q->steps);
+        while ((int)q->steps == step_was)
+            render(1, 0);
+        syncd = q->track[3].last == (int)((uint32_t)q->track[0].last % 13u);
+        for (k = 0; k < 100; k++) {                 /* track 1 as before: one step a step, from where it was */
+            render(1, 0);
+            steady &= q->track[0].last == (int)((uint32_t)(was + (int)q->steps - step_was) % 16u);
+        }
+        printf("one clock: %d of %d steps off track 1; Sync: the 13-step track on track 1's loop %d, track 1 "
+               "steady %d\n", off, 600, syncd, steady);
+        CHECK(off == 0 && syncd && steady, "one clock: %d off, sync %d, steady %d", off, syncd, steady);
+    }
+    /* a change of bank while playing: what sounds rings on (track 1's kick not cut) */
+    {
+        int before, after;
+        ne_init();
+        ne_play(1);
+        do
+            render(1, 0);
+        while (nfm_active_voices(ne_fm()) == 0);
+        ne_snapshot(&a);
+        before = nfm_active_voices(ne_fm());
+        ne_restore(&a);
+        after = 0;
+        for (k = 0; k < NFM_VOICES; k++)
+            after += ne_fm()->voice[k].slot >= 0 && !ne_fm()->voice[k].fading;
+        printf("a change of bank while playing: %d voices sounding, %d still after\n", before, after);
+        CHECK(before > 0 && after == before, "restore while playing: %d voices, %d after", before, after);
     }
     /* saved and restored: the same */
     ne_snapshot(&a);

@@ -34,6 +34,15 @@ spin K3 30
 expect tpar42 30
 spin K3 -30
 expect tpar42 0
+# a dense pattern of one bar, so it always plays (every hit, none fewer)
+tap HOME
+expect view 0
+spin K1 -8
+spin K2 -100
+spin K3 100
+expect tpar0 1
+expect tpar2 0
+expect tpar3 100
 tapkey b9
 wait 50
 wav gen.wav

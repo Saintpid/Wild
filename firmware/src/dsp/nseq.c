@@ -65,7 +65,7 @@ NFM_CODE static int8_t pick_note(nseq *q, int range)
     return n ? cand[rnd(&q->rng) % (unsigned)n] : 0;
 }
 
-/* A new length of 1..len_random bars. Even bar counts are likelier, and
+/* A new length of 1..8 bars. Even bar counts are likelier, and
  * sometimes the last bar is cut short so the track drifts against the rest. */
 /* Step weights for generate and evolve. Static, not on the stack: on the FM1
  * these run in the audio interrupt. */
@@ -75,7 +75,7 @@ NFM_CODE static void random_length(nseq *q, nseq_track *tr)
 {
     NFM_DATA static const uint8_t bar_weight[NSEQ_MAX_BARS] = { 3, 4, 1, 3, 1, 1, 1, 2 };
     NFM_DATA static const uint8_t tails[] = { 12, 14, 13, 15, 10, 11, 9, 7, 6, 5 };
-    int max = tr->len_random > NSEQ_MAX_BARS ? NSEQ_MAX_BARS : tr->len_random;
+    int max = NSEQ_MAX_BARS;
     unsigned total = 0, pick;
     int bars;
     for (int b = 0; b < max; ++b) total += bar_weight[b];
@@ -127,7 +127,7 @@ NFM_CODE void nseq_generate(nseq *q, int t)
     if (!track_ok(t)) return;
     nseq_track *tr = &q->track[t];
     const uint8_t *prof = track_profile(q, t);
-    if (tr->len_random) random_length(q, tr);
+    if (tr->len_random && rnd(&q->rng) % 100u < tr->len_random) random_length(q, tr);
     int len = tr->length, bar = nseq_bar(tr);
     int hi = (len * tr->hits_fill + 50) / 100;
     int reduction = hi * tr->hits_less / 100;
@@ -225,6 +225,7 @@ NFM_CODE void nseq_start(nseq *q)
     q->playing = 1;
     q->to_next = 0.0f;
     q->steps = 0;
+    q->origin = 0;
     for (int t = 0; t < NSEQ_TRACKS; ++t) {
         q->track[t].pos = 0;
         q->track[t].last = -1;
@@ -246,6 +247,18 @@ NFM_CODE void nseq_set_length(nseq *q, int t, int steps)
     if (steps > max_steps(&q->track[t])) steps = max_steps(&q->track[t]);
     q->track[t].length = (uint8_t)steps;
     if (q->track[t].pos >= steps) q->track[t].pos = 0;
+}
+
+NFM_CODE void nseq_sync(nseq *q, uint32_t at)
+{
+    const nseq_track *tr = &q->track[0];
+    uint32_t len = tr->length ? tr->length : 1u, p = nseq_elapsed(q, at, tr->triplet) % len;
+    if (tr->triplet) {                            /* (back from triplets counted to the step they are on) */
+        uint32_t v = nseq_trip(at) - p;
+        q->origin = v / 3u * 4u + v % 3u;
+    } else {
+        q->origin = at - p;
+    }
 }
 
 NFM_CODE void nseq_set_hits(nseq *q, int t, int less, int fill)
@@ -273,7 +286,7 @@ NFM_CODE void nseq_set_flag(nseq *q, int t, int which, int v)
     case NSEQ_FLAG_LOCK: tr->lock = v ? 1 : 0; break;
     case NSEQ_FLAG_EVOLVE: tr->evolve = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_PITCH_RANGE: tr->pitch_range = (uint8_t)(v < 0 ? 0 : v > 24 ? 24 : v); break;
-    case NSEQ_FLAG_LEN_RANDOM: tr->len_random = (uint8_t)(v < 0 ? 0 : v > NSEQ_MAX_BARS ? NSEQ_MAX_BARS : v); break;
+    case NSEQ_FLAG_LEN_RANDOM: tr->len_random = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_DYN: tr->dyn = (uint8_t)(v < 0 ? 0 : v > 100 ? 100 : v); break;
     case NSEQ_FLAG_TRIPLET:
         tr->triplet = v ? 1 : 0;
@@ -364,11 +377,14 @@ NFM_CODE static void global_step(nseq *q, float step_len)
     for (int t = 0; t < NSEQ_TRACKS; ++t) {
         nseq_track *tr = &q->track[t];
         if (tr->triplet && ph == 3) continue;    /* (triplets: three steps in a quarter's four) */
-        if (tr->pos >= tr->length) tr->pos = 0;
-        int s = tr->pos;
+        if (tr->length < 1) tr->length = 1;
+        /* its place from the global clock, never a count of its own: a length changed, a pattern
+         * restored or a grid switched cannot put it off the others */
+        int s = (int)(nseq_elapsed(q, q->steps, tr->triplet) % tr->length);
         tr->last = (int16_t)s;
+        tr->pos = (uint8_t)(s + 1);
         if (tr->step[s].on && !tr->mute) cand[n++] = t;
-        if (++tr->pos >= tr->length) {
+        if (tr->pos >= tr->length) {
             tr->pos = 0;
             ++tr->loops;
             if (tr->evolve && rndf(&q->rng) * 100.0f < (float)tr->evolve) evolve(q, t);
