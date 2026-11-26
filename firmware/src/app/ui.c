@@ -236,6 +236,8 @@ static int view_knob(int i)
 {
     if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
         return GEN_KNOB[ui.view == V_TONE][i];
+    if (ui.view == V_TRACK && i == 1 && is_gen(ui.track))
+        return KT | T_DEV;                           /* (its Sound page is its own: Deviance in Pitch's place) */
     if (ui.view == V_TFX && i == 2 && is_gen(ui.track))
         return KT | T_LPF;                           /* (its Filter share has no hits to take: its low-pass) */
     if (ui.track == NE_ACID && ui.view == V_ROUTE)

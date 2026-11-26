@@ -1,5 +1,9 @@
-# Wild 0.3.48 - experimental FM-1 firmware
+# Wild 0.3.49 - experimental FM-1 firmware
 
+**0.3.49: Gen moves more.** Deviance on a Gen track (the Track page, in Pitch's place): up to 89 each
+step moves the sound around its own, from 90 it wanders on from step to step. Its chords follow the
+303's scale, from a single note to a ninth, and the intense side may move to another chord. Muted,
+stopped or gone with a bank switch, it rings out instead of stopping short.
 **0.3.48: REC records the mute keys** (black 5 to 9), played back on their sixteenths. **A low-pass on every track** (the Tone page's KNOB 4; on a Gen track the Track FX page's
 third knob): soft, 0 open, 100 at about 140 Hz. **And a new kind, Gen, the first generative sound.** On any one drum track (Tone page, Kind: Gen,
 then NEW SOUND) a stereo sound that is made, not played: a chord in the 303's key, nothing below

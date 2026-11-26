@@ -397,10 +397,10 @@ static void lp_follow(void)
 }
 static float tan_pi(float x);
 #define GEN_LEVEL 2.5f                           /* ngen's level to a drum's */
-static void rumble_stop(void)                    /* (the tails: the rumbles and the Gen track) */
+static void rumble_stop(void)                    /* (the tails: the rumbles and the Gen track, which rings out) */
 {
     for (int t=0;t<NE_TRACKS;++t) nr_stop(&rumble[t]);
-    ngen_stop(&gen);
+    ngen_release(&gen);
 }
 int ne_gen_track(void) { return gen_t; }
 void ne_work(void)
@@ -412,7 +412,11 @@ void ne_work(void)
         ;
 }
 static uint32_t gen_seed(int v) { return 0x9e3779b9u * (uint32_t)(v + 1) ^ 0x67656e21u; }
-/* each block: which track, its knobs, the 303's key (its root, Tune, minor unless the scale is major) */
+/* its way out, frozen when its track goes (another bank, another kind): level, sends, low-pass, bus */
+static struct { float lvl, rev, dly, lpk; uint8_t dir, on; } gen_out;
+/* the 303's scales as sets of the twelve (nacid's order) */
+static const uint16_t gen_masks[NACID_SCALES] = {0x5ADu, 0x5ABu, 0x6ADu, 0x4A9u, 0x4E9u, 0x9ADu, 0xAB5u};
+/* each block: which track, its knobs, the 303's key (its root, Tune, its scale) */
 static void gen_follow(void)
 {
     int t, g = -1;
@@ -421,24 +425,31 @@ static void gen_follow(void)
     for (t = 0; t < NE_TRACKS && g < 0; t++)
         if (fm.slot[t].kind == NFM_KIND_GEN)
             g = t;
-    if (g != gen_t) {
-        ngen_stop(&gen);
-        gen_gain = 0.0f;
+    if (g != gen_t) {                            /* gone: it rings out as it was; another: it plays on */
+        if (g < 0)
+            ngen_release(&gen);
         gen_t = (int8_t)g;
     }
     if (g < 0)
         return;
+    gen_out.on = 1;
+    gen_out.lvl = GEN_LEVEL * pct(tpar[g][T_LEVEL]);
+    gen_out.rev = pct(tpar[g][T_REVERB]) * 0.5f;
+    gen_out.dly = pct(tpar[g][T_DELAY]) * 0.5f;
+    gen_out.lpk = fm.lp_k[g];
+    gen_out.dir = (uint8_t)(fm.direct >> g & 1u);
     ngen_set_param(&gen, NGEN_COMPLEXITY, tpar[g][T_GCOMPLEX]);
     ngen_set_param(&gen, NGEN_MOVEMENT, tpar[g][T_GMOVE]);
     ngen_set_param(&gen, NGEN_SPREAD, tpar[g][T_GSPREAD]);
     ngen_set_param(&gen, NGEN_NOISE, tpar[g][T_GNOISE]);
     ngen_set_param(&gen, NGEN_INERTIA, tpar[g][T_GINERTIA]);
     ngen_set_param(&gen, NGEN_DECAY, tpar[g][T_GDECAY]);
+    ngen_set_param(&gen, NGEN_DEVIANCE, tpar[g][T_DEV]);
     ngen_new_sound(&gen, gen_seed(tpar[g][T_GSEED]));
     {
         float tu = acid.tune;
         int k = 36 + seq.root + (int)(tu < 0.0f ? tu - 0.5f : tu + 0.5f);
-        ngen_set_key(&gen, k, acid.scale != NACID_SCALES - 1);
+        ngen_set_key(&gen, k, gen_masks[acid.scale < NACID_SCALES ? acid.scale : 0]);
     }
 }
 /* at each of its steps: the pattern as it is now (replanned if it moved), then the step's energy */
@@ -464,29 +475,41 @@ static void gen_step(uint32_t step, float step_len)
     if (!tr->mute)
         ngen_step(&gen, tr->last, (uint32_t)(tr->triplet ? step_len * (4.0f / 3.0f) : step_len));
 }
-/* into the effects' source: its level, its mute (a glide, ~20 ms), its sends; the direct bus at Bypass */
+/* into the effects' source: its level, its sends; the direct bus at Bypass. Muted it rings out (~0.4 s
+ * down, a fifth of that up again); its track gone (another bank, another kind) it lets go as after its
+ * last step, on the level and sends it had. */
+#define GEN_DOWN 0.0036f                         /* (1 - e^(-64 / (0.4 s))) */
+#define GEN_UP 0.018f
 static void gen_render(float *l, float *r, float *rev, float *dly, int n)
 {
     int t = gen_t, i;
-    float to, g, dg, *ol = l, *or_ = r, sr, sd, pk = 0.0f;
-    if (t < 0 || n > 64)
+    float to, g, dg, *ol = l, *or_ = r, pk = 0.0f;
+    if (!gen_out.on || n > 64)
         return;
-    to = seq.track[t].mute ? 0.0f : GEN_LEVEL * fm.master * pct(tpar[t][T_LEVEL]);
-    if (to <= 0.0f && gen_gain <= 0.0f && !ngen_active(&gen))
+    to = t < 0 || !seq.track[t].mute ? gen_out.lvl * fm.master : 0.0f;   /* (gone: its own release) */
+    if (t < 0 && !ngen_active(&gen)) {           /* rung out: away */
+        ngen_stop(&gen);
+        gen_out.on = 0;
+        gen_gain = 0.0f;
         return;
+    }
+    if (to <= 0.0f && (gen_gain < 1e-4f || !ngen_active(&gen))) {
+        gen_gain = 0.0f;
+        gen_peak *= 0.9f;
+        if (!ngen_active(&gen))
+            return;
+    }
     nfm_zero(gen_buf, sizeof gen_buf);
     ngen_render(&gen, gen_buf[0], gen_buf[1], n);
     g = gen_gain;
-    dg = to - g;
-    if (dg > (float)n * (1.0f / 882.0f)) dg = (float)n * (1.0f / 882.0f);
-    if (dg < -(float)n * (1.0f / 882.0f)) dg = -(float)n * (1.0f / 882.0f);
+    dg = (to - g) * (to > g ? GEN_UP : GEN_DOWN) * (float)n * (1.0f / 64.0f);
     dg /= (float)n;
-    if (fm.dir_l && (fm.direct >> t & 1u)) {
+    if (fm.dir_l && gen_out.dir) {
         ol = fm.dir_l;
         or_ = fm.dir_r;
     }
-    if (fm.lp_k[t] > 0.0f) {                         /* (the trapezoid's one-poles, twice) */
-        float k = fm.lp_k[t];
+    if (gen_out.lpk > 0.0f) {                        /* (the trapezoid's one-poles, twice) */
+        float k = gen_out.lpk;
         int c;
         for (c = 0; c < 2; c++)
             for (i = 0; i < n; i++) {
@@ -503,8 +526,6 @@ static void gen_render(float *l, float *r, float *rev, float *dly, int n)
         gen_lp[0][0] = gen_lp[0][1] = gen_buf[0][n - 1];
         gen_lp[1][0] = gen_lp[1][1] = gen_buf[1][n - 1];
     }
-    sr = pct(tpar[t][T_REVERB]) * 0.5f;
-    sd = pct(tpar[t][T_DELAY]) * 0.5f;
     for (i = 0; i < n; i++) {
         float a, b;
         g += dg;
@@ -512,8 +533,8 @@ static void gen_render(float *l, float *r, float *rev, float *dly, int n)
         b = gen_buf[1][i] * g;
         ol[i] += a;
         or_[i] += b;
-        if (rev) rev[i] += (a + b) * sr;
-        if (dly) dly[i] += (a + b) * sd;
+        if (rev) rev[i] += (a + b) * gen_out.rev;
+        if (dly) dly[i] += (a + b) * gen_out.dly;
         a = a < 0.0f ? -a : a;
         b = b < 0.0f ? -b : b;
         if (a > pk) pk = a;
@@ -1279,6 +1300,7 @@ void ne_init(void)
     ngen_init(&gen, gen_mem, NE_SR, gen_seed(0));
     gen_t = -1;
     gen_gain = gen_peak = 0.0f;
+    gen_out.on = 0;
     for (t = 0; t < NE_TRACKS; t++) {
         lp_x[t] = 0.3f;
         fm.lp_k[t] = 0.0f;
@@ -1486,7 +1508,7 @@ static void drain(void)
             break;
         case C_CLOCK: clock_msg(c.a, seq.now); break;
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
-        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); rumble_stop(); break;
+        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); rumble_stop(); ngen_stop(&gen); gen_gain = 0.0f; break;
         case C_SPACE: nfx_space_shift(&fx); break;
         case C_CLEAR: {                /* CLEAR ALL (-1), CLEAR TRACK (the one): no hits, no notes */
             if (c.t < 0)
@@ -1494,7 +1516,7 @@ static void drain(void)
             else if (c.t < NE_TRACKS) {
                 nr_stop(&rumble[c.t]);
                 if (c.t == gen_t)
-                    ngen_stop(&gen);
+                    ngen_release(&gen);
             }
             int t, s;
             for (t = 0; t < NE_TRACKS; t++)

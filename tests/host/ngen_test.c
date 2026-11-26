@@ -253,7 +253,7 @@ static void handover(const char *what, void (*change)(ngen *), int at_swap)
     assert(jump < 0.05 * peak);
 }
 static void ch_sound(ngen *g) { ngen_new_sound(g, 777u); }
-static void ch_key(ngen *g) { ngen_set_key(g, 50, 0); }
+static void ch_key(ngen *g) { ngen_set_key(g, 50, NGEN_MAJOR); }
 static void ch_complex(ngen *g) { ngen_set_param(g, NGEN_COMPLEXITY, 100); }
 static void ch_spread(ngen *g) { ngen_set_param(g, NGEN_SPREAD, 10); }
 
@@ -278,7 +278,7 @@ static void demo_changes(void)
     bar = (int)s.step_len * 16;
     ngen_new_sound(&ga, 777u);
     run(&ga, &s, bar);
-    ngen_set_key(&ga, 50, 0);
+    ngen_set_key(&ga, 50, NGEN_MAJOR);
     run(&ga, &s, bar);
     ngen_set_param(&ga, NGEN_COMPLEXITY, 100);
     pat[3] = pat[5] = pat[11] = 127;
@@ -303,7 +303,7 @@ static void demo_sounds(void)
     for (k = 0; k < 10; k++) {
         if (k)
             ngen_new_sound(&ga, seeds[k]);
-        ngen_set_key(&ga, k < 5 ? 45 : 41, k % 3 != 2);
+        ngen_set_key(&ga, k < 5 ? 45 : 41, k % 3 != 2 ? NGEN_MINOR : NGEN_MAJOR);
         run(&ga, &s, (int)s.step_len * 32);
     }
     wav("ngen-sounds.wav", &s);
@@ -336,6 +336,97 @@ static void test_variety(void)
     }
     printf("variety: 32 seeds, brightness %.3f .. %.3f, level %.4f .. %.4f\n", lo, hi, qlo, qhi);
     assert(hi > 3.0 * lo);
+}
+
+/* the chords: every tone in the scale (just intonation, the harmonic seventh a third of a semitone
+ * flat); one note up to a ninth; the intense chord now and then another one */
+static int pc_of(float f, int root, double *err)
+{
+    double st = 12.0 * log2(f / (440.0 * pow(2.0, (root - 69) / 12.0)));
+    double r = floor(st + 0.5);
+    *err = fabs(st - r);
+    return (((int)r % 12) + 12) % 12;
+}
+static void test_chords(void)
+{
+    static const unsigned masks[7] = {NGEN_MINOR, NGEN_MAJOR, 0x6ADu, 0x4A9u, 0x5ABu, 0x4E9u, 0x9ADu};   /* (dorian, minor pentatonic, phrygian, blues, harmonic minor) */
+    int sizes[6] = {0}, other = 0, k, total = 0;
+    double worst = 0;
+    for (k = 0; k < 280; k++) {
+        unsigned m = masks[k % 7], pcs[2] = {0, 0};
+        int st, i;
+        ngen_init(&ga, mem_a, SR, 31u + 7919u * (uint32_t)k);
+        ngen_set_key(&ga, 45 + k % 12, m);
+        prime(&ga);
+        for (st = 0; st < 2; st++)
+            for (i = 0; i < ga.jn[st]; i++) {
+                double e;
+                int pc = pc_of(ga.jf0[st] * (float)ga.jq[st][i], ga.root, &e);
+                assert(m >> pc & 1u);
+                worst = e > worst ? e : worst;
+                pcs[st] |= 1u << pc;
+            }
+        for (st = 0; st < 2; st++) {
+            int n = 0;
+            for (i = 0; i < 12; i++)
+                n += pcs[st] >> i & 1u;
+            sizes[n > 5 ? 5 : n]++;
+        }
+        other += (pcs[1] & pcs[0]) != pcs[0];       /* the intense chord leaves notes of the calm one */
+        total++;
+    }
+    printf("chords: notes 1:%d 2:%d 3:%d 4:%d 5:%d, intense on another chord %d of %d, worst %.2f semitones off\n",
+           sizes[1], sizes[2], sizes[3], sizes[4], sizes[5], other, total, worst);
+    assert(worst < 0.35);
+    assert(sizes[1] > 10 && sizes[3] > 40 && sizes[4] + sizes[5] > 20);
+    assert(other > total / 5 && other < total * 4 / 5);
+}
+
+/* DEVIANCE: below 90 each step strays around the sound and stays near it; from 90 it walks on, and its
+ * material with it; a new sound starts from its DNA again */
+static void test_deviance(void)
+{
+    static const uint8_t pat[16] = {127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0};
+    int d, k;
+    double spread[2];
+    for (d = 0; d < 2; d++) {                       /* how much the steps differ: 0 against 70 */
+        run_t s = start(120.0f, 8);
+        double b[16], mean = 0, var = 0;
+        int st;
+        ngen_init(&ga, mem_a, SR, 555u);
+        ngen_set_param(&ga, NGEN_DEVIANCE, d ? 70 : 0);
+        ngen_pattern(&ga, pat, 16);
+        prime(&ga);
+        run(&ga, &s, (int)s.step_len * 96);
+        for (st = 0; st < 16; st++) {               /* the loud steps only: the soft ones differ anyway */
+            int a = (int)s.step_len * (32 + 4 * st);
+            b[st] = bright(s.l, a + (int)s.step_len / 2, a + 2 * (int)s.step_len);
+            mean += b[st] / 16;
+        }
+        for (st = 0; st < 16; st++)
+            var += (b[st] - mean) * (b[st] - mean) / 16;
+        spread[d] = sqrt(var) / mean;
+        if (d)
+            for (k = 0; k < NGEN_DEVS; k++)
+                assert(fabsf(ga.dt[k]) < 2.01f * 70.0f / 89.0f * 2.0f);   /* (near its own) */
+    }
+    printf("deviance: the steps' brightness spreads %.3f at 0, %.3f at 70\n", spread[0], spread[1]);
+    assert(spread[1] > 1.5 * spread[0]);
+    {   /* from 90: it walks on, the material too; a new sound starts over */
+        run_t s = start(120.0f, 8);
+        float far = 0.0f;
+        ngen_init(&ga, mem_a, SR, 556u);
+        ngen_set_param(&ga, NGEN_DEVIANCE, 100);
+        ngen_pattern(&ga, pat, 16);
+        prime(&ga);
+        run(&ga, &s, (int)s.step_len * 16 * 8);
+        far = fabsf(ga.dt[0]) / 2.0f;
+        printf("deviance at 100: after 8 bars the cutoff %.2f of 0..89's reach away, material %.2f %.2f %.2f, %u sets\n",
+               (double)far, (double)ga.wm[0], (double)ga.wm[1], (double)ga.wm[2], (unsigned)ga.made);
+        assert(ga.made > 3 && fabsf(ga.wm[0]) + fabsf(ga.wm[1]) + fabsf(ga.wm[2]) > 0.2f);
+        ngen_new_sound(&ga, 557u);
+        assert(ga.wm[0] == 0.0f && ga.wm[1] == 0.0f && ga.wm[2] == 0.0f);
+    }
 }
 
 /* the background never runs: what plays plays on, a new sound waits */
@@ -418,6 +509,8 @@ int main(void)
     demo_changes();
     demo_sounds();
     test_variety();
+    test_chords();
+    test_deviance();
     test_starved();
     test_stereo_and_seed();
     printf("ngen tests passed\n");

@@ -5,6 +5,25 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.49
+
+Firmware identity FM-1_883. Gen moves more: Deviance, chords that change within the 303's scale, and it
+rings out instead of stopping short.
+
+- Deviance on a Gen track: the Track page, in Pitch's place (its Sound page has its own knobs). Up to
+  89 each step moves the sound around its own (its filter, brightness, vibrato, pulse, noise, place in
+  the stereo, detune), further the higher you turn it, and never far from where it began. From 90 it
+  no longer comes back: each step goes on from where the last one left off, further the nearer 100,
+  and once a bar the sound's material wanders too. A new sound (NEW SOUND, DNA) starts from its own
+  again. The default is 40.
+- Its chords follow the 303's scale (all seven, not just minor and major), and the intense side of a
+  sound may move to another chord that fits, mostly the fourth or the fifth. How full a chord is
+  differs from sound to sound: sometimes a single note, mostly three or four, now and then a seventh
+  or a ninth. Complex lets the intense side grow fuller.
+- Mute rings out: Gen fades over a second or two instead of cutting off, and comes back quickly when
+  unmuted. Stopping, clearing it, and switching to a bank or kind without Gen let it ring out the same
+  way, with the level and sends it had. Panic still stops it at once.
+
 ## 0.3.48
 
 Firmware identity FM-1_882. The first generative sound: a new kind, Gen; a low-pass on every track; and

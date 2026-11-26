@@ -555,11 +555,11 @@ int main(int argc, char **argv)
         printf("low-pass: a hat's peak %.3f open, %.3f at 100, %.3f open again\n", (double)open, (double)shut, (double)back);
         CHECK(shut < 0.3f * open && back > 0.8f * open, "low-pass: %f %f %f", (double)open, (double)shut, (double)back);
     }
-    /* GEN: a track of kind Gen plays ngen, its steps as energy; one at a time; muted, it fades; a bar
+    /* GEN: a track of kind Gen plays ngen, its steps as energy; one at a time; muted, it rings out; a bar
      * and more without steps, it goes quiet; its material made by ne_work */
     {
         int s, b, made = 0;
-        float lv_on = 0.0f, lv_mute = 1.0f, lv_quiet = 1.0f, lv_back = 0.0f;
+        float lv_on = 0.0f, lv_pre = 0.0f, lv_mute = 0.0f, lv_gone = 1.0f, lv_quiet = 1.0f, lv_back = 0.0f;
         ne_init();
         ne_set(G_TEMPO, 120);
         ne_new_sound(3, NFM_KIND_GEN);
@@ -592,13 +592,52 @@ int main(int argc, char **argv)
         render(4, 0);
         CHECK(made == 3 && ne_gen_track() == 3, "Gen: on track %d, then %d", made, ne_gen_track());
         ne_new_sound(1, NFM_KIND_SNARE);
-        ne_tset(3, T_MUTE, 1);
-        render(20, 0);                           /* 116 ms */
-        lv_mute = ne_track_level[3];
+        for (b = 0; b < 20; b++) {
+            render(1, 0);
+            if (ne_track_level[3] > lv_pre) lv_pre = ne_track_level[3];
+        }
+        ne_tset(3, T_MUTE, 1);                   /* muted it rings out: there a moment after, then gone */
+        render(10, 0);
+        for (b = 0; b < 20; b++) {               /* 60 .. 170 ms */
+            render(1, 0);
+            if (ne_track_level[3] > lv_mute) lv_mute = ne_track_level[3];
+        }
+        render(700, 0);                          /* 4 s */
+        lv_gone = ne_track_level[3];
         ne_tset(3, T_MUTE, 0);
-        for (b = 0; b < 80; b++) {
+        for (b = 0; b < 200; b++) {
             render(1, 0);
             if (ne_track_level[3] > lv_back) lv_back = ne_track_level[3];
+        }
+        {   /* its track becomes a snare (as at another bank without it): what it plays rings out */
+            float pkb, pk0, pk1;
+            for (b = 0; b < 3; b++)              /* (the others silent, Gen dry: what is heard is Gen's own) */
+                ne_tset(b, T_MUTE, 1);
+            ne_aset(A_MUTE, 1);
+            ne_tset(3, T_REVERB, 0);
+            ne_tset(3, T_DELAY, 0);
+            render(400, 0);
+            pkb = render(16, 0);
+            ne_new_sound(3, NFM_KIND_SNARE);
+            ne_tset(3, T_MUTE, 1);
+            render(40, 0);
+            pk0 = render(16, 0);                 /* (0.23 .. 0.33 s) */
+            render(1000, 0);
+            pk1 = render(16, 0);
+            printf("Gen: its track gone, %.4f before, %.4f 0.3 s after, %.5f 6 s on\n", (double)pkb, (double)pk0, (double)pk1);
+            CHECK(ne_gen_track() == -1 && pk0 > 0.25f * pkb && pk1 < 0.0005f, "Gen: tail %f, then %f (track %d)",
+                  (double)pk0, (double)pk1, ne_gen_track());
+            for (b = 0; b < NE_TRACKS; b++)
+                ne_tset(b, T_MUTE, 0);
+            ne_aset(A_MUTE, 0);
+            ne_new_sound(3, NFM_KIND_GEN);
+            ne_tset(3, T_BARS, 1);
+            for (s = 0; s < 16; s++)
+                ne_step(3, s, s % 4 == 0 || s == 14, s % 8 ? 70 : 120, 0);
+            for (b = 0; b < 400; b++) {
+                render(1, 0);
+                ne_work();
+            }
         }
         ne_clear_track(3);
         for (b = 0; b < 1400; b++) {             /* 4 bars without a step */
@@ -606,10 +645,11 @@ int main(int argc, char **argv)
             ne_work();
         }
         lv_quiet = ne_track_level[3];
-        printf("Gen: level %.3f playing, %.5f muted, %.3f back, %.5f after 4 empty bars\n", (double)lv_on,
-               (double)lv_mute, (double)lv_back, (double)lv_quiet);
+        printf("Gen: level %.3f playing, %.3f before the mute, %.3f muted 0.1 s, %.5f 4 s, %.3f back, %.5f after 4 empty bars\n",
+               (double)lv_on, (double)lv_pre, (double)lv_mute, (double)lv_gone, (double)lv_back, (double)lv_quiet);
         CHECK(lv_on > 0.03f && lv_on < 1.0f, "Gen: level %f", (double)lv_on);
-        CHECK(lv_mute < 0.002f && lv_back > 0.03f, "Gen: muted %f, back %f", (double)lv_mute, (double)lv_back);
+        CHECK(lv_mute > 0.4f * lv_pre && lv_gone < 0.002f && lv_back > 0.03f, "Gen: muted %f, then %f, back %f",
+              (double)lv_mute, (double)lv_gone, (double)lv_back);
         CHECK(lv_quiet < 0.002f, "Gen: no steps %f", (double)lv_quiet);
         ne_play(0);
         ne_init();

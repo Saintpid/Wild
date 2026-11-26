@@ -26,6 +26,7 @@
 #define NGEN_SLOTS 3u         /* playing, fading out, being made */
 #define NGEN_STEPS 128
 #define NGEN_STATES 2         /* calm, intense */
+#define NGEN_DEVS 8           /* what Deviance moves as it plays (ngen.c's deviance()) */
 #define NGEN_CHARS 6          /* a set's character as it plays: filter damping and cutoff, vibrato, pulse, struck or held */
 /* one slot: two states, two channels */
 #define NGEN_SLOT_WORDS (NGEN_STATES * 2u * NGEN_LEN)
@@ -39,6 +40,7 @@ enum {
     NGEN_INERTIA,      /* how slowly the timbre follows the energy */
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
     NGEN_NOISE,        /* noise's share of the power: a tenth of this (100: 10 %), moving with it */
+    NGEN_DEVIANCE,     /* how far each step strays: 0..89 around its own sound, 90..100 wandering on */
     NGEN_NPARAMS
 };
 
@@ -48,7 +50,7 @@ typedef struct {
     uint32_t seed;
     uint8_t param[NGEN_NPARAMS];
     int8_t root;                         /* MIDI note of the key's root */
-    uint8_t minor;
+    uint16_t mask;                       /* the scale: bit n, n semitones above the root, is in it */
     /* the pattern and its plan */
     uint8_t vel[NGEN_STEPS];
     float plan[NGEN_STEPS];              /* what the timbre leans to at each step */
@@ -60,6 +62,9 @@ typedef struct {
     float gate;                          /* 1 until a bar without steps, then away */
     float amp, morph, bloom;             /* bloom: a played step's flash, brighter and noisier */
     float stab;                          /* a struck sound's envelope (its character: how struck) */
+    float dv[NGEN_DEVS], dt[NGEN_DEVS];  /* Deviance: its offsets now, and where they glide to */
+    float wm[3];                         /* ...its material's, wandered (from 90) */
+    uint32_t dn;                         /* ...steps it has drawn for */
     float tl_lo[2], tl_bd[2];            /* the tones' low-pass per side (each its own drifting cutoff) */
     float vib;                           /* vibrato, in cycles */
     float pt, pn, gn;                    /* the tones' and the noise's power, the noise's gain to its share */
@@ -69,11 +74,14 @@ typedef struct {
     float dh_x[2], dh_y[2];              /* the detuned readers' high-pass (the lows stay shared) */
     uint32_t rng, nz_next;
     float k_sp, k_mov, k_nz;             /* Spread, Movement and Noise as they glide to a knob's value */
-    float ph[3], po[3];                  /* readers (shared, left detuned, right detuned): the playing set's, the old's */
-    float f0[NGEN_SLOTS];                /* each slot's fundamental, as it was made (a new key comes with its set) */
+    float ph[NGEN_STATES][3], po[NGEN_STATES][3];   /* readers per state (shared, left detuned, right
+                                                     * detuned): the playing set's, the old's */
+    float f0[NGEN_SLOTS][NGEN_STATES];   /* each slot's chords' fundamentals, as made (a key comes with its set) */
+    uint8_t nzq[NGEN_SLOTS][9], nzn[NGEN_SLOTS];     /* ...its intense chord's tones (the noise's resonances) */
     float dk[NGEN_SLOTS], dl;            /* each slot's dullness (from its seed), and the one heard now */
     float chr[NGEN_SLOTS][NGEN_CHARS], ch[NGEN_CHARS];   /* ...and its character (ngen.c's character()) */
-    float job_f0;
+    float jf0[NGEN_STATES];              /* the set being made: its chords */
+    uint8_t jq[NGEN_STATES][9], jn[NGEN_STATES];
     uint32_t since, step_len, step_t;
     uint8_t pos, live;
     volatile uint8_t cur, old, ready;    /* slots: playing, fading out (old == cur: none), ready to play */
@@ -88,7 +96,10 @@ typedef struct {
 
 void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed);
 void ngen_set_param(ngen *g, int p, int value);
-void ngen_set_key(ngen *g, int root_note, int minor);
+/* the key: its root (MIDI) and its scale (bit n: n semitones up is in it; 0: natural minor) */
+#define NGEN_MINOR 0x5ADu                /* 0 2 3 5 7 8 10 */
+#define NGEN_MAJOR 0xAB5u                /* 0 2 4 5 7 9 11 */
+void ngen_set_key(ngen *g, int root_note, unsigned scale);
 /* a new sound: a new seed; the set is remade and faded in */
 void ngen_new_sound(ngen *g, uint32_t seed);
 /* the pattern, len steps of velocities (0: empty); replans from the next step */
@@ -102,4 +113,5 @@ int ngen_work(ngen *g);
 /* 1 while it sounds or something is coming */
 int ngen_active(const ngen *g);
 void ngen_stop(ngen *g);
+void ngen_release(ngen *g);               /* the same, rung out: the gate falls as after a bar without steps */
 #endif

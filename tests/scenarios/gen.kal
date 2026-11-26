@@ -1,6 +1,7 @@
 # the last kind: Gen (the Tone page's KNOB 1), on track 4: NEW SOUND makes it the Gen track, a
 # generative stereo sound whose steps are energy. Its Sound and Tone pages turn its own knobs; a second
-# Gen track is refused; it plays, and goes quiet a bar after its last step
+# Gen track is refused; it plays, its Deviance on the Track page; muted it rings out; it goes quiet a
+# bar after its last step
 wait 200
 tap OCT+
 tap OCT+
@@ -38,6 +39,24 @@ wait 50
 wav gen.wav
 tap PLAY
 wait 6000
+expect glevel >20
+# Deviance: on its Track page, in Pitch's place (its Sound page is its own)
+tap EDIT
+expect view 2
+spin K2 30
+expect tpar8 70
+wait 100
+shot gen-track.png
+# muted it rings out: there a moment after, gone in a few seconds; back when unmuted
+tapkey b7
+expect tpar7 1
+wait 100
+expect glevel >5
+wait 4000
+expect glevel <2
+tapkey b7
+expect tpar7 0
+wait 3000
 expect glevel >20
 # a second Gen track: refused, the first plays on
 tap OCT-
