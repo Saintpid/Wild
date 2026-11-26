@@ -58,30 +58,29 @@ static int degrees(unsigned m, int8_t *d)
         d[n++] = 0;
     return n;
 }
+/* the harmony now: at home (hs 0) the DNA's chords; away, others drawn from hs */
+static uint32_t hseed(const ngen *g) { return g->hs ? g->seed ^ g->hs : g->seed; }
 static int chord_size(const ngen *g, int state)
 {
-    float a = rnd01(g->seed, 10u, 1u), b = rnd01(g->seed, 10u, 2u);
+    uint32_t sd = hseed(g);
+    float a = rnd01(sd, 10u, 1u), b = rnd01(sd, 10u, 2u);
     int c = a < 0.15f ? 1 : a < 0.3f ? 2 : a < 0.75f ? 3 : a < 0.95f ? 4 : 5;
     int x = b < 0.3f ? 0 : b < 0.7f ? 1 : 2;
     if (state)
         c += (int)((float)x * pct(g, NGEN_COMPLEXITY) + 0.5f);
     return c > 5 ? 5 : c;
 }
-static int chord_degree(const ngen *g, int state)
+/* a degree near c in harmony: the fourth and fifth most, the thirds and sixths, now and then the rest */
+static int related(const int8_t *d, int n, int c, float r)
 {
-    int8_t d[12];
-    int n = degrees(g->mask, d), i, c = d[0], w, tot = 0;
-    if (rnd01(g->seed, 10u, 3u) >= 0.7f || d[0] != 0)
-        c = d[(int)(rnd01(g->seed, 10u, 4u) * (float)n) % n];
-    if (!state || rnd01(g->seed, 10u, 5u) < 0.4f)
-        return c;
-    for (i = 0; i < n; i++) {                /* the related ones, by how near in harmony */
+    int i, w, tot = 0;
+    for (i = 0; i < n; i++) {
         int k = (d[i] - c + 12) % 12;
         tot += !k ? 0 : (k == 5 || k == 7) ? 3 : (k == 3 || k == 4 || k == 8 || k == 9) ? 2 : 1;
     }
     if (!tot)
         return c;
-    w = (int)(rnd01(g->seed, 10u, 6u) * (float)tot);
+    w = (int)(r * (float)tot);
     for (i = 0; i < n; i++) {
         int k = (d[i] - c + 12) % 12, wk = !k ? 0 : (k == 5 || k == 7) ? 3 : (k == 3 || k == 4 || k == 8 || k == 9) ? 2 : 1;
         if (w < wk)
@@ -89,6 +88,19 @@ static int chord_degree(const ngen *g, int state)
         w -= wk;
     }
     return c;
+}
+static int chord_degree(const ngen *g, int state)
+{
+    int8_t d[12];
+    int n = degrees(g->mask, d), c = d[0];
+    uint32_t sd = hseed(g);
+    if (rnd01(g->seed, 10u, 3u) >= 0.7f || d[0] != 0)
+        c = d[(int)(rnd01(g->seed, 10u, 4u) * (float)n) % n];
+    if (g->hs)                               /* away: a chord related to its own */
+        c = related(d, n, c, rnd01(sd, 10u, 8u));
+    if (!state || rnd01(sd, 10u, 5u) < 0.4f)
+        return c;
+    return related(d, n, c, rnd01(sd, 10u, 6u));
 }
 static unsigned gcd_(unsigned a, unsigned b)
 {
@@ -111,7 +123,7 @@ static void chord(const ngen *g, int state, float *f0, uint8_t *q, uint8_t *nq)
     if (in_scale(m, d + 10)) sev = third == 2 ? 2 : 1;   /* (on a major chord the harmonic seventh) */
     else if (in_scale(m, d + 11)) sev = 3;
 #define ADD(a, b) do { num[n] = (a); den[n] = (b); n++; } while (0)
-    if (!(s >= 3 && third && rnd01(g->seed, 10u, 7u + (uint32_t)state) < 0.15f))
+    if (!(s >= 3 && third && rnd01(hseed(g), 10u, 7u + (uint32_t)state) < 0.15f))
         ADD(1, 1);                                   /* (now and then without its root) */
     if (s >= 2)
         ADD(3, 2);
@@ -266,6 +278,7 @@ void ngen_new_sound(ngen *g, uint32_t seed)
     g->seed = seed;
     for (k = 0; k < 3; k++)                 /* (a new sound starts where its DNA says, not where one wandered) */
         g->wm[k] = 0.0f;
+    g->hs = 0;
     g->req++;
 }
 
@@ -345,6 +358,14 @@ void ngen_step(ngen *g, int pos, uint32_t step_len)
     g->step_len = step_len ? step_len : 1;
     g->step_t = 0;
     v = (float)g->vel[g->pos] * (1.0f / 127.0f);
+    if (g->live && g->pos % 16u == 0u) {           /* a bar: now and then another chord, and home again */
+        uint32_t h = 0x68726d21u ^ (++g->hn * 0x9e3779b9u);
+        float mv = pct(g, NGEN_MOVEMENT);
+        if (rnd01(h, 1u, 1u) < (g->hs ? 0.35f + 0.25f * mv : 0.1f + 0.25f * mv)) {
+            g->hs = g->hs && rnd01(h, 1u, 2u) < 0.7f ? 0u : (hash32(h) | 1u);   /* (away: mostly home again) */
+            g->req++;
+        }
+    }
     if (v > 0.0f) {
         g->e += NG_INJECT * v * (1.0f - g->e);
         if (v > g->bloom)

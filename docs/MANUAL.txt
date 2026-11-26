@@ -261,7 +261,10 @@ GEN (Kind Gen, then NEW SOUND; one track at a time)
   A generative stereo sound in place of the drum: a chord in the 303's key (its root, Tune and Scale,
   every tone in the scale) with a little noise, nothing below ~95 Hz. How full the chord is differs
   per sound (a single note up to a ninth chord); the intense side may move to another chord of the
-  scale, mostly the fourth or fifth, and Complex lets it grow fuller. Its DNA picks the
+  scale, mostly the fourth or fifth, and Complex lets it grow fuller.
+  Now and then, at the start of a bar, it moves to another chord of the scale (often another size too)
+  and mostly comes home again a bar or two later; more Movement, more often. Each change glides over a
+  quarter. Its DNA picks the
   family (saws, squares, organ, vowels, soft, buzz, glass), the voicing (full chord, fifths, drone,
   ninth, upper notes), the register, the filter, vibrato and pulse, and whether steps are held or
   struck. Its steps are energy,

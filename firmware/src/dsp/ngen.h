@@ -65,6 +65,7 @@ typedef struct {
     float dv[NGEN_DEVS], dt[NGEN_DEVS];  /* Deviance: its offsets now, and where they glide to */
     float wm[3];                         /* ...its material's, wandered (from 90) */
     uint32_t dn;                         /* ...steps it has drawn for */
+    uint32_t hs, hn;                     /* away from its own chords: 0 at home, else what was drawn; bars drawn for */
     float tl_lo[2], tl_bd[2];            /* the tones' low-pass per side (each its own drifting cutoff) */
     float vib;                           /* vibrato, in cycles */
     float pt, pn, gn;                    /* the tones' and the noise's power, the noise's gain to its share */

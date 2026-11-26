@@ -382,6 +382,43 @@ static void test_chords(void)
     assert(other > total / 5 && other < total * 4 / 5);
 }
 
+/* now and then another chord of the scale, mostly home again: a bar at a time, each in the scale */
+static void test_progression(void)
+{
+    static const uint8_t pat[16] = {127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0};
+    run_t s = start(120.0f, 8);
+    unsigned seen = 0, made = 0;
+    int bar, i, st, changes = 0, home = 0;
+    double worst = 0;
+    ngen_init(&ga, mem_a, SR, 4242u);
+    ngen_set_key(&ga, 45, NGEN_MINOR);
+    ngen_pattern(&ga, pat, 16);
+    prime(&ga);
+    made = ga.made;
+    for (bar = 0; bar < 32; bar++) {
+        run(&ga, &s, (int)s.step_len * 16);
+        home += ga.hs == 0;
+        if (ga.made != made) {
+            unsigned pcs = 0;
+            made = ga.made;
+            for (st = 0; st < 2; st++)
+                for (i = 0; i < ga.jn[st]; i++) {
+                    double e;
+                    int pc = pc_of(ga.jf0[st] * (float)ga.jq[st][i], ga.root, &e);
+                    assert(NGEN_MINOR >> pc & 1u);
+                    worst = e > worst ? e : worst;
+                    if (!st) pcs |= 1u << pc;
+                }
+            changes += pcs != seen;
+            seen = pcs;
+        }
+        s.n = 0;
+    }
+    printf("progression: 32 bars, %d changes of chord, at home %d bars, worst %.2f semitones off\n", changes, home,
+           worst);
+    assert(changes >= 3 && home >= 12 && home < 32 && worst < 0.35);
+}
+
 /* DEVIANCE: below 90 each step strays around the sound and stays near it; from 90 it walks on, and its
  * material with it; a new sound starts from its DNA again */
 static void test_deviance(void)
@@ -395,6 +432,7 @@ static void test_deviance(void)
         int st;
         ngen_init(&ga, mem_a, SR, 555u);
         ngen_set_param(&ga, NGEN_DEVIANCE, d ? 70 : 0);
+        ngen_set_param(&ga, NGEN_MOVEMENT, 0);       /* (its own drifts and chord changes aside) */
         ngen_pattern(&ga, pat, 16);
         prime(&ga);
         run(&ga, &s, (int)s.step_len * 96);
@@ -510,6 +548,7 @@ int main(void)
     demo_sounds();
     test_variety();
     test_chords();
+    test_progression();
     test_deviance();
     test_starved();
     test_stereo_and_seed();
