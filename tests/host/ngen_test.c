@@ -212,6 +212,7 @@ static void test_saturation(void)
 /* A change while it plays, against the same run without it: the difference must grow in smoothly. The
  * two runs are the same up to the change (noise and all), so any jump in the difference is the change's. */
 static float ref_l[SR * 8], ref_r[SR * 8];
+static int ho_pre;                                 /* (steps more before the change) */
 static void handover(const char *what, void (*change)(ngen *), int at_swap)
 {
     uint8_t pat[16] = {127, 0, 64, 0, 127, 0, 0, 90, 0, 127, 0, 0, 127, 64, 0, 0};
@@ -222,7 +223,7 @@ static void handover(const char *what, void (*change)(ngen *), int at_swap)
     ngen_set_param(&ga, NGEN_NOISE, 0);             /* the tones alone: the noise's resonances follow the seed */
     ngen_pattern(&ga, pat, 16);
     prime(&ga);
-    run(&ga, &s, (int)s.step_len * 32);
+    run(&ga, &s, (int)s.step_len * (32 + ho_pre));
     bar = (int)s.step_len * 16;
     gb = ga;                                         /* the same state, on its own memory */
     gb.mem = mem_b;
@@ -256,10 +257,14 @@ static void ch_sound(ngen *g) { ngen_new_sound(g, 777u); }
 static void ch_key(ngen *g) { ngen_set_key(g, 50, NGEN_MAJOR); }
 static void ch_complex(ngen *g) { ngen_set_param(g, NGEN_COMPLEXITY, 100); }
 static void ch_spread(ngen *g) { ngen_set_param(g, NGEN_SPREAD, 10); }
+static void ch_stab(ngen *g) { assert(g->sbok && !g->in_sb); g->want = 1; g->away = 2; }   /* (a stab, by hand) */
 
 static void test_handover(void)
 {
     handover("new sound", ch_sound, 1);
+    ho_pre = 3;                                      /* (off the bar's one, where a stab never is) */
+    handover("a stab", ch_stab, 1);
+    ho_pre = 0;
     handover("new key", ch_key, 0);
     handover("Complexity", ch_complex, 0);
     handover("Spread", ch_spread, 0);
@@ -382,7 +387,7 @@ static void test_chords(void)
     assert(other > total / 5 && other < total * 4 / 5);
 }
 
-/* now and then another chord of the scale, mostly home again: a bar at a time, each in the scale */
+/* Chords Pop: now and then another chord of the scale, mostly home again: a bar at a time, each in the scale */
 static void test_progression(void)
 {
     static const uint8_t pat[16] = {127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0, 127, 0, 90, 0};
@@ -392,6 +397,7 @@ static void test_progression(void)
     double worst = 0;
     ngen_init(&ga, mem_a, SR, 4242u);
     ngen_set_key(&ga, 45, NGEN_MINOR);
+    ngen_set_param(&ga, NGEN_CHORDS, NGEN_POP);
     ngen_pattern(&ga, pat, 16);
     prime(&ga);
     made = ga.made;
@@ -417,6 +423,50 @@ static void test_progression(void)
     printf("progression: 32 bars, %d changes of chord, at home %d bars, worst %.2f semitones off\n", changes, home,
            worst);
     assert(changes >= 3 && home >= 12 && home < 32 && worst < 0.35);
+}
+
+/* Chords Stab: another chord on a chosen offbeat or two for a sixteenth or an eighth, never on a bar's
+ * one, home the rest of the time; Hold: never; Dub: traded on many steps. Each a chord of the scale. */
+static void test_stabs(void)
+{
+    static const uint8_t pat[32] = {127, 0, 0, 90, 0, 0, 110, 0, 127, 0, 0, 90, 0, 0, 110, 0,
+                                    127, 0, 0, 90, 0, 0, 110, 0, 127, 0, 0, 90, 0, 0, 120, 0};
+    int mode, st, away[3] = {0, 0, 0}, places[3] = {0, 0, 0};
+    for (mode = 0; mode < 3; mode++) {
+        static const int M[3] = {NGEN_HOLD, NGEN_STAB, NGEN_DUB};
+        run_t s = start(120.0f, 8);
+        unsigned at = 0;
+        ngen_init(&ga, mem_a, SR, 9001u);
+        ngen_set_key(&ga, 45, NGEN_MINOR);
+        ngen_set_param(&ga, NGEN_CHORDS, M[mode]);
+        ngen_pattern(&ga, pat, 32);
+        prime(&ga);
+        for (st = 0; st < 32 * 8; st++) {
+            run(&ga, &s, (int)s.step_len);
+            if (ga.in_sb) {
+                int i;
+                away[mode]++;
+                at |= 1u << (ga.pos % 32u);
+                assert(ga.pos % 16u != 0u && ga.cur == ga.sb && ga.sb != ga.home);
+                assert(ga.f0[ga.sb][0] != ga.f0[ga.home][0]);
+                if (ga.wr == ga.sb)              /* (the last set made was it: its tones in the scale) */
+                    for (i = 0; i < ga.jn[0]; i++) {
+                        double e;
+                        assert(NGEN_MINOR >> pc_of(ga.jf0[0] * (float)ga.jq[0][i], ga.root, &e) & 1u);
+                        assert(e < 0.35);
+                    }
+            }
+            if (s.n > (int)s.step_len * 64)
+                s.n = 0;
+        }
+        for (st = 0; st < 32; st++)
+            places[mode] += at >> st & 1u;
+    }
+    printf("chords: steps away in 8 loops of 2 bars, hold %d, stab %d (on %d places: %d %d), dub %d (on %d)\n",
+           away[0], away[1], places[1], ga.sp[0], ga.sp[1], away[2], places[2]);
+    assert(away[0] == 0);
+    assert(away[1] >= 8 && away[1] <= 60 && places[1] <= 6);
+    assert(away[2] > away[1] && places[2] > places[1]);
 }
 
 /* DEVIANCE: below 90 each step strays around the sound and stays near it; from 90 it walks on, and its
@@ -549,6 +599,7 @@ int main(void)
     test_variety();
     test_chords();
     test_progression();
+    test_stabs();
     test_deviance();
     test_starved();
     test_stereo_and_seed();

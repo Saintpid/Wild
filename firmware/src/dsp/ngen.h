@@ -41,8 +41,13 @@ enum {
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
     NGEN_NOISE,        /* noise's share of the power: a tenth of this cubed (100: 10 %, 50: 1.25 %), moving with it */
     NGEN_DEVIANCE,     /* how far each step strays: 0..89 around its own sound, 90..100 wandering on */
+    NGEN_CHORDS,       /* how the chords move: NGEN_HOLD, _STAB, _POP, _DUB */
     NGEN_NPARAMS
 };
+
+/* Chords: one chord (as the energy has it); stab, another chord on a chosen offbeat, straight back;
+ * pop, another for a bar or two now and then; dub, the two traded on the steps */
+enum { NGEN_HOLD, NGEN_STAB, NGEN_POP, NGEN_DUB };
 
 typedef struct {
     int16_t *mem;                        /* NGEN_MEM_WORDS, owned by the caller (the pool) */
@@ -66,6 +71,9 @@ typedef struct {
     float wm[3];                         /* ...its material's, wandered (from 90) */
     uint32_t dn;                         /* ...steps it has drawn for */
     uint32_t hs, hn;                     /* away from its own chords: 0 at home, else what was drawn; bars drawn for */
+    uint8_t sb, sbok, home, want, in_sb; /* the other chord (stabs, dub): its slot, made; the home slot; asked for, heard */
+    uint8_t away, ns, sp[2], jsb;        /* ...steps left away; the pattern's stab steps; the set being made is it */
+    uint32_t sn;                         /* ...steps drawn for */
     float tl_lo[2], tl_bd[2];            /* the tones' low-pass per side (each its own drifting cutoff) */
     float vib;                           /* vibrato, in cycles */
     float pt, pn, gn;                    /* the tones' and the noise's power, the noise's gain to its share */

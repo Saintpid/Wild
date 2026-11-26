@@ -1,6 +1,6 @@
-# Wild 0.3.52 - experimental FM-1 firmware
+# Wild 0.3.53 - experimental FM-1 firmware
 
-**0.3.52: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end, and Gen now and then moves to another chord of the scale for a bar or two (more with Movement). On a Gen track up to 89 each
+**0.3.53: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end, and **Chords** (Gen's Track page, KNOB 2) moves its chords: Stab (techno stabs: another chord of the scale on a chosen offbeat for a sixteenth or an eighth, straight back), Pop (another chord for a bar or two now and then), Dub (the two traded on the steps) or Hold. On a Gen track up to 89 each
 step moves the sound around its own, from 90 it wanders on from step to step. Its chords follow the
 303's scale, from a single note to a ninth, and the intense side may move to another chord. Muted,
 stopped or gone with a bank switch, it rings out instead of stopping short.

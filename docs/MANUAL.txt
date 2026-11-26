@@ -262,9 +262,16 @@ GEN (Kind Gen, then NEW SOUND; one track at a time)
   every tone in the scale) with a little noise, nothing below ~95 Hz. How full the chord is differs
   per sound (a single note up to a ninth chord); the intense side may move to another chord of the
   scale, mostly the fourth or fifth, and Complex lets it grow fuller.
-  Now and then, at the start of a bar, it moves to another chord of the scale (often another size too)
-  and mostly comes home again a bar or two later; more Movement, more often. Each change glides over a
-  quarter. Its DNA picks the
+  Chords (Track page, knob 2, in Pitch's place): how it moves to another chord of the scale (mostly
+  the fourth or fifth, sometimes a third or sixth away, often another size).
+    Stab (to start): the main chord almost all the time; on one or two chosen offbeats of the pattern
+      (an offbeat sixteenth most, louder steps and a bar's end more often, never a bar's one) the
+      other chord for a sixteenth, an eighth if the next step is empty, then straight back (5 ms).
+      The places repeat like a riff, most times round (more with Movement), now and then another.
+    Pop: now and then, at the start of a bar, another chord for a bar or two, mostly home again,
+      gliding over a quarter; more Movement, more often.
+    Dub: the main chord and the other traded on the played steps by chance; home on each bar's one.
+    Hold: one chord. Its DNA picks the
   family (saws, squares, organ, vowels, soft, buzz, glass), the voicing (full chord, fifths, drone,
   ninth, upper notes), the register, the filter, vibrato and pulse, and whether steps are held or
   struck. Its steps are energy,
@@ -274,7 +281,7 @@ GEN (Kind Gen, then NEW SOUND; one track at a time)
   share, Drive, Mod) do not reach it. A second track set to Gen is refused ("ONE GEN TRACK").
   Muted it rings out (a second or two); stopped, cleared, or gone with a bank switch or another kind,
   it lets go the same way on the level and sends it had. Panic stops it at once.
-  Track page: Deviance (knob 1), as on every track; Pitch has nothing to do here. 0-89: each step moves the sound around its own (filter,
+  Track page: Deviance (knob 1), as on every track. 0-89: each step moves the sound around its own (filter,
   brightness, vibrato, pulse, noise, stereo place, detune), further the higher, never far from it.
   90-100 (Wander): each step goes on from the last one, further the nearer 100, and once a bar its
   material wanders too; a new sound starts from its own again.

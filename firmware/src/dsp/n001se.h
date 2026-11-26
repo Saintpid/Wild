@@ -81,6 +81,7 @@ enum {
     T_GCOMPLEX, T_GMOVE, T_GSPREAD, T_GNOISE,        /* a Gen track's (kind Gen: ngen, its steps as energy) */
     T_GINERTIA, T_GDECAY, T_GSEED,                   /* ...how slowly it follows, how long energy lasts, its DNA */
     T_LPF,                                           /* a soft low-pass on the track (0 open .. 100 ~140 Hz) */
+    T_GCHORDS,                                       /* a Gen track's chords: Hold, Stab, Pop, Dub (NGEN_HOLD..) */
     T_NPARAMS
 };
 /* the acid line's parameters */

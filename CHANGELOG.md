@@ -5,11 +5,11 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.52
+## 0.3.53
 
-Firmware identity FM-1_886. The first generative sound: a new kind, Gen, with Deviance, chords in the
+Firmware identity FM-1_887. The first generative sound: a new kind, Gen, with Deviance, chords in the
 303's scale, and a ring-out instead of a sudden stop; a low-pass on every track; and the mutes recorded.
-(0.3.45 to 0.3.48, ids 879 to 882, a 0.3.49 with id 883, 0.3.50 and 0.3.51 (ids 884, 885) were test builds of it;
+(0.3.45 to 0.3.48, ids 879 to 882, a 0.3.49 with id 883, 0.3.50 to 0.3.52 (ids 884 to 886) were test builds of it;
 the 0.3.49 below is the banks' release.)
 
 - REC records the mute keys (black 5 to 9) too, like a knob: with REC on and playing, each press goes
@@ -39,10 +39,18 @@ the 0.3.49 below is the banks' release.)
 - Deviance is now on the Track page (EDIT, KNOB 1) for every track: drums, Rumble and Gen alike (it
   was the Sound page's KNOB 1, which is now empty). The 303's own Deviance page moved from ENV to EDIT:
   EDIT twice on the 303, and Banks is EDIT's third page there.
-- Gen changes chord now and then while it plays: at the start of a bar it may move to another chord of
-  the scale (mostly the fourth or the fifth, sometimes a third or sixth away), often with another
-  size (a single note up to a ninth), and mostly comes home again a bar or two later. More Movement,
-  more changes. The change glides over a quarter.
+- **Chords**, a Gen track's way of moving its chords: the Track page (EDIT), KNOB 2, in Pitch's place.
+  - **Stab** (to start): techno stabs. The main chord plays almost all the time; on one or two chosen
+    offbeats of the pattern (an offbeat sixteenth most, louder steps and the end of a bar more often,
+    never a bar's one) another chord of the scale comes in for a sixteenth, an eighth if the next step
+    is empty, and straight back. The places repeat with the pattern like a riff, most times round
+    (more with Movement), and now and then on another offbeat. The change takes 5 ms, no click.
+  - **Pop**: now and then at the start of a bar another chord of the scale for a bar or two, mostly
+    home again, gliding over a quarter (as in the test build 0.3.52). More with Movement.
+  - **Dub**: the main chord and the other traded on the played steps by chance, home on each bar's one.
+  - **Hold**: one chord (the energy still takes it to its intense side).
+  The other chord is mostly the fourth or the fifth, sometimes a third or a sixth away, often with
+  another size (a single note up to a ninth).
 - SEL, then a black mute key (5 to 9), or a mute key with SEL held: that track is selected, a quick
   jump to it. Nothing is muted, and the bank choice ends.
 - Gen's Noise falls off steeply: 100 is as before (10 % of the sound), 50 about 1 %, and the first

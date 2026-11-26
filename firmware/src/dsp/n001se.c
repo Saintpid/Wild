@@ -111,6 +111,7 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_GDECAY] = {"Decay", 0, 100, 10},
     [T_GSEED] = {"DNA", 0, 255, 0},
     [T_LPF] = {"Low-pass", 0, 100, 0},
+    [T_GCHORDS] = {"Chords", 0, 3, 1},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -257,6 +258,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     case T_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
     case T_DRIFT: cpy(b, v ? "In" : "Bypass"); return;
+    case T_GCHORDS: cpy(b, v == 1 ? "Stab" : v == 2 ? "Pop" : v == 3 ? "Dub" : "Hold"); return;
     }
     itoa_s(v, b);
 }
@@ -448,6 +450,7 @@ static void gen_follow(void)
     ngen_set_param(&gen, NGEN_INERTIA, tpar[g][T_GINERTIA]);
     ngen_set_param(&gen, NGEN_DECAY, tpar[g][T_GDECAY]);
     ngen_set_param(&gen, NGEN_DEVIANCE, tpar[g][T_DEV]);
+    ngen_set_param(&gen, NGEN_CHORDS, tpar[g][T_GCHORDS]);
     ngen_new_sound(&gen, gen_seed(tpar[g][T_GSEED]));
     {
         float tu = acid.tune;

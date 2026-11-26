@@ -245,7 +245,7 @@ static int view_knob(int i)
     if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
         return GEN_KNOB[ui.view == V_TONE][i];
     if (ui.view == V_TRACK && i == 1 && is_gen(ui.track))
-        return K_NONE;                               /* (Pitch: no hits to tune) */
+        return KT | T_GCHORDS;                       /* (Pitch's place: it has no hits to tune) */
     if (ui.view == V_TFX && i == 2 && is_gen(ui.track))
         return KT | T_LPF;                           /* (its Filter share has no hits to take: its low-pass) */
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
@@ -319,7 +319,7 @@ static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
 /* Fixed budget, independent of project format growth: two bank operations with their automation, seven
  * edits, or two once a track has automation. 2.8 KB of it went to the generative sounds. */
-#define UNDO_BYTES 15236u
+#define UNDO_BYTES 15268u
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;

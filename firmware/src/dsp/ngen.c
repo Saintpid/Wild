@@ -220,6 +220,8 @@ void ngen_init(ngen *g, int16_t *mem, float sr, uint32_t seed)
     g->param[NGEN_INERTIA] = 40;
     g->param[NGEN_DECAY] = 10;
     g->param[NGEN_DEVIANCE] = 40;
+    g->param[NGEN_CHORDS] = NGEN_STAB;
+    g->sb = 0xFF;
     g->root = 45;                           /* A2 */
     g->mask = NGEN_MINOR;
     g->len = 16;
@@ -347,6 +349,67 @@ void ngen_pattern(ngen *g, const uint8_t *vel, int len)
         f /= w;
         g->plan[i] = f > g->pred[i] ? f : g->pred[i];
     }
+    /* its stab steps (Chords: Stab): the played ones off the beat that stand out, an offbeat sixteenth
+     * most, then an offbeat eighth, the louder, near a bar's end the more; never a bar's one. One, two
+     * in a longer loop: a riff that comes round */
+    {
+        float best[2] = {0.0f, 0.0f};
+        g->ns = 0;
+        for (i = 0; i < len; i++) {
+            float sc;
+            if (!g->vel[i] || i % 16 == 0)
+                continue;
+            sc = (i % 2 ? 2.0f : i % 4 == 2 ? 1.5f : 0.5f) + (i % 16 >= 10 ? 1.0f : 0.0f) +
+                 (float)g->vel[i] * (1.0f / 127.0f) + 0.8f * rnd01(g->seed, (uint32_t)i, 77u);
+            if (sc > best[0]) {
+                best[1] = best[0];
+                g->sp[1] = g->sp[0];
+                best[0] = sc;
+                g->sp[0] = (uint8_t)i;
+            } else if (sc > best[1]) {
+                best[1] = sc;
+                g->sp[1] = (uint8_t)i;
+            }
+        }
+        g->ns = (uint8_t)(best[1] > 0.0f && len > 16 ? 2 : best[0] > 0.0f ? 1 : 0);
+    }
+}
+
+/* CHORDS at each step (v: its strength). Stab: on its stab steps (most times round, more with Movement;
+ * now and then another offbeat) the other chord for a sixteenth, an eighth if the next step is empty,
+ * then home. Dub: the two traded on the played steps, by chance; a bar's one is home. */
+static void chords(ngen *g, float v)
+{
+    int mode = g->param[NGEN_CHORDS], k;
+    uint32_t h = 0x73746221u ^ (++g->sn * 0x9e3779b9u);
+    float mv = pct(g, NGEN_MOVEMENT);
+    if (mode != NGEN_POP && g->hs) {         /* (out of pop: its own chords again) */
+        g->hs = 0;
+        g->req++;
+    }
+    if ((g->away && --g->away == 0) || g->pos % 16u == 0u)
+        g->want = 0;                         /* (a bar's one is home) */
+    if (mode == NGEN_STAB && v > 0.0f) {
+        int hit = 0;
+        for (k = 0; k < g->ns; k++)
+            if (g->pos == g->sp[k] && rnd01(h, 2u, 1u) < 0.55f + 0.4f * mv)
+                hit = 1;
+        if (!hit && g->pos % 2u && rnd01(h, 2u, 2u) < 0.05f * mv)
+            hit = 1;
+        if (hit) {
+            g->want = 1;
+            g->away = (uint8_t)(g->vel[(g->pos + 1u) % g->len] ? 1 : 2);
+        }
+    } else if (mode == NGEN_DUB && v > 0.0f) {
+        g->away = 0;
+        if (g->pos % 16u == 0u)
+            g->want = 0;
+        else if (rnd01(h, 3u, 1u) < 0.25f + 0.35f * mv)
+            g->want = (uint8_t)!g->want;
+    } else if (mode != NGEN_STAB && mode != NGEN_DUB) {
+        g->away = 0;
+        g->want = 0;
+    }
 }
 
 void ngen_step(ngen *g, int pos, uint32_t step_len)
@@ -358,7 +421,8 @@ void ngen_step(ngen *g, int pos, uint32_t step_len)
     g->step_len = step_len ? step_len : 1;
     g->step_t = 0;
     v = (float)g->vel[g->pos] * (1.0f / 127.0f);
-    if (g->live && g->pos % 16u == 0u) {           /* a bar: now and then another chord, and home again */
+    chords(g, v);
+    if (g->param[NGEN_CHORDS] == NGEN_POP && g->live && g->pos % 16u == 0u) {   /* a bar: now and then another chord, home again */
         uint32_t h = 0x68726d21u ^ (++g->hn * 0x9e3779b9u);
         float mv = pct(g, NGEN_MOVEMENT);
         if (rnd01(h, 1u, 1u) < (g->hs ? 0.35f + 0.25f * mv : 0.1f + 0.25f * mv)) {
@@ -536,15 +600,35 @@ int ngen_work(ngen *g)
     if (g->req != g->req_done) {            /* asked for (again): start over */
         g->req_done = g->req;
         g->job = 1;
+        g->jsb = 0;
+        g->sbok = 0;                        /* (the other chord goes with its home: made again after) */
+    } else if (!g->job && g->have && !g->sbok && g->old == g->cur && !g->in_sb &&
+               (g->param[NGEN_CHORDS] == NGEN_STAB || g->param[NGEN_CHORDS] == NGEN_DUB)) {
+        g->job = 1;                         /* the other chord, to stab or trade with */
+        g->jsb = 1;
     }
-    if (g->job == 1) {                      /* start: a slot neither playing nor fading out */
+    if (g->job == 1) {                      /* start: a slot neither playing nor fading out (nor the other chord) */
         uint8_t s;
+        uint32_t hs = g->hs;
         for (s = 0; s < NGEN_SLOTS; s++)
-            if (s != g->cur && s != g->old)
+            if (s != g->cur && s != g->old && (s != g->sb || !g->sbok) && (s != g->home || !g->in_sb))
                 break;
+        if (s >= NGEN_SLOTS) {              /* (all three in use: the other chord gives way) */
+            if (g->jsb) {
+                g->job = 0;
+                return 0;
+            }
+            g->sbok = 0;
+            s = g->sb;
+        }
         g->wr = s;
+        if (g->jsb) {                       /* a chord near home: the fourth, the fifth most */
+            g->sbok = 0;
+            g->hs = (hash32(g->seed ^ (g->made * 0x9e3779b9u) ^ hs) | 1u);
+        }
         chord(g, 0, &g->jf0[0], g->jq[0], &g->jn[0]);
         chord(g, 1, &g->jf0[1], g->jq[1], &g->jn[1]);
+        g->hs = hs;
         g->state = 0;
         g->it_t = g->it_n = 0;
         g->job = 2;
@@ -571,6 +655,12 @@ int ngen_work(ngen *g)
     character(g, g->chr[g->wr]);
     g->made++;
     NG_FENCE();
+    if (g->jsb) {                           /* the other chord: kept aside, ready */
+        g->sb = g->wr;
+        g->sbok = 1;
+        g->jsb = 0;
+        return 1;
+    }
     g->ready = 1;
     return 1;
 }
@@ -626,8 +716,19 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         g->fade = 0;
         g->fade_len = g->step_len ? 4u * g->step_len : (uint32_t)(0.5f * g->sr);
         g->have = 1;
+        g->home = g->cur;
+        g->in_sb = 0;
         NG_FENCE();
         g->ready = 0;
+    } else if (g->have && g->old == g->cur && g->want != g->in_sb && (g->sbok || g->in_sb)) {
+        int j;                                         /* to the other chord and back: ~5 ms */
+        g->old = g->cur;
+        g->cur = g->want ? g->sb : g->home;
+        g->in_sb = g->want;
+        for (j = 0; j < NGEN_STATES * 3; j++)
+            g->po[j / 3][j % 3] = g->ph[j / 3][j % 3];
+        g->fade = 0;
+        g->fade_len = (uint32_t)(0.005f * g->sr);
     }
     if (!g->have)
         return;
