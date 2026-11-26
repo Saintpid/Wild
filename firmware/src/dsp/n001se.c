@@ -64,10 +64,12 @@ static const ne_param_t GP[G_NPARAMS] = {
     [G_RMOTION] = {"Movement", 0, 100, 40},
     [G_SKNOB] = {"Select", 0, 0, 0},
     [G_AKNOB] = {"Algorithm", 0, 0, 0},
+    [G_SYNC] = {"Sync", 0, 1, 1},
+    [G_SWITCH] = {"Switch", 0, NE_SWITCH_8, NE_SWITCH_NOW},
 };
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
-    [T_RANDLEN] = {"Rnd len", 0, 8, 0},
+    [T_RANDLEN] = {"Rnd len", 0, 100, 0},           /* % of new patterns with a length by chance */
     [T_HITLESS] = {"Less", 0, 100, 50},
     [T_HITFILL] = {"Fill", 0, 100, 13},
     [T_PITCH] = {"Pitch", 0, 24, 0},
@@ -134,12 +136,12 @@ static const ne_param_t AP[A_NPARAMS] = {
 };
 const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i : 0]; }
 
-/* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc drifting */
+/* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc 2 */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
     {2, 0, 40, 16, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
     {2, 0, 50, 13, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
     {1, 0, 50, 38, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
-    {2, 3, 50, 13, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 50, 13, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
@@ -203,7 +205,8 @@ void ne_param_text(int i, int v, char *b)
     switch (i) {
     case G_TEMPO: case G_POLY: itoa_s(v, b); return;
     case G_MIDICH: if (v) itoa_s(v, b); else cpy(b, "All"); return;
-    case G_USBAUDIO: cpy(b, v ? "On" : "Off"); return;
+    case G_USBAUDIO: case G_SYNC: cpy(b, v ? "On" : "Off"); return;
+    case G_SWITCH: cpy(b, v == NE_SWITCH_1 ? "1 bar" : v == NE_SWITCH_4 ? "4 bars" : v == NE_SWITCH_8 ? "8 bars" : "Now"); return;
     case G_ACIDWAVES: cpy(b, v ? "All" : "Original"); return;
     case G_SELMODE: cpy(b, v == NE_SEL_AB ? "A/B" : v == NE_SEL_COPY ? "Copy" : "Chance"); return;
     case G_PKNOB: case G_SKNOB: case G_AKNOB: {
@@ -233,7 +236,7 @@ void ne_param_text(int i, int v, char *b)
 void ne_tparam_text(int i, int v, char *b)
 {
     switch (i) {
-    case T_HITLESS: case T_HITFILL:
+    case T_HITLESS: case T_HITFILL: case T_RANDLEN:
         itoa_s(v, b);
         while (*b) b++;
         cpy(b, "%");
@@ -241,7 +244,6 @@ void ne_tparam_text(int i, int v, char *b)
     case T_KIND: cpy(b, ne_kind_name(v)); return;
     case T_MUTE: case T_RMUTE: cpy(b, v ? "Muted" : "On"); return;
     case T_RLEVEL: if (!v) { cpy(b, "Off"); return; } break;
-    case T_RANDLEN: if (v) { b[0] = '1'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Fixed"); return;
     case T_PITCH: if (v) { b[0] = '+'; b[1] = '-'; itoa_s(v, b + 2); } else cpy(b, "Root"); return;
     case T_TUNE: if (v > 0) { b[0] = '+'; itoa_s(v, b + 1); } else itoa_s(v, b); return;
     case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
@@ -276,7 +278,7 @@ void ne_aparam_text(int i, int v, char *b)
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR, C_SYNC };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -317,6 +319,7 @@ void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0);
 void ne_regrid(int t, int on) { post(C_REGRID, t, on, 0, 0, 0); }
 void ne_clear(void) { post(C_CLEAR, -1, 0, 0, 0, 0); }
 void ne_clear_track(int t) { post(C_CLEAR, t, 0, 0, 0, 0); }
+void ne_sync(uint32_t at) { post(C_SYNC, 0, (int16_t)(at & 0xffffu), (int16_t)(at >> 16), 0, 0); }
 
 /* ------------------------------------------------------------ the state --- */
 static int16_t gpar[G_NPARAMS], tpar[NE_TRACKS][T_NPARAMS];
@@ -829,7 +832,7 @@ static void gset(int p, int v)
     case G_USBAUDIO: ne_usb_audio = (uint8_t)v; break;
     case G_MUTATE: break;                        /* (read at the quarters) */
     case G_RUMBLE: case G_RTONE: case G_RLENGTH: case G_RMOTION: break; /* retired 873 controls */
-    case G_SELMODE: case G_ACIDWAVES: break;     /* (the UI's) */
+    case G_SELMODE: case G_ACIDWAVES: case G_SYNC: case G_SWITCH: break;     /* (the UI's) */
     }
 }
 
@@ -843,7 +846,7 @@ static void tset_k(int t, int p, int v, int keep)
     tr = &seq.track[t];
     switch (p) {
     case T_BARS: if (!keep) nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
-    case T_RANDLEN:                    /* back to Fixed: the length is Bars again, not the last draw */
+    case T_RANDLEN:                    /* back to 0: the length is Bars again, not the last draw */
         nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v);
         if (!v && !keep) nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
         break;
@@ -884,13 +887,11 @@ static void tset_k(int t, int p, int v, int keep)
 }
 static void tset(int t, int p, int v) { tset_k(t, p, v, 0); }
 
-/* A new pattern for a drum track: a Fixed one plays its Bars, whatever length an undo, a scene or an
- * earlier random draw left it at */
+/* A new pattern for a drum track: its Bars, whatever length an undo, a scene or an earlier random draw
+ * left it at, unless Rnd len's chance draws one (nseq_generate) */
 static void generate(int t)
 {
-    nseq_track *tr = &seq.track[t];
-    if (!tr->len_random)
-        nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
+    nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(&seq.track[t]));
     nseq_generate(&seq, t);
 }
 
@@ -1053,6 +1054,8 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (step == 0u)
         nacid_reset(&acid);
     acid.root = seq.root;
+    if (acid.length && (acid.bar != NACID_TBAR || step % 4u != 3u))   /* its place from the drums' clock too */
+        acid.pos = (uint8_t)(nseq_elapsed(&seq, step, acid.bar == NACID_TBAR) % acid.length);
     if (acid.bar != NACID_TBAR) {
         acid_route(acid.pos % NACID_BAR == 0 || acid.pos >= acid.length);
         nacid_step(&acid, delay, step_len);
@@ -1176,8 +1179,10 @@ void ne_restore(const ne_state_t *s)
     int t, i;
     hold = 1;
     __asm__ volatile("" ::: "memory");
-    rumble_stop();
-    nfm_stop_all(&fm);
+    if (!seq.playing) {                  /* (playing, a change of bank: what sounds rings on, track 1 never cut) */
+        rumble_stop();
+        nfm_stop_all(&fm);
+    }
     for (t = 0; t < NE_TRACKS; t++) {
         nseq_track *tr = &seq.track[t];
         tr->length = (uint8_t)(s->len[t] < 1 ? 1 : s->len[t] > NE_STEPS ? NE_STEPS : s->len[t]);
@@ -1199,6 +1204,8 @@ void ne_restore(const ne_state_t *s)
             fm.slot[t].walk[i] = 0.0f;
         }
         fm.slot[t].kind = (int8_t)((unsigned)s->kind[t] < NFM_KINDS ? s->kind[t] : NFM_KIND_PERC);
+        if (fm.slot[t].kind != NFM_KIND_KICK)
+            nr_stop(&rumble[t]);           /* (a rumble only under a kick) */
         tpar[t][T_KIND] = fm.slot[t].kind;
         apply_level(t);
     }
@@ -1337,6 +1344,9 @@ static void drain(void)
                     acid.step[s].flags = 0;
             break;
         }
+        case C_SYNC:
+            nseq_sync(&seq, (uint32_t)(uint16_t)c.a | (uint32_t)(uint16_t)c.b << 16);
+            break;
         case C_REGRID:
             if (c.t == NE_ACID) {
                 nacid_regrid(&acid, c.a);

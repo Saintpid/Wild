@@ -58,9 +58,12 @@ enum {
     G_ACIDWAVES,                                     /* a new 303 sound's waves (the UI's): 0 the 303's own, 1 all */
     G_RUMBLE, G_RTONE, G_RLENGTH, G_RMOTION,         /* separate kick-driven bass/texture engine */
     G_SKNOB, G_AKNOB,                               /* 0 original; 1.. the PRESETS choices */
+    G_SYNC,                                          /* a change of bank: every track in line with track 1 (the UI's) */
+    G_SWITCH,                                        /* ...when it happens: NE_SWITCH_* (the UI's) */
     G_NPARAMS
 };
 enum { NE_SEL_CHANCE, NE_SEL_AB, NE_SEL_COPY, NE_SEL_MODES };
+enum { NE_SWITCH_NOW, NE_SWITCH_1, NE_SWITCH_4, NE_SWITCH_8 };   /* at once, or on the 1 of the phrase's next 1 / 4 / 8 bars */
 /* per-track parameters */
 enum {
     T_BARS, T_RANDLEN, T_HITLESS, T_HITFILL,
@@ -135,6 +138,9 @@ void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12.
 void ne_regrid(int track, int triplet);
 void ne_clear(void);                                 /* every pattern empty, the 303's too (lengths stay) */
 void ne_clear_track(int track);                      /* ...one track's (NE_ACID: the 303's) */
+/* every track and the acid line back in line with track 1 from global step `at` (nseq_sync): track 1 goes
+ * on, the others as if they had started with its current loop */
+void ne_sync(uint32_t at);
 /* (ne_generate(NE_ACID): a new acid pattern; ne_generate(-1) includes it unless muted) */
 
 /* ---- the whole state, for saving: the patterns, lengths and base patches (normalised x 65535) */

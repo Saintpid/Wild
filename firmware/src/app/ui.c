@@ -22,6 +22,8 @@
  *   SEL            tap/release then white 1-8: select (empty: copy); held + white 1-8: overwrite/copy
  *   SEL + white 16 Chance: new scene each time; selecting the current bank leaves Chance
  *                  bank selection lights: playing bright, occupied dim; tempo shared
+ *                  EDIT again (Banks): Sync, every track in line with track 1 at a change; Switch, the
+ *                  change at once or on the 1 of the phrase's next 1 / 4 / 8 bars (SEL blinks meanwhile)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
  *   GLO + OCT- / OCT+   the mixer / Audio Load; any button but PLAY, SEL and REC closes them (only that)
  *   GLO + HOME     clear all (asked, GLO + HOME again: yes): every bank, all automation, an empty start; saved songs stay
@@ -43,10 +45,10 @@
  * The screen: the five tracks, one bar each (the bar shown), and the phrase: eight bars, the eighth red;
  * in it the beats count 1 2 3 4 to the next round. */
 
-enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, V_RUMBLE, V_CONTROLS, V_RDETAIL, V_RMIX, NVIEWS };
+enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, V_RUMBLE, V_CONTROLS, V_RDETAIL, V_RMIX, V_BANKS, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
-                                              "Routing", "Master", "Glue", "Groove", "Setup", "Scene", "Rumble", "Controls", "Texture", "Layer"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV};
+                                              "Routing", "Master", "Glue", "Groove", "Setup", "Scene", "Rumble", "Controls", "Texture", "Layer", "Banks"};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV, B_EDIT};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -63,8 +65,9 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLESS, KT | T_HITFILL, KT | T_EVOLVE},
-    {KT | T_GRID, KT | T_DYN, K_NONE, K_NONE},       /* HOME again: the steps, sixteenths or triplets; how soft */
-    {KT | T_RANDLEN, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
+    {KT | T_GRID, KT | T_DYN, KT | T_RANDLEN, K_NONE},   /* HOME again: the steps, sixteenths or triplets; how soft;
+                                                         * how many new patterns draw their own length */
+    {K_NONE, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
     {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
     {K_NONE, K_NONE, K_NONE, K_NONE},                /* (the acid line's only) */
@@ -82,6 +85,7 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {G_SKNOB, G_AKNOB, G_PKNOB, K_NONE},
     {KT | T_RDUCK, KT | T_RWIDTH, KT | T_RMOTION, KT | T_RSEED},
     {KT | T_RMUTE, K_NONE, K_NONE, K_NONE},
+    {G_SYNC, G_SWITCH, K_NONE, K_NONE},              /* EDIT again: how the banks change (for every bank) */
 };
 #define SAVE_HOLD_MS 1500u             /* SAVE held this long: reset to the defaults? (a tap: save) */
 #define RESET_ASK_MS 5000u             /* ...asked this long: SAVE again resets, anything else keeps */
@@ -137,6 +141,9 @@ static struct {
     uint8_t list_ask;                  /* ...asked: LA_DELETE the song on it, LA_ERASE all songs */
     int8_t copy_from;                  /* ...a song being copied (SEL): its slot, -1 none */
     uint8_t bank_select;               /* tap SEL: next white key selects */
+    uint8_t bank_wait;                 /* a bank waiting for Switch's 1 (its number + 1; 0: none) */
+    uint32_t bank_at;                  /* ...the global step it plays from */
+    uint8_t bank_wait_go;              /* ...its time has come (bank_due) */
     uint8_t chance;                    /* a scene by chance plays (what was before: sc_*) */
     uint8_t rec;                       /* REC: the knobs turned are recorded (auto_*) */
     uint32_t pop_t;                    /* the last knob change: its box over the tracks (0: none) */
@@ -386,7 +393,8 @@ static void undo_mark(uint32_t key)
 _Static_assert(sizeof(undo_entry) + sizeof(project_t) + sizeof proj_auto + 3u <= UNDO_BYTES,
                "one full bank operation must fit undo");
 /* the values SEL's scenes and the banks never change: the tempo, the level, the Setup and Scene pages' */
-static const uint8_t SEL_KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB};
+static const uint8_t SEL_KEEP[] = {G_TEMPO, G_LEVEL, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB,
+                                   G_SYNC, G_SWITCH};
 static int sel_kept(int g)
 {
     uint32_t i;
@@ -446,6 +454,7 @@ static void undo_go(int d)
     auto_finish_all();
     ui.rec = 0;
     ui.bank_select = 0;
+    ui.bank_wait = 0;
     ui.pop_t = 0;
     r = undo_entry_at(d < 0 ? --undo_c : undo_c++);
     old = proj.bank;
@@ -871,9 +880,20 @@ static void bank_auto_copy(int from, int to)
         }
     proj_auto_dirty = 1;
 }
+/* SWITCH (EDIT again): a change of bank waits for the 1 of the phrase's next round of 1, 4 or 8 bars (the
+ * phrase's, from the start: not counted from the press), taken a sixteenth early so the first hit is the
+ * new bank's. SYNC: from there every track in line with track 1, which goes on where it is. A copy is
+ * at once (what plays stays the same) */
+static uint32_t switch_steps(void)
+{
+    int sw = proj.g[G_SWITCH];
+    return (sw == NE_SWITCH_1 ? 1u : sw == NE_SWITCH_4 ? 4u : sw == NE_SWITCH_8 ? 8u : 0u) * NE_BAR;
+}
 static void bank_go(int n, int copy)
 {
     int cur = proj.bank, has;
+    uint32_t c = switch_steps(), at = ne_seq()->steps;
+    ui.bank_wait = 0;                                /* (a choice replaces one waiting) */
     if (n == cur) {
         if (!copy && ui.chance) scene();
         else say_bank(0, n, "PLAYS");
@@ -881,6 +901,14 @@ static void bank_go(int n, int copy)
     }
     has = proj_bank_has(n);
     copy |= !has;
+    if (!copy && c && playing() && ui.bank_wait_go == 0) {
+        ui.bank_wait = (uint8_t)(n + 1);
+        ui.bank_at = (at + c - 1u) / c * c;
+        say_bank(0, n, c == NE_BAR ? "ON THE NEXT 1" : c == 4u * NE_BAR ? "ON THE 4 BARS' 1" : "ON THE 8 BARS' 1");
+        return;
+    }
+    if (ui.bank_wait_go)
+        at = ui.bank_at;
     if (copy && !bank_auto_room(cur, n)) {
         say("COPY NOT MADE", "AUTOMATION FULL");
         return;
@@ -899,12 +927,28 @@ static void bank_go(int n, int copy)
     project_bank_keep(cur);
     state_go(&proj_bank[n], 1);
     proj.bank = (uint8_t)n;
+    if (proj.g[G_SYNC] && playing())
+        ne_sync(at);
     sel_forget();
     auto_resume();
     ui.pop_t = 0;
     proj_bank_dirty |= (uint8_t)(1u << (n / 2));
     mark_dirty();
     say_bank(0, n, copy ? (has ? "REPLACED: A COPY" : "NEW: A COPY") : "");
+}
+/* the bank waiting, on its step (or at once, stopped) */
+static void bank_due(void)
+{
+    const nseq *q = ne_seq();
+    int n = ui.bank_wait - 1;
+    if (!ui.bank_wait || (playing() && (int32_t)(q->steps - ui.bank_at) < 0))
+        return;
+    ui.bank_wait = 0;
+    if (n == proj.bank || !proj_bank_has(n))
+        return;
+    ui.bank_wait_go = 1;
+    bank_go(n, 0);
+    ui.bank_wait_go = 0;
 }
 static int sel_held(void) { return (ui.btn >> B_SEL & 1u) != 0; }
 static void bank_key(int w)
@@ -1239,6 +1283,7 @@ static void reset_defaults(int empty)
     uint8_t bank = proj.bank;
     int t;
     undo_mark(0);
+    ui.bank_wait = 0;
     project_defaults();
     proj.g[G_MIDICH] = keep;
     proj.bank = bank;                                /* (the bank playing: the others stay) */
@@ -1512,6 +1557,7 @@ static void mixer_turn(int channel, int32_t delta)
 
 static void input(void)
 {
+    bank_due();
     if (rumble_view(ui.view) && !has_rumble(ui.track)) ui.view=V_SOUND;
     uint32_t btn = plat_buttons(), keys = plat_keys(), ch, i;
     int32_t e;
@@ -1708,7 +1754,8 @@ static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
 static int auto_ok(int k)
 {
     static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID},
-                         NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB};
+                         NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB,
+                                           G_SYNC, G_SWITCH};
     const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
     uint32_t n = k & KT ? sizeof NOT_T : k & KA ? sizeof NOT_A : sizeof NOT_G, i;
     for (i = 0; i < n; i++)
@@ -2451,14 +2498,14 @@ static void leds(void)
         b |= 1u << B_PLAY;
     if (!ui.live)
         b |= 1u << B_SEQ;
-    if (ui.chance || ui.bank_select || sel_held() || (ui.list && ui.copy_from >= 0 && blink))
-        b |= 1u << B_SEL;                            /* (a song to copy: blinking) */
+    if (ui.chance || ui.bank_select || sel_held() || ((ui.list && ui.copy_from >= 0 || ui.bank_wait) && blink))
+        b |= 1u << B_SEL;                            /* (a song to copy, a bank waiting: blinking) */
     if (ui.rec && (!rec_n || blink))                 /* REC: lit, blinking while it records */
         b |= 1u << B_REC;
     if ((sel_held() || ui.bank_select) && !ui.list) {                    /* SEL held: the banks (lit: playing, dim: one there) */
         for (i = 0; i < PROJ_BANKS; i++)
-            if ((int)i == proj.bank)
-                k |= 1u << WHITE_K[i];
+            if ((int)i == proj.bank || ((int)i == ui.bank_wait - 1 && blink))
+                k |= 1u << WHITE_K[i];               /* (the one waiting: blinking) */
             else if (proj_bank_has((int)i))
                 d |= 1u << WHITE_K[i];
         d |= 1u << WHITE_K[BANK_CHANCE];

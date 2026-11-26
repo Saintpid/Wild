@@ -1,0 +1,79 @@
+# SYNC and SWITCH (EDIT again: the Banks page). Every track counts its place from one clock, so tracks of
+# one length never part, whatever their lengths did meanwhile. SWITCH: a change of bank waits for the 1 of
+# the phrase's next round of 1, 4 or 8 bars (the phrase's, not counted from the press). SYNC: from the
+# change every track in line with track 1, which goes on where it is.
+wait 200
+expect bank 0
+tap EDIT
+tap EDIT
+expect view 20
+expect gpar32 1
+expect gpar33 0
+spin K2 2
+expect gpar33 2
+wait 50
+shot banks.png
+# Rnd len: on the Rhythm page (HOME twice), a %, 0 to start
+tap HOME
+tap HOME
+expect view 1
+expect tpar1 0
+spin K3 25
+expect tpar1 25
+wait 50
+shot rhythm.png
+spin K3 -25
+expect tpar1 0
+# a copy is at once, whatever Switch says
+tap SEL
+tapkey w1
+expect bank 1
+tap PLAY
+# bar 2 of the kick's two: the kick to 1 bar (it used to start its bar again here, off the hat)
+wait 2600
+tap HOME
+expect view 0
+expect track 0
+spin K1 -1
+expect tpar0 1
+wait 400
+expect aligned 1
+# back to bank 1, in the phrase's 4-bar round: it waits for bar 5
+tap SEL
+tapkey w0
+expect bank 1
+expect bankwait 1
+expect phrase <60
+wait 4000
+expect bank 1
+expect phrase >50
+expect phrase <64
+wait 1500
+expect bankwait 0
+expect bank 0
+expect phrase >63
+expect phrase <76
+expect aligned 1
+expect last0 <16
+# Now: at once again
+tap EDIT
+tap EDIT
+spin K2 -2
+expect gpar33 0
+tap SEL
+tapkey w1
+expect bank 1
+expect bankwait 0
+wait 300
+expect aligned 1
+# stopped while one waits: it goes at once
+spin K2 3
+expect gpar33 3
+tap SEL
+tapkey w0
+expect bankwait 1
+tap PLAY
+wait 50
+expect playing 0
+expect bankwait 0
+expect bank 0

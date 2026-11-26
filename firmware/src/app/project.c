@@ -53,7 +53,7 @@ static void project_upgrade(void)
     if (f >= 2u) {
         proj.preset = p[0];
         proj.bank = p[1];
-        p += f >= 18u ? 20 : 32;
+        p += f >= 20u ? 16 : f >= 18u ? 20 : 32;
     }
     if (f >= 3u) {
         memcpy(&proj.acid, p, sizeof proj.acid);
@@ -89,6 +89,10 @@ static void project_upgrade(void)
             tp[T_HITLESS] = (int16_t)(((hi - lo) * 100 + hi - 1) / hi);
         }
     }
+    if (f < 20u)                                     /* Rnd len 1..8 bars: every new pattern by chance */
+        for (t = 0; t < NE_TRACKS; t++)
+            if (proj.t[t][T_RANDLEN])
+                proj.t[t][T_RANDLEN] = 100;
 }
 
 /* the bytes a project of format f takes */
@@ -96,7 +100,7 @@ static uint32_t project_size(uint32_t f)
 {
     uint32_t n = 8u + 2u * (uint32_t)PROJ_G_OF(f) + 2u * NE_TRACKS * (uint32_t)PROJ_T_OF(f) + sizeof proj.st;
     if (f >= 2u)
-        n += f >= 18u ? 20u : 32u;
+        n += f >= 20u ? 16u : f >= 18u ? 20u : 32u;
     if (f >= 3u)
         n += sizeof proj.acid + 2u * (uint32_t)PROJ_A_OF(f);
     return n;

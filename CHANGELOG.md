@@ -5,6 +5,30 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.49
+
+Firmware identity FM-1_883. Tracks that stay together, and banks that change in time.
+
+- Tracks of the same length no longer drift apart. Before, turning a track's Bars, a bank change or
+  an undo in the middle of a bar could start one track's bar again while the others went on, so a
+  1-bar hat could end up some sixteenths off a 1-bar kick until you stopped. Now every track counts
+  its place from one shared clock, the 303 too.
+- **EDIT twice: the new Banks page.** Its two settings are the same for every bank.
+- **Sync** (On to start): when the bank changes, every track falls in line with track 1. Track 1
+  goes on exactly where it is, never cut or moved; the others play as if they had started together
+  with track 1's current loop. Off: they go on from where they were.
+- **Switch** (Now to start, or 1, 4 or 8 bars): a change of bank waits for the 1 of the next round of
+  that many bars. The rounds are the phrase's (the 8 bars on the screen, counted from PLAY), not
+  counted from your press: with 4 bars, a bank chosen in bar 3 comes in on bar 5, one chosen in bar 6
+  on the next bar 1. While it waits SEL blinks, and on the bank keys the bank waiting blinks. Choose
+  another bank to change your mind, the bank playing to cancel. Stopping makes it at once, and a
+  copy (SEL held) is always at once.
+- At a change of bank while playing, what sounds rings out into the new bank instead of being cut.
+- **Rnd len** moved to the Rhythm page (HOME twice, KNOB 3) and is now a %: how many of the track's
+  new patterns get a length by chance (1 to 8 bars, sometimes a bar short), instead of Bars. 0 % to
+  start, so every new pattern plays Bars. Songs saved with a random length (1-N bars) load as 100 %.
+- The starting set's Perc track no longer draws a random length (its Rnd len is 0 too).
+
 ## 0.3.44
 
 Firmware identity FM-1_878. Room for the generative sounds to come; nothing new to play yet.

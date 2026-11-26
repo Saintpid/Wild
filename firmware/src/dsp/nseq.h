@@ -57,7 +57,7 @@ typedef struct {
     uint8_t pos;         /* next step to play */
     int16_t last;        /* step last played, -1 before start (for displays) */
     uint16_t loops;
-    uint8_t len_random;  /* 0: fixed length; 1..8: generate picks 1..N bars */
+    uint8_t len_random;  /* 0..100: % of new patterns that draw their own length (1..8 bars) */
     uint8_t triplet;     /* its steps are eighth triplets (12 a bar), not sixteenths */
     uint8_t dyn;         /* 0..100: how far below full a new hit's velocity may fall (0: all full) */
 } nseq_track;
@@ -82,6 +82,8 @@ typedef struct {
     uint32_t now;        /* sample clock */
     float to_next;       /* samples until the next global step */
     uint32_t steps;      /* global steps since start */
+    uint32_t origin;     /* the global step where every track was on its first: each track's place is
+                          * counted from here, so tracks of one length can never part (nseq_sync) */
     uint32_t rng;
     uint32_t vrng;       /* velocities' own: where the hits fall does not depend on them */
     nseq_event queue[NSEQ_QUEUE];
@@ -118,6 +120,16 @@ void nseq_regrid(nseq *q, int track, int triplet);
 static inline int nseq_to_triplets(int n) { return n / 4 * 3 + (n % 4 < 3 ? n % 4 : 3); }
 static inline int nseq_to_sixteenths(int n) { return n / 3 * 4 + n % 3; }
 static inline int nseq_bar(const nseq_track *tr) { return tr->triplet ? NSEQ_TBAR : NSEQ_BAR; }
+/* the steps a track of that grid has played since the origin by global step `step` (triplets: three
+ * in each quarter's four); its place is this modulo its length */
+static inline uint32_t nseq_trip(uint32_t s) { return s / 4u * 3u + (s % 4u < 3u ? s % 4u : 3u); }
+static inline uint32_t nseq_elapsed(const nseq *q, uint32_t step, int triplet)
+{
+    return triplet ? nseq_trip(step) - nseq_trip(q->origin) : step - q->origin;
+}
+/* Every track (and whatever counts from the origin) back in line with track 1 at global step `at`: track 1
+ * goes on where it is, the others as if they had started with track 1's current loop. */
+void nseq_sync(nseq *q, uint32_t at);
 /* Note-on from MIDI. Returns 1 if the note was used. */
 int nseq_midi_note(nseq *q, int note, int velocity);
 
