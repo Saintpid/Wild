@@ -1,5 +1,11 @@
-# Wild 0.3.44 - experimental FM-1 firmware
+# Wild 0.3.49 - experimental FM-1 firmware
 
+**0.3.49: banks that change in time.** Tracks of the same length can no longer drift apart (a length
+turned, a pattern restored or a bank changed mid-bar used to put one off by some sixteenths): every
+track counts its place from one clock. EDIT twice, the new Banks page: **Sync** (on) puts every track in
+line with track 1 at a change of bank, track 1 going on untouched, and **Switch** (Now, 1, 4 or 8 bars)
+makes a change of bank wait for the 1 of the phrase's next round. What sounds rings on into the new
+bank. **Rnd len** is on the Rhythm page (HOME twice) as a %: how many new patterns get a length by chance.
 **0.3.44:** room made for the generative sounds to come: the screen's tall parts are drawn in two
 strips (they look the same), and undo keeps seven edits (two with automation; it kept nine). Nothing
 else changes.
@@ -177,7 +183,9 @@ command.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars, acid 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), so
   the tracks drift against each other. Fill requests a percentage of the available steps, and Less lets
   the generator remove up to a percentage of those hits. Evolve now and then moves a hit when the
-  loop comes round. Any track, the 303 too, can run in
+  loop comes round. **Rnd len** (Rhythm page) gives that % of a track's new patterns a length of
+  their own (1-8 bars, now and then a bar short), else they play Bars. Every track counts its place
+  from one shared clock, so tracks of one length stay together whatever you turn. Any track, the 303 too, can run in
   **triplets** (HOME twice, the Rhythm page, Grid): three steps to a quarter, 12 to a bar on white
   keys 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12, drawn on the screen where they fall in time. New drum hits are mostly strong, the
   quarters most: each is strong or soft (the step keys' two strengths), and **Dynamics** (Rhythm
@@ -216,6 +224,7 @@ command.
 | **PRESETS** | Controls any parameter, Glue to start with |
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
 | **SEL + white 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
+| **Banks page (EDIT twice)** | **Sync**: at a change of bank every track in line with track 1 (which goes on as it is). **Switch**: Now, or wait for the 1 of the phrase's next 1, 4 or 8 bars (SEL and the waiting bank's key blink) |
 | **SEL + white 16** | Chance: a new scene by chance at every press (the bank keeps its original) |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 
