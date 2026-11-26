@@ -70,7 +70,7 @@ static const ne_param_t GP[G_NPARAMS] = {
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
     [T_RANDLEN] = {"Rnd len", 0, 100, 0},           /* % of new patterns with a length by chance */
-    [T_HITLESS] = {"Less", 0, 100, 50},
+    [T_HITLESS] = {"Less", 0, 100, 0},             /* (retired 0.3.54: Fill alone, live) */
     [T_HITFILL] = {"Fill", 0, 100, 13},
     [T_PITCH] = {"Pitch", 0, 24, 0},
     [T_EVOLVE] = {"Evolve", 0, 100, 10},
@@ -147,17 +147,17 @@ const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc 2 */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 40, 16, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
-    {2, 0, 50, 13, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
-    {1, 0, 50, 38, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
-    {2, 0, 50, 13, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 13, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 11, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
+    {1, 0, 0, 28, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 11, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
 static const uint8_t PKNOB[] = {
     G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTATE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
     G_HICUT, G_LOCUT, G_RESO,
-    NE_PK_TRACK | T_HITLESS, NE_PK_TRACK | T_HITFILL, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
+    NE_PK_ACID | A_NOTES, NE_PK_TRACK | T_HITFILL,     /* (Notes in Less's old place) */ NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
     NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
     NE_PK_TRACK | T_MODAMT, NE_PK_TRACK | T_MODRATE, NE_PK_TRACK | T_MODCHANCE,
@@ -288,7 +288,7 @@ void ne_aparam_text(int i, int v, char *b)
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR, C_SYNC };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR, C_SYNC, C_DENS };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -328,6 +328,7 @@ void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
 void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
 void ne_regrid(int t, int on) { post(C_REGRID, t, on, 0, 0, 0); }
 void ne_clear(void) { post(C_CLEAR, -1, 0, 0, 0, 0); }
+void ne_density(int t, int v) { post(C_DENS, t, v, 0, 0, 0); }
 void ne_clear_track(int t) { post(C_CLEAR, t, 0, 0, 0, 0); }
 void ne_sync(uint32_t at) { post(C_SYNC, 0, (int16_t)(at & 0xffffu), (int16_t)(at >> 16), 0, 0); }
 
@@ -1024,12 +1025,13 @@ static void tset_k(int t, int p, int v, int keep)
     tpar[t][p] = (int16_t)v;
     tr = &seq.track[t];
     switch (p) {
-    case T_BARS: if (!keep) nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
+    case T_BARS: if (!keep) nseq_resize(&seq, t, v * nseq_bar(tr)); break;   /* (now: longer repeats it) */
     case T_RANDLEN:                    /* back to 0: the length is Bars again, not the last draw */
         nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v);
-        if (!v && !keep) nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
+        if (!v && !keep) nseq_resize(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
         break;
-    case T_HITLESS: case T_HITFILL: nseq_set_hits(&seq, t, tpar[t][T_HITLESS], tpar[t][T_HITFILL]); break;
+    case T_HITFILL: nseq_set_fill(&seq, t, v); break;   /* (a new pattern's; turned: ne_density) */
+    case T_HITLESS: break;             /* retired: kept in projects */
     case T_PITCH: nseq_set_flag(&seq, t, NSEQ_FLAG_PITCH_RANGE, v); break;
     case T_EVOLVE: nseq_set_flag(&seq, t, NSEQ_FLAG_EVOLVE, v); break;
     case T_MUTE: nseq_set_flag(&seq, t, NSEQ_FLAG_MUTE, v); break;
@@ -1084,7 +1086,7 @@ static void aset(int p, int v)
     v = v < AP[p].lo ? AP[p].lo : v > AP[p].hi ? AP[p].hi : v;
     apar[p] = (int16_t)v;
     switch (p) {
-    case A_BARS: nacid_set_length(&acid, v * acid.bar); break;
+    case A_BARS: nacid_resize(&acid, v * acid.bar); break;
     case A_NOTES: acid.p[NACID_P_DENSITY] = pct(v); break;
     case A_SLIDES: acid.p[NACID_P_SLIDES] = pct(v); break;
     case A_ACCENTS: acid.p[NACID_P_ACCENTS] = pct(v); break;
@@ -1345,6 +1347,63 @@ void ne_init(void)
 /* ------------------------------------------------------------ save, load --- */
 static uint16_t u16(float x) { return (uint16_t)(x <= 0.0f ? 0 : x >= 1.0f ? 65535 : (int)(x * 65535.0f + 0.5f)); }
 
+/* ---------------------------------------------- Fill and Notes, turned: the intensity, live --- */
+/* The knob moves the hits there are, towards its % of the length, by chance (nseq_fit, nacid_fit). A
+ * pattern that does not match the knob (made by hand, or the knob turned meanwhile) counts as if it did:
+ * from where it stands the knob's way away from the pattern's own % moves it at once, in proportion
+ * (4 hits of 16 at 80: turned up, 81..100 fill the other 12 step by step), its way towards that % does
+ * nothing until it gets there (turned down, nothing goes before 25). Each track keeps that point (its
+ * anchor: the knob and the hits) for as long as the pattern is the one it left. */
+static int16_t dn_k[NE_TRACKS + 1];
+static uint8_t dn_h[NE_TRACKS + 1];
+static uint32_t dn_sig[NE_TRACKS + 1];
+static uint32_t dens_sig(int t, int *len, int *hits)
+{
+    uint32_t h = 2166136261u;
+    int s, n = 0, l = t == NE_ACID ? acid.length : seq.track[t].length;
+    for (s = 0; s < l; s++) {
+        int on = t == NE_ACID ? !!(acid.step[s].flags & NACID_ON) : seq.track[t].step[s].on;
+        n += on;
+        h = (h ^ (uint32_t)(on ? s + 1 : 0)) * 16777619u;
+    }
+    *len = l;
+    *hits = n;
+    return (h ^ (uint32_t)l) * 16777619u;
+}
+/* the hits for knob v, the anchor at knob ak with ah hits (of len) */
+static int dens_map(int len, int ak, int ah, int v)
+{
+    int abs_ = (len * v + 50) / 100;
+    if (ah * 100 <= ak * len) {                      /* as sparse as the knob says, or sparser */
+        if (v <= ak) return abs_ < ah ? abs_ : ah;
+        return ah + ((len - ah) * (v - ak) * 2 + (100 - ak)) / (2 * (100 - ak));
+    }
+    if (v >= ak) return abs_ > ah ? abs_ : ah;      /* busier: the mirror */
+    return (ah * v * 2 + ak) / (2 * ak);
+}
+static void density(int t, int v)
+{
+    int len, hits, was;
+    uint32_t sig;
+    if ((unsigned)t > NE_TRACKS)
+        return;
+    was = t == NE_ACID ? apar[A_NOTES] : tpar[t][T_HITFILL];
+    if (t == NE_ACID)
+        aset(A_NOTES, v), v = apar[A_NOTES];
+    else
+        tset(t, T_HITFILL, v), v = tpar[t][T_HITFILL];
+    sig = dens_sig(t, &len, &hits);
+    if (sig != dn_sig[t]) {                          /* a pattern it has not moved: its anchor here */
+        dn_k[t] = (int16_t)was;
+        dn_h[t] = (uint8_t)hits;
+    }
+    if (t == NE_ACID)
+        nacid_fit(&acid, dens_map(len, dn_k[t], dn_h[t], v));
+    else
+        nseq_fit(&seq, t, dens_map(len, dn_k[t], dn_h[t], v));
+    dn_sig[t] = dens_sig(t, &len, &hits);
+}
+
 void ne_snapshot(ne_state_t *s)
 {
     int t, i;
@@ -1385,6 +1444,7 @@ void ne_restore(const ne_state_t *s)
             tr->step[i].on = v != 0;
             tr->step[i].vel = (uint8_t)(v & 127u ? v & 127u : 1u);
             tr->step[i].note = (int8_t)(v ? (note < -24 ? -24 : note > 24 ? 24 : note) : 0);
+            tr->step[i].reserved = 0;
         }
         for (i = 0; i < NFM_PARAMS; i++) {
             float x = (float)s->patch[t][i] * (1.0f / 65535.0f);
@@ -1501,6 +1561,7 @@ static void drain(void)
             }
             break;
         case C_ASET: aset(c.a, c.b); break;
+        case C_DENS: density(c.t, c.a); break;
         case C_ASTEP: nacid_set_step(&acid, c.a, c.b, c.c); break;
         case C_SOUND: new_sound(c.t, c.a); break;
         case C_HIT:

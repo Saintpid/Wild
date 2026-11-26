@@ -5,6 +5,28 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.54
+
+Firmware identity FM-1_888. Fill and Notes play the intensity, live; Less is gone. (Built on the Gen line
+of 0.3.53.)
+
+- Fill (drums) and Notes (the 303) now change the pattern as you turn them: up, hits come in at once,
+  by chance, where the sound likes to play; down, they go, the weakest places first (a kick keeps its
+  first step longest). Hits taken away are remembered and likeliest to come back when you turn up
+  again, and the 303's rests keep their notes, accents and slides, so a line comes back as it was.
+- A pattern that doesn't match the knob, made by hand or after the knob was turned, counts as if it
+  did. Four quarters with Fill at 80: turn up and the other twelve steps fill gradually from 81 to
+  100; turn down and nothing goes until Fill reaches 25 (four of sixteen), then it follows the knob.
+  A pattern busier than the knob is the mirror. A calm pattern never jumps to full because of where
+  the knob happened to be.
+- Less is gone: a new pattern has exactly Fill's % of its steps (before it was up to Less % fewer).
+  The drum tracks' starting Fill is lower to match (kick 13, snare 11, hat 28, perc 11). Fill moved
+  to KNOB 2 on the Pattern page (HOME), where the 303's Notes is; KNOB 3 is empty. On the PRESETS
+  encoder's list, Less's place is the 303's Notes.
+- Bars takes effect at once, and a longer pattern repeats what it had into the new bars (1 bar to 2:
+  bar 1 twice; 2 to 4: bars 1-2 twice), drums and the 303 alike. Shorter, the steps past the end wait.
+- Notes can no longer be recorded with REC (as Fill), since it now changes the pattern itself.
+
 ## 0.3.53
 
 Firmware identity FM-1_887. The first generative sound: a new kind, Gen, with Deviance, chords in the

@@ -142,6 +142,8 @@ void ne_astep(int step, int flags, int note);        /* NACID_* flags, note -12.
 void ne_regrid(int track, int triplet);
 void ne_clear(void);                                 /* every pattern empty, the 303's too (lengths stay) */
 void ne_clear_track(int track);                      /* ...one track's (NE_ACID: the 303's) */
+/* Fill (a drum track) or Notes (NE_ACID) turned to v: the pattern's hits follow, live (see density()) */
+void ne_density(int track, int v);
 /* every track and the acid line back in line with track 1 from global step `at` (nseq_sync): track 1 goes
  * on, the others as if they had started with its current loop */
 void ne_sync(uint32_t at);

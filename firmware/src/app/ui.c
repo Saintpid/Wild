@@ -65,7 +65,7 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
     {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
-    {KT | T_BARS, KT | T_HITLESS, KT | T_HITFILL, KT | T_EVOLVE},
+    {KT | T_BARS, KT | T_HITFILL, K_NONE, KT | T_EVOLVE},   /* (Fill where the 303's Notes is: both live) */
     {KT | T_GRID, KT | T_DYN, KT | T_RANDLEN, K_NONE},   /* HOME again: the steps, sixteenths or triplets; how soft;
                                                          * how many new patterns draw their own length */
     {KT | T_DEV, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},   /* (Deviance here for every track: the 303's on EDIT's next page) */
@@ -262,6 +262,8 @@ static void tpar_set(int t, int p, int v)
     proj.t[t][p] = (int16_t)v;
     if (p == T_GRID)                                 /* the pattern moves along into the grid */
         ne_regrid(t, v);
+    else if (p == T_HITFILL)                         /* its hits follow (a restore: ne_tset itself) */
+        ne_density(t, v);
     else
         ne_tset(t, p, v);
     mark_dirty();
@@ -282,6 +284,8 @@ static void knob_set(int k, int v)
         proj.a[k & ~KA] = (int16_t)v;
         if ((k & ~KA) == A_GRID)
             ne_regrid(NE_ACID, v);
+        else if ((k & ~KA) == A_NOTES)
+            ne_density(NE_ACID, v);
         else
             ne_aset(k & ~KA, v);
     } else {
@@ -1794,7 +1798,7 @@ static int recording_active(void) { return rec_n != 0; }
 static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
 static int auto_ok(int k)
 {
-    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID},
+    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID, A_NOTES},
                          NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB,
                                            G_SYNC, G_SWITCH};
     const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
