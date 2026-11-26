@@ -666,8 +666,8 @@ void ngen_render(ngen *g, float *l, float *r, int n)
         g->morph += (mt - g->morph) * k_m;
         mo = fm_clampf(g->morph + 0.25f * mov * drift(g, 0) + 0.4f * mov * g->bloom + g->dv[6], 0.0f, 1.0f);
         k_amp = 1.0f - fm_expf(-1.0f / (0.012f * g->sr));
-        /* the share of noise: half of Noise (default 17.5 %), moved +-7.5 % by its drift, a little up with energy and each step */
-        nb_t = 0.1f * g->k_nz * fm_clampf(1.0f + 0.5f * drift(g, 1) + 0.3f * (g->bloom + g->morph) - 0.2f, 0.0f, 2.0f);
+        /* the share of noise: a tenth of Noise cubed (100: 10 %, 50: 1.25 %, 20: 0.08 %: the low end very quiet), moved by its drift, a little up with energy and each step */
+        nb_t = 0.1f * g->k_nz * g->k_nz * g->k_nz * fm_clampf(1.0f + 0.5f * drift(g, 1) + 0.3f * (g->bloom + g->morph) - 0.2f, 0.0f, 2.0f);
         nb = g->param[NGEN_NOISE] ? fm_minf(nb_t * fm_maxf(1.0f + g->dv[4], 0.0f), 0.3f) : 0.0f;    /* the noise's share of the power; Noise 0: none */
         /* the noise's resonances wander from partial to partial, every half bar a new one, gliding */
         if (g->since % (bar / 2u) < (uint32_t)m || g->nz_t[0] == 1000.0f) {

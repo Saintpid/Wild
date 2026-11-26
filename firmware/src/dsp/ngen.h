@@ -39,7 +39,7 @@ enum {
     NGEN_SPREAD,       /* stereo width and detune */
     NGEN_INERTIA,      /* how slowly the timbre follows the energy */
     NGEN_DECAY,        /* how long energy lasts (half a bar .. 3 bars) */
-    NGEN_NOISE,        /* noise's share of the power: a tenth of this (100: 10 %), moving with it */
+    NGEN_NOISE,        /* noise's share of the power: a tenth of this cubed (100: 10 %, 50: 1.25 %), moving with it */
     NGEN_DEVIANCE,     /* how far each step strays: 0..89 around its own sound, 90..100 wandering on */
     NGEN_NPARAMS
 };

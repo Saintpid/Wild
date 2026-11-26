@@ -123,6 +123,7 @@ OCT- / OCT+  Selects the previous/next track. In the preset list: moves one slot
 SEL        Tap and release: select a bank with white key 1-8. Tap SEL again to cancel. Music continues while choosing. A filled bank opens; an empty bank becomes a copy of the playing bank, including automation. PLAY keeps selection open; another ordinary button leaves selection.
 SEL held + white 1-8  Copy the playing bank onto that bank and switch to it, even if occupied. No waiting for a long press and no confirmation menu. The same bank is unchanged. Tempo, level, Setup and Scene settings stay shared. While choosing, the current bank is lit, occupied banks dim; keys 9-15 have no bank. While it plays, what sounds rings on into the new bank (track 1 is never cut). If automation will not fit, COPY NOT MADE / AUTOMATION FULL means nothing was replaced.
            With Switch at 1, 4 or 8 bars (EDIT, page 2) a change of bank waits for the 1 of the next round: SEL blinks, and on the bank keys the bank waiting blinks. Choosing again replaces it; the bank playing cancels it; stopping makes it at once. Copies are always at once.
+SEL + black 5-9  Select that track (a quick jump), SEL tapped first or held; nothing is muted, and the bank choice ends.
 SEL + white 16  Chance: a new scene on every press, whether SEL is held or tapped first. Select the current bank to return to its original, or select another bank to leave the scene. Copying to another bank captures the scene you hear as an ordinary bank; its source keeps its original. Mute keys during Chance choose the original's mutes.
 
 Page buttons (another press goes to the button's next page):
@@ -223,12 +224,16 @@ RHYTHM (HOME, page 2)
              Bars. 0 % (to start): every new pattern plays Bars. Moved here from the Track page in 0.3.49.
 
 TRACK (EDIT)
-  (knob 1)   Empty (Rnd len moved to the Rhythm page)
+  Deviance   (every track; the 303's is EDIT's next page) How much the tone varies from hit to hit. From 90 (the name reads Wander) the sound
+             itself wanders too: a little at every sixteenth, each hit from where the last left off,
+             never back. Out of its kind in about 128 bars at 90, about 8 at 100, however many hits
+             the track plays. Below 90 again, it stays where it went (and is saved so); a new sound
+             starts over; a muted track waits. Level, pan and crush stay; it never fades to silence.
   Pitch      How much the steps may vary in pitch (+-N semitones), Root = no variation
   Level      The track's volume
   Mute       Off/on
 
-BANKS (EDIT, page 2; the same for every bank)
+BANKS (EDIT, page 2, on the 303 page 3; the same for every bank)
   Sync       On (to start): at a change of bank every track (the 303 too) falls in line with track 1.
              Track 1 goes on exactly where it is; the others play as if they had started together
              with track 1's current loop. Off: they go on from where they were. Either way tracks of
@@ -240,11 +245,7 @@ BANKS (EDIT, page 2; the same for every bank)
              so the first hit on the 1 is the new bank's.
 
 SOUND (ENV, page 1)
-  Deviance   How much the tone varies from hit to hit. From 90 (the name reads Wander) the sound
-             itself wanders too: a little at every sixteenth, each hit from where the last left off,
-             never back. Out of its kind in about 128 bars at 90, about 8 at 100, however many hits
-             the track plays. Below 90 again, it stays where it went (and is saved so); a new sound
-             starts over; a muted track waits. Level, pan and crush stay; it never fades to silence.
+  (knob 1)   Empty (Deviance moved to the Track page)
   Length     The sound's length
   Edge       Attack and bite
   Ring       Resonance and ring
@@ -270,12 +271,12 @@ GEN (Kind Gen, then NEW SOUND; one track at a time)
   share, Drive, Mod) do not reach it. A second track set to Gen is refused ("ONE GEN TRACK").
   Muted it rings out (a second or two); stopped, cleared, or gone with a bank switch or another kind,
   it lets go the same way on the level and sends it had. Panic stops it at once.
-  Track page: Deviance in Pitch's place. 0-89: each step moves the sound around its own (filter,
+  Track page: Deviance (knob 1), as on every track; Pitch has nothing to do here. 0-89: each step moves the sound around its own (filter,
   brightness, vibrato, pulse, noise, stereo place, detune), further the higher, never far from it.
   90-100 (Wander): each step goes on from the last one, further the nearer 100, and once a bar its
   material wanders too; a new sound starts from its own again.
   Sound page: Complex (how many tones and overtones at full energy), Movement (the pulse and the
-  drifts), Spread (stereo width and detune), Noise (its share: a tenth of this, 100 = 10 %).
+  drifts), Spread (stereo width and detune), Noise (its share, steep: 100 = 10 %, 50 about 1 %, the low end very quiet).
   Tone page: Kind, Inertia (how slowly the timbre follows the energy), Decay (how long energy lasts:
   half a bar to 3 bars), DNA (0-255, each a different sound; NEW SOUND draws a new one, and about a
   third of them are dull and dark).
@@ -301,7 +302,7 @@ TRACK      Accents (0ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100% of steps), Octa
 SOUND      Cutoff (314 Hz - 2.4 kHz, as a 303's), Reso, Env mod, Decay (200 ms - 2 s)
 RHYTHM     Grid: 16ths or Triplets, as on the drum tracks (1-4 bars of 12 steps in triplets)
 TONE       Wave (Saw, Square, Pulse, Tri, Sine, Duo), Accent (the accent's strength), Tune, Chaos (how far new patterns leave the rules, 0ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ100 %)
-DEVIANCE   (ENV, page 3: the acid line's only) Deviance (below)
+DEVIANCE   (EDIT, page 2: the acid line's only; Banks is page 3) Deviance (below)
 TRACK FX   Reverb, Delay, Filter, Drive
 MOD        Mod, Amount, Rate, Chance (as on the drum tracks, but Chance is drawn per note, and a slid note keeps the previous note's choice)
 
@@ -322,7 +323,7 @@ How the acid line plays, as a TB-303:
   Filter     Open303's model of the 303's diode ladder (mystran and kunn's TeeBeeFilter): four stages that load each other, the bottom one twice as fast (the 303's half-size capacitor), with a high-pass at 150 Hz in the resonance feedback. As on a 303 the sound thins out as the resonance goes up. Its diodes bend a little, so it rounds when driven hard and at high resonance, but never runs away. A sweep moves it every sample. As on a real 303, the saw's ramp bows a little, the VCA rounds loud accents, and the pitch and the cutoff drift slowly (a few cents, a few per cent).
   Accent     Louder (much: the filter envelope pushes the VCA up, as on a 303) and brighter. The brightness goes through a sweep: accents in a row build up, the more the higher the resonance.
 
-Deviance (ENV's third page, the acid line's own, KNOB 1; 0 = off, the default): the acid line's own hand on its Cutoff, Reso, Env mod and Decay, so it keeps moving while you work on the drums. It does not change the pattern (that is Evolve), and the knobs keep their values: Deviance plays around them, at 100 % mostly by its own.
+Deviance (EDIT's second page, the acid line's own, KNOB 1; 0 = off, the default): the acid line's own hand on its Cutoff, Reso, Env mod and Decay, so it keeps moving while you work on the drums. It does not change the pattern (that is Evolve), and the knobs keep their values: Deviance plays around them, at 100 % mostly by its own.
   It follows the drums: how busy the playing tracks are (their hits, the loud ones and the ones off the eighths count more), how hard they sound (Edge and Drive) and a little of Chaos. Muted tracks do not count, so a breakdown calms it too.
   Hard drums: the resonance goes high, Env Mod to the middle or high, the cutoff to the middle (Env Mod opens it enough), the decay shorter. Calm drums: resonance and Env Mod back, the cutoff lower, the decay longer.
   Each knob goes its own way at its own speed: most take two to eight bars, now and then one sweeps in half a bar, then stays a few bars. One way in six goes against the rules.

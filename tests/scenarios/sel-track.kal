@@ -1,0 +1,18 @@
+# SEL then a black mute key (black 5-9): that track selected, nothing muted, SEL done; SEL held the same
+wait 200
+expect track 0
+tap SEL
+tapkey b6
+expect track 2
+expect tpar7 0
+shot sel-track.png
+press SEL
+tapkey b8
+release SEL
+expect track 4
+# without SEL the key mutes as before (track 1 muted, track 5 still selected)
+tapkey b4
+expect track 4
+tap OCT+
+expect track 0
+expect tpar7 1

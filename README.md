@@ -1,6 +1,6 @@
-# Wild 0.3.50 - experimental FM-1 firmware
+# Wild 0.3.51 - experimental FM-1 firmware
 
-**0.3.50: Gen, the first generative sound, now with Deviance and chords.** Deviance on a Gen track (the Track page, in Pitch's place): up to 89 each
+**0.3.51: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end. On a Gen track up to 89 each
 step moves the sound around its own, from 90 it wanders on from step to step. Its chords follow the
 303's scale, from a single note to a ninth, and the intense side may move to another chord. Muted,
 stopped or gone with a bank switch, it rings out instead of stopping short.
@@ -11,7 +11,7 @@ then NEW SOUND) a stereo sound that is made, not played: a chord in the 303's ke
 fifths, a drone or a ninth; held like a pad or struck like a stab. Its steps are energy, not hits: a step adds (by its strength), time takes
 away, and it never goes silent until a bar has passed without one. It looks ahead in its pattern and
 grows brighter before a busy part. Sound page: Complex, Movement, Spread, Noise; Tone page: Kind,
-Inertia, Decay, DNA (NEW SOUND draws one). Noise 100 is 10 % of the sound. One Gen track
+Inertia, Decay, DNA (NEW SOUND draws one). Noise 100 is 10 % of the sound, and it falls off steeply below. One Gen track
 at a time. Audio Load's split has a G for it.
 **0.3.49: banks that change in time.** Tracks of the same length can no longer drift apart (a length
 turned, a pattern restored or a bank changed mid-bar used to put one off by some sixteenths): every
@@ -238,6 +238,7 @@ command.
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
 | **SEL + white 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
 | **Banks page (EDIT twice)** | **Sync**: at a change of bank every track in line with track 1 (which goes on as it is). **Switch**: Now, or wait for the 1 of the phrase's next 1, 4 or 8 bars (SEL and the waiting bank's key blink) |
+| **SEL + black 5-9** | Select that track, a quick jump (SEL tapped first or held); nothing is muted |
 | **SEL + white 16** | Chance: a new scene by chance at every press (the bank keeps its original) |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 

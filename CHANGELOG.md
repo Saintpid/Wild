@@ -5,12 +5,12 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
-## 0.3.50
+## 0.3.51
 
-Firmware identity FM-1_884. The first generative sound: a new kind, Gen, with Deviance, chords in the
+Firmware identity FM-1_885. The first generative sound: a new kind, Gen, with Deviance, chords in the
 303's scale, and a ring-out instead of a sudden stop; a low-pass on every track; and the mutes recorded.
-(0.3.45 to 0.3.48, ids 879 to 882, and a 0.3.49 with id 883 were test builds of it; the 0.3.49 below is
-the banks' release.)
+(0.3.45 to 0.3.48, ids 879 to 882, a 0.3.49 with id 883 and 0.3.50 with id 884 were test builds of it;
+the 0.3.49 below is the banks' release.)
 
 - REC records the mute keys (black 5 to 9) too, like a knob: with REC on and playing, each press goes
   into a lane of that track's mutes, which plays back on the sixteenth it was pressed. REC held and the
@@ -30,13 +30,20 @@ the banks' release.)
   sound never goes silent until a bar has passed without a step. It looks ahead: before a busy part of
   the pattern it grows brighter.
 - Its own knobs: Sound page Complex, Movement, Spread, Noise; Tone page Kind, Inertia, Decay and DNA.
-  NEW SOUND draws a new DNA. Noise at 100 is 10 % of the sound (the default 50: 5 %).
+  NEW SOUND draws a new DNA. Noise at 100 is 10 % of the sound.
 - One Gen track at a time: a second is refused with "ONE GEN TRACK".
 - Its Reverb and Delay sends, Level, Mute, Low-pass and Bypass work as on other tracks; the hit effects
   (filter share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
 - Audio Load's split shows G, the Gen track's share of the time. Projects gain the Gen track's seven values
   and the low-pass (format 21); older ones load as before.
-- Deviance on a Gen track: the Track page, in Pitch's place (its Sound page has its own knobs). Up to
+- Deviance is now on the Track page (EDIT, KNOB 1) for every track: drums, Rumble and Gen alike (it
+  was the Sound page's KNOB 1, which is now empty). The 303's own Deviance page moved from ENV to EDIT:
+  EDIT twice on the 303, and Banks is EDIT's third page there.
+- SEL, then a black mute key (5 to 9), or a mute key with SEL held: that track is selected, a quick
+  jump to it. Nothing is muted, and the bank choice ends.
+- Gen's Noise falls off steeply: 100 is as before (10 % of the sound), 50 about 1 %, and the first
+  steps up from 0 barely heard (it was half of the top at 25).
+- Deviance on a Gen track: Up to
   89 each step moves the sound around its own (its filter, brightness, vibrato, pulse, noise, place in
   the stereo, detune), further the higher you turn it, and never far from where it began. From 90 it
   no longer comes back: each step goes on from where the last one left off, further the nearer 100,

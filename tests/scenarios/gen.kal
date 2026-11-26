@@ -49,10 +49,10 @@ wav gen.wav
 tap PLAY
 wait 6000
 expect glevel >20
-# Deviance: on its Track page, in Pitch's place (its Sound page is its own)
+# Deviance: on its Track page (EDIT, KNOB 1) as for every track
 tap EDIT
 expect view 2
-spin K2 30
+spin K1 30
 expect tpar8 70
 wait 100
 shot gen-track.png

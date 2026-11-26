@@ -22,6 +22,7 @@
  *   SEL            tap/release then white 1-8: select (empty: copy); held + white 1-8: overwrite/copy
  *   SEL + white 16 Chance: new scene each time; selecting the current bank leaves Chance
  *                  bank selection lights: playing bright, occupied dim; tempo shared
+ *   SEL + black 5-9  the track (a quick jump), tapped SEL or held
  *                  EDIT again (Banks): Sync, every track in line with track 1 at a change; Switch, the
  *                  change at once or on the 1 of the phrase's next 1 / 4 / 8 bars (SEL blinks meanwhile)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
@@ -37,8 +38,8 @@
  *   FX             the selected track's effects (reverb, delay, filter, drive); again: its modulation
  *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
- * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: ENV's third page
- * is only its own, KNOB 1 its Deviance, as the drums' is on their Sound page); a step key sets a note (with an accent),
+ * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: EDIT's second page
+ * is only its own, KNOB 1 its Deviance, as every other track's is on its Track page); a step key sets a note (with an accent),
  * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide (into the next step). CC 74 / 71: its
  * cutoff / resonance. Its Chaos (the Tone page, KNOB 4): how far its new patterns leave the rules.
  *
@@ -48,7 +49,7 @@
 enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, V_RUMBLE, V_CONTROLS, V_RDETAIL, V_RMIX, V_BANKS, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
                                               "Routing", "Master", "Glue", "Groove", "Setup", "Scene", "Rumble", "Controls", "Texture", "Layer", "Banks"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV, B_EDIT};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_EDIT, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV, B_EDIT};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -67,8 +68,8 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {KT | T_BARS, KT | T_HITLESS, KT | T_HITFILL, KT | T_EVOLVE},
     {KT | T_GRID, KT | T_DYN, KT | T_RANDLEN, K_NONE},   /* HOME again: the steps, sixteenths or triplets; how soft;
                                                          * how many new patterns draw their own length */
-    {K_NONE, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
-    {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
+    {KT | T_DEV, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},   /* (Deviance here for every track: the 303's on EDIT's next page) */
+    {K_NONE, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
     {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, KT | T_LPF},
     {K_NONE, K_NONE, K_NONE, K_NONE},                /* (the acid line's only) */
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
@@ -224,7 +225,7 @@ static void ktext(int k, int v, char *t)
     else
         ne_param_text(k, v, t);
 }
-/* the pages a track has: the Deviance page under ENV is the acid line's (the drums' is on Sound) */
+/* the pages a track has: the Deviance page (EDIT's second) is the acid line's (the drums' is on the Track page) */
 static int has_rumble(int t) { return t<NE_TRACKS && ne_fm()->slot[t].kind==NFM_KIND_KICK; }
 static int rumble_view(int v) { return v==V_RUMBLE || v==V_RDETAIL || v==V_RMIX; }
 static int rumble_editing(void) { return has_rumble(ui.track) && rumble_view(ui.view); }
@@ -244,7 +245,7 @@ static int view_knob(int i)
     if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
         return GEN_KNOB[ui.view == V_TONE][i];
     if (ui.view == V_TRACK && i == 1 && is_gen(ui.track))
-        return KT | T_DEV;                           /* (its Sound page is its own: Deviance in Pitch's place) */
+        return K_NONE;                               /* (Pitch: no hits to tune) */
     if (ui.view == V_TFX && i == 2 && is_gen(ui.track))
         return KT | T_LPF;                           /* (its Filter share has no hits to take: its low-pass) */
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
@@ -578,7 +579,7 @@ static void select_track(int t)
     ui.track = (uint8_t)((t + UI_TRACKS) % UI_TRACKS);
     if (rumble_view(ui.view) && !has_rumble(ui.track)) ui.view=V_SOUND;
     if (!view_here(ui.view))
-        ui.view = V_SOUND;
+        ui.view = ui.view == V_ADEV ? V_TRACK : V_SOUND;   /* (the 303's Deviance: a drum's is on its Track page) */
     if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
         ui.bar_lock = 0;
     {
@@ -876,7 +877,7 @@ static void sel_forget(void) { ui.chance = 0; }
 static void sel_press(void)
 {
     ui.bank_select ^= 1u;
-    say(ui.bank_select ? "SELECT BANK" : "CANCELLED", ui.bank_select ? "WHITE 1-8 / 16 CHANCE" : 0);
+    say(ui.bank_select ? "SELECT BANK" : "CANCELLED", ui.bank_select ? "WHITE 1-8 / 16 CHANCE" : 0);   /* (black 5-9: a track) */
     if (ui.bank_select) ui.held_step = -1;
 }
 #define BANK_CHANCE 15
@@ -1037,6 +1038,12 @@ static void black_down(int b)
     if (b >= BK_MUTE1 && b <= BK_MUTE5) {
         int m = b - BK_MUTE1;
         char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + m), 0};
+        if ((ui.bank_select || sel_held()) && !ui.list) {   /* SEL (tapped or held): the track, a quick jump */
+            ui.bank_select = 0;
+            ui.btn_used |= 1u << B_SEL;
+            select_track(m);
+            return;
+        }
         if (sc_chance()) {                           /* in a scene by chance: the original's mutes */
             sc_was[m][0] = (int16_t)!sc_was[m][0];
             say(a, sc_was[m][0] ? "MUTED AFTER" : "ON AFTER");
