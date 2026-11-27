@@ -5,6 +5,15 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.55
+
+Firmware identity FM-1_889. Fill and Notes turned back come back to where you started.
+
+- Turn Fill or Notes up and then down again, and you are back at exactly the pattern you started
+  with: the hits that came go again, the last one first. Turned down and up again, the hits that went
+  come back, the same ones. Any way round, at the same knob you hear the same pattern. Something new
+  is a new pattern (black 10), as before.
+
 ## 0.3.54
 
 Firmware identity FM-1_888. Fill and Notes play the intensity, live; Less is gone. (Built on the Gen line

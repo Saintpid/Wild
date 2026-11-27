@@ -1,5 +1,7 @@
 # Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.55: Fill and Notes come back.** Turned up and down again (or down and up), the pattern is exactly the one you started with: the hits that came go again, the ones that went come back.
+
 **0.3.54: Fill and Notes play the intensity, live.** Less is gone. Turning Fill (drums, now KNOB 2 on the Pattern page, where the 303's Notes is) or Notes adds or takes away hits at once, by chance, towards that %. A pattern made by hand counts as if it matched the knob: four quarters at Fill 80 fill slowly as you turn up, and nothing goes as you turn down until Fill reaches 25. A longer Bars repeats the pattern into the new bars at once.
 
 **0.3.53: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end, and **Chords** (Gen's Track page, KNOB 2) moves its chords: Stab (techno stabs: another chord of the scale on a chosen offbeat for a sixteenth or an eighth, straight back), Pop (another chord for a bar or two now and then), Dub (the two traded on the steps) or Hold. On a Gen track up to 89 each
@@ -200,7 +202,8 @@ command.
   Pattern page, are how busy: a new pattern fills that % of the steps, and turned they add or take away
   hits at once, by chance, so you play the intensity. A pattern that doesn't match the knob (made by
   hand, or the knob turned meanwhile) counts as if it did: turned away from its own % it moves at once
-  in proportion, towards it nothing changes until the knob gets there. **Bars** takes effect at once;
+  in proportion, towards it nothing changes until the knob gets there. Turned back, it comes back to
+  where it started, the same hits (something new: a new pattern). **Bars** takes effect at once;
   longer, the pattern repeats into the new bars (1 bar to 2: bar 1 twice). Evolve now and then moves a hit when the
   loop comes round. **Rnd len** (Rhythm page) gives that % of a track's new patterns a length of
   their own (1-8 bars, now and then a bar short), else they play Bars. Every track counts its place

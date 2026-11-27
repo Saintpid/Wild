@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
     nseq_step step[NSEQ_MAX_STEPS];
     uint8_t length;      /* steps, 1..128 */
-    uint8_t hits_fill;   /* percentage of the track length a new pattern fills (nseq_fit: live) */
+    uint8_t hits_fill;   /* percentage of the track length a new pattern fills (turned: ne_density) */
     uint8_t pitch_range; /* semitones up and down, 0 = always the root */
     uint8_t evolve;      /* 0..100: % chance per loop that one hit moves */
     uint8_t mute;
@@ -108,10 +108,11 @@ void nseq_set_length(nseq *q, int track, int steps);
 /* ...the same, but longer the track repeats what it had into its new steps (1 bar to 2: bar 1 twice) */
 void nseq_resize(nseq *q, int track, int steps);
 void nseq_set_fill(nseq *q, int track, int fill);
-/* Hits added or taken away, by chance, until the track has `count` within its length: new ones where its
- * kind likes to play, apart from the others; taken ones go from the weak places first and stay latent
- * (a step's reserved 1), likeliest to come back. */
-void nseq_fit(nseq *q, int track, int count);
+/* The step a hit would come to (add) or go from, by chance: new ones where its kind likes to play, apart
+ * from the others, a latent one likeliest; taken ones from the weak places first. -1: none. */
+int nseq_pick(nseq *q, int track, int add);
+/* A step on or off; off it stays latent (reserved 1: its strength and note kept for its return) */
+void nseq_turn(nseq *q, int track, int step, int on);
 int nseq_hits(const nseq *q, int track);           /* hits within its length */
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
