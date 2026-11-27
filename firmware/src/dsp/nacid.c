@@ -387,6 +387,22 @@ NFM_CODE void nacid_set_length(nacid *a, int n)
     if (a->pos >= a->length) a->pos = 0;
 }
 
+NFM_CODE int nacid_pick(nacid *a, int add)
+{
+    int len = a->length, chosen = -1;
+    float sum = 0.0f, r;
+    add = add ? 1 : 0;
+    for (int s = 0; s < len; ++s)
+        if (!!(a->step[s].flags & NACID_ON) != add) sum += add ? pos_w(a, s) : 1.0f / pos_w(a, s);
+    r = rndf(&a->rng) * sum;
+    for (int s = 0; s < len; ++s) {
+        if (!!(a->step[s].flags & NACID_ON) == add) continue;
+        chosen = s;
+        if ((r -= add ? pos_w(a, s) : 1.0f / pos_w(a, s)) < 0.0f) break;
+    }
+    return chosen;
+}
+
 NFM_CODE void nacid_resize(nacid *a, int n)
 {
     int old = a->length, loop = old / a->bar * a->bar;

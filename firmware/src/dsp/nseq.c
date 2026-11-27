@@ -286,49 +286,45 @@ NFM_CODE int nseq_hits(const nseq *q, int t)
     return n;
 }
 
-NFM_CODE void nseq_fit(nseq *q, int t, int count)
+NFM_CODE int nseq_pick(nseq *q, int t, int add)
 {
-    if (!track_ok(t)) return;
+    if (!track_ok(t)) return -1;
     nseq_track *tr = &q->track[t];
     const uint8_t *prof = track_profile(q, t);
-    int len = tr->length, bar = nseq_bar(tr), n = nseq_hits(q, t);
+    int len = tr->length, bar = nseq_bar(tr);
     int kick = nfm_slot_kind(q->engine, t) == NFM_KIND_KICK;
     float *w = work;
-    if (count < 0) count = 0;
-    if (count > len) count = len;
-    while (n != count) {
-        int add = n < count;
-        for (int s = 0; s < len; ++s) {
-            const nseq_step *st = &tr->step[s];
-            float x = (float)prof[s % bar];
-            if (st->on == add) { w[s] = 0.0f; continue; }
-            if (add) {
-                /* where it likes, apart from the others, where another bar has one, a taken one back */
-                if (len > 2 && (tr->step[(s + 1) % len].on || tr->step[(s + len - 1) % len].on)) x *= 0.3f;
-                for (int b = s % bar; b < len; b += bar)
-                    if (b != s && tr->step[b].on) { x *= 1.6f; break; }
-                if (st->reserved) x *= 4.0f;
-            } else {
-                x = 1.0f / x;                     /* the weak places first, a kick's first step last */
-                if (kick && s == 0) x *= 0.05f;
-            }
-            w[s] = x * (0.8f + 0.4f * rndf(&q->rng));
-        }
-        int s = pick_step(q, w, len);
-        if (s < 0) break;
-        nseq_step *st = &tr->step[s];
+    add = add ? 1 : 0;
+    for (int s = 0; s < len; ++s) {
+        const nseq_step *st = &tr->step[s];
+        float x = (float)prof[s % bar];
+        if (st->on == add) { w[s] = 0.0f; continue; }
         if (add) {
-            if (!st->reserved) {
-                st->vel = (uint8_t)velocity(q, tr, s);
-                st->note = pick_note(q, tr->pitch_range);
-            }
-            st->on = 1;
+            /* where it likes, apart from the others, where another bar has one, a taken one back */
+            if (len > 2 && (tr->step[(s + 1) % len].on || tr->step[(s + len - 1) % len].on)) x *= 0.3f;
+            for (int b = s % bar; b < len; b += bar)
+                if (b != s && tr->step[b].on) { x *= 1.6f; break; }
+            if (st->reserved) x *= 4.0f;
         } else {
-            st->on = 0;
+            x = 1.0f / x;                         /* the weak places first, a kick's first step last */
+            if (kick && s == 0) x *= 0.05f;
         }
-        st->reserved = (uint8_t)!add;
-        n += add ? 1 : -1;
+        w[s] = x * (0.8f + 0.4f * rndf(&q->rng));
     }
+    return pick_step(q, w, len);
+}
+
+NFM_CODE void nseq_turn(nseq *q, int t, int s, int on)
+{
+    if (!track_ok(t) || s < 0 || s >= NSEQ_MAX_STEPS) return;
+    nseq_track *tr = &q->track[t];
+    nseq_step *st = &tr->step[s];
+    if (on && !st->on && !st->reserved) {         /* (never played: its own strength and note) */
+        st->vel = (uint8_t)velocity(q, tr, s);
+        st->note = pick_note(q, tr->pitch_range);
+    }
+    st->on = (uint8_t)(on ? 1 : 0);
+    st->reserved = (uint8_t)!on;
 }
 
 NFM_CODE void nseq_set_step(nseq *q, int t, int s, int on, int vel, int note)

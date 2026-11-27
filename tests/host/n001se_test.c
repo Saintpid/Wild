@@ -230,11 +230,13 @@ int main(int argc, char **argv)
             CHECK(n == L[l].want && tr->hits_fill == L[l].to, "Fill %d with %d hits by hand, turned to %d: %d hits, expected %d",
                   L[l].fill, L[l].hits, L[l].to, n, L[l].want);
             CHECK(L[l].hits != 4 || L[l].want < 4 || quarters == 4, "Fill turned: the hand's quarters went (%d left)", quarters);
-            /* ...and back: the hand's count again, from the same anchor */
+            /* ...and back: exactly the hand's pattern again, whichever way it went */
             ne_density(0, L[l].fill);
             render(1, 0);
-            for (i = n = 0; i < tr->length; i++) n += tr->step[i].on;
-            CHECK(L[l].want == 0 || n == L[l].hits, "Fill %d -> %d -> back: %d hits, expected %d", L[l].fill, L[l].to, n, L[l].hits);
+            for (i = n = quarters = 0; i < tr->length; i++)
+                n += tr->step[i].on, quarters += tr->step[i].on != (L[l].hits == 4 ? i % 4 == 0 : i % 4 != 3);
+            CHECK(n == L[l].hits && quarters == 0, "Fill %d -> %d -> back: %d hits, %d not the hand's", L[l].fill, L[l].to, n,
+                  quarters);
             ne_tset(0, T_HITFILL, 100);
             render(1, 0);
             for (i = 0, quarters = n; i < tr->length; i++) quarters -= tr->step[i].on;
@@ -253,6 +255,32 @@ int main(int argc, char **argv)
             render(1, 0);
             for (i = 0; i < tr->length; i++) n += tr->step[i].on;
             CHECK(n == (32 * f + 50) / 100, "a generated pattern turned to Fill %d: %d hits", f, n);
+        }
+        /* up and down, down and up, any way round: back at the start, the start's pattern */
+        {
+            static const int R[3][5] = {{75, 60, 90, 55, 50}, {20, 35, 10, 45, 50}, {80, 5, 100, 0, 50}};
+            uint8_t was[NE_STEPS];
+            ne_tset(0, T_HITFILL, 50);
+            ne_generate(0);
+            render(1, 0);
+            for (i = 0; i < NE_STEPS; i++) was[i] = tr->step[i].on;
+            for (int r = 0; r < 3; r++) {
+                int diff = 0, mid = 0;
+                for (int k = 0; k < 5; k++) {
+                    ne_density(0, R[r][k]);
+                    render(1, 0);
+                    if (k == 2) {                   /* (and the same on the way, at the same knob) */
+                        ne_density(0, R[r][1]);
+                        render(1, 0);
+                        for (i = 0; i < tr->length; i++) mid += tr->step[i].on;
+                        ne_density(0, R[r][2]);
+                        render(1, 0);
+                    }
+                }
+                for (i = 0; i < tr->length; i++) diff += tr->step[i].on != was[i];
+                CHECK(diff == 0 && mid == (32 * R[r][1] + 50) / 100, "Fill turned %d %d %d %d back to 50: %d steps not the start's",
+                      R[r][0], R[r][1], R[r][2], R[r][3], diff);
+            }
         }
         /* longer at once, the new bars copies of the first: 1 bar to 3 */
         ne_tset(0, T_BARS, 1);

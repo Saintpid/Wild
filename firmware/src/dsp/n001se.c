@@ -1348,21 +1348,30 @@ void ne_init(void)
 static uint16_t u16(float x) { return (uint16_t)(x <= 0.0f ? 0 : x >= 1.0f ? 65535 : (int)(x * 65535.0f + 0.5f)); }
 
 /* ---------------------------------------------- Fill and Notes, turned: the intensity, live --- */
-/* The knob moves the hits there are, towards its % of the length, by chance (nseq_fit, nacid_fit). A
- * pattern that does not match the knob (made by hand, or the knob turned meanwhile) counts as if it did:
- * from where it stands the knob's way away from the pattern's own % moves it at once, in proportion
- * (4 hits of 16 at 80: turned up, 81..100 fill the other 12 step by step), its way towards that % does
- * nothing until it gets there (turned down, nothing goes before 25). Each track keeps that point (its
- * anchor: the knob and the hits) for as long as the pattern is the one it left. */
+/* The knob moves the hits there are, towards its % of the length, by chance. A pattern that does not
+ * match the knob (made by hand, or the knob turned meanwhile) counts as if it did: from where it stands
+ * the knob's way away from the pattern's own % moves it at once, in proportion (4 hits of 16 at 80:
+ * turned up, 81..100 fill the other 12 step by step), its way towards that % does nothing until it gets
+ * there (turned down, nothing goes before 25). Each track keeps that point (its anchor: the knob and the
+ * hits) and an order of its steps for as long as the pattern is the one it left: the pattern's own
+ * first, the hits it gains after them in the order they came, so a count is always the order's first so
+ * many. Turned back, it is where it was: up then down the hits that came go again, last first; down then
+ * up the ones that went come back. Drawn only when first reached (dn_up, dn_dn). Something new: a new
+ * pattern. */
 static int16_t dn_k[NE_TRACKS + 1];
-static uint8_t dn_h[NE_TRACKS + 1];
+static uint8_t dn_h[NE_TRACKS + 1], dn_up[NE_TRACKS + 1], dn_dn[NE_TRACKS + 1];
+static uint8_t dn_ord[NE_TRACKS + 1][NE_STEPS];
 static uint32_t dn_sig[NE_TRACKS + 1];
+static int dens_on(int t, int s)
+{
+    return t == NE_ACID ? !!(acid.step[s].flags & NACID_ON) : seq.track[t].step[s].on;
+}
 static uint32_t dens_sig(int t, int *len, int *hits)
 {
     uint32_t h = 2166136261u;
     int s, n = 0, l = t == NE_ACID ? acid.length : seq.track[t].length;
     for (s = 0; s < l; s++) {
-        int on = t == NE_ACID ? !!(acid.step[s].flags & NACID_ON) : seq.track[t].step[s].on;
+        int on = dens_on(t, s);
         n += on;
         h = (h ^ (uint32_t)(on ? s + 1 : 0)) * 16777619u;
     }
@@ -1381,9 +1390,34 @@ static int dens_map(int len, int ak, int ah, int v)
     if (v >= ak) return abs_ > ah ? abs_ : ah;      /* busier: the mirror */
     return (ah * v * 2 + ak) / (2 * ak);
 }
+/* the order's first n on, the rest off */
+static void dens_apply(int t, int len, int n)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        int s = dn_ord[t][i];
+        if (dens_on(t, s) == (i < n))
+            continue;
+        if (t == NE_ACID)
+            acid.step[s].flags ^= NACID_ON;          /* (a rest keeps its pitch, accent, slide) */
+        else
+            nseq_turn(&seq, t, s, i < n);
+    }
+}
+/* the order's step s to place i (swapped with the one there) */
+static void dens_place(int t, int len, int s, int i)
+{
+    int j;
+    for (j = 0; j < len; j++)
+        if (dn_ord[t][j] == s) {
+            dn_ord[t][j] = dn_ord[t][i];
+            dn_ord[t][i] = (uint8_t)s;
+            return;
+        }
+}
 static void density(int t, int v)
 {
-    int len, hits, was;
+    int len, hits, was, n, s, i, j;
     uint32_t sig;
     if ((unsigned)t > NE_TRACKS)
         return;
@@ -1395,12 +1429,26 @@ static void density(int t, int v)
     sig = dens_sig(t, &len, &hits);
     if (sig != dn_sig[t]) {                          /* a pattern it has not moved: its anchor here */
         dn_k[t] = (int16_t)was;
-        dn_h[t] = (uint8_t)hits;
+        dn_h[t] = dn_up[t] = dn_dn[t] = (uint8_t)hits;
+        for (s = i = 0, j = hits; s < len; s++)      /* (its hits first) */
+            dn_ord[t][dens_on(t, s) ? i++ : j++] = (uint8_t)s;
     }
-    if (t == NE_ACID)
-        nacid_fit(&acid, dens_map(len, dn_k[t], dn_h[t], v));
-    else
-        nseq_fit(&seq, t, dens_map(len, dn_k[t], dn_h[t], v));
+    n = dens_map(len, dn_k[t], dn_h[t], v);
+    while (n > dn_up[t]) {                           /* further up than before: one more drawn */
+        dens_apply(t, len, dn_up[t]);
+        s = t == NE_ACID ? nacid_pick(&acid, 1) : nseq_pick(&seq, t, 1);
+        if (s < 0)
+            break;
+        dens_place(t, len, s, dn_up[t]++);
+    }
+    while (n < dn_dn[t]) {                           /* further down: one more of its own drawn to go */
+        dens_apply(t, len, dn_dn[t]);
+        s = t == NE_ACID ? nacid_pick(&acid, 0) : nseq_pick(&seq, t, 0);
+        if (s < 0)
+            break;
+        dens_place(t, len, s, --dn_dn[t]);
+    }
+    dens_apply(t, len, n);
     dn_sig[t] = dens_sig(t, &len, &hits);
 }
 
