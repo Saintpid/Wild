@@ -5,6 +5,13 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.57
+
+Firmware identity FM-1_891.
+
+- A track you unmute (black 5 to 9) no longer becomes the selected one: you stay on the track you are
+  editing. SEL + a mute key selects a track, as before.
+
 ## 0.3.56
 
 Firmware identity FM-1_890. Fill and Notes start from the pattern you have.
