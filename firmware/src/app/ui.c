@@ -12,7 +12,7 @@
  *   black 1 / 2    the bar shown (and edited): one down / up, and it stays; both: follow the playhead
  *   black 3        the Master page (hi cut, lo cut, resonance, glue); again: back
  *   black 4        the preset list to load: a slot (SELECT, OCT-/+, PRESETS, a white key), black 4 again
- *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); unmuted, it is selected
+ *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); SEL + the key selects it
  *   black 10 / 11  a new pattern / a new sound for the selected track; with GLO held: for every track
  *   PLAY start / stop    SEQ the mode
  *   REC            automation: the knobs turned while it plays are recorded, REC again ends it, and they
@@ -1080,8 +1080,7 @@ static void black_down(int b)
         else
             tpar_set(m, T_MUTE, !proj.t[m][T_MUTE]);
         if (!(m == NE_ACID ? proj.a[A_MUTE] : proj.t[m][T_MUTE])) {
-            select_track(m);                         /* back on: it is the one to edit */
-            say(a, "ON");
+            say(a, "ON");                            /* (the track stays: SEL + the key selects) */
         } else {
             say(a, "MUTED");
         }

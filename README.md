@@ -1,5 +1,7 @@
 # Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.57:** Unmuting a track no longer selects it; SEL + its mute key does.
+
 **0.3.56: Fill and Notes start where your pattern is.** On a pattern made by hand the knob first jumps to its real % (a kick on every quarter: 25), then turns from there.
 
 **0.3.55: Fill and Notes come back.** Turned up and down again (or down and up), the pattern is exactly the one you started with: the hits that came go again, the ones that went come back.
