@@ -1349,7 +1349,8 @@ static uint16_t u16(float x) { return (uint16_t)(x <= 0.0f ? 0 : x >= 1.0f ? 655
 
 /* ---------------------------------------------- Fill and Notes, turned: the intensity, live --- */
 /* The knob moves the hits there are, towards its % of the length, by chance. A pattern that does not
- * match the knob (made by hand, or the knob turned meanwhile) counts as if it did: from where it stands
+ * match the knob (made by hand, or the knob turned meanwhile; a knob turned on the panel first jumps to its
+ * %, ne_density_fresh, so this is for the rest: PRESETS, MIDI) counts as if it did: from where it stands
  * the knob's way away from the pattern's own % moves it at once, in proportion (4 hits of 16 at 80:
  * turned up, 81..100 fill the other 12 step by step), its way towards that % does nothing until it gets
  * there (turned down, nothing goes before 25). Each track keeps that point (its anchor: the knob and the
@@ -1362,6 +1363,7 @@ static int16_t dn_k[NE_TRACKS + 1];
 static uint8_t dn_h[NE_TRACKS + 1], dn_up[NE_TRACKS + 1], dn_dn[NE_TRACKS + 1];
 static uint8_t dn_ord[NE_TRACKS + 1][NE_STEPS];
 static uint32_t dn_sig[NE_TRACKS + 1];
+static volatile uint16_t dn_done[NE_TRACKS + 1];   /* turns taken (the UI's: none still on the way) */
 static int dens_on(int t, int s)
 {
     return t == NE_ACID ? !!(acid.step[s].flags & NACID_ON) : seq.track[t].step[s].on;
@@ -1450,6 +1452,15 @@ static void density(int t, int v)
     }
     dens_apply(t, len, n);
     dn_sig[t] = dens_sig(t, &len, &hits);
+    dn_done[t]++;
+}
+int ne_density_done(int t) { return (unsigned)t <= NE_TRACKS ? dn_done[t] : 0; }
+int ne_density_fresh(int t)
+{
+    int len, hits;
+    if ((unsigned)t > NE_TRACKS || dens_sig(t, &len, &hits) == dn_sig[t] || len < 1)
+        return -1;
+    return (hits * 100 + len / 2) / len;
 }
 
 void ne_snapshot(ne_state_t *s)

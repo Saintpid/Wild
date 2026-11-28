@@ -1,5 +1,7 @@
 # Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.56: Fill and Notes start where your pattern is.** On a pattern made by hand the knob first jumps to its real % (a kick on every quarter: 25), then turns from there.
+
 **0.3.55: Fill and Notes come back.** Turned up and down again (or down and up), the pattern is exactly the one you started with: the hits that came go again, the ones that went come back.
 
 **0.3.54: Fill and Notes play the intensity, live.** Less is gone. Turning Fill (drums, now KNOB 2 on the Pattern page, where the 303's Notes is) or Notes adds or takes away hits at once, by chance, towards that %. A pattern made by hand counts as if it matched the knob: four quarters at Fill 80 fill slowly as you turn up, and nothing goes as you turn down until Fill reaches 25. A longer Bars repeats the pattern into the new bars at once.
@@ -200,9 +202,9 @@ command.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars, acid 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), so
   the tracks drift against each other. **Fill** (drums) and **Notes** (the 303), KNOB 2 on the
   Pattern page, are how busy: a new pattern fills that % of the steps, and turned they add or take away
-  hits at once, by chance, so you play the intensity. A pattern that doesn't match the knob (made by
-  hand, or the knob turned meanwhile) counts as if it did: turned away from its own % it moves at once
-  in proportion, towards it nothing changes until the knob gets there. Turned back, it comes back to
+  hits at once, by chance, so you play the intensity. On a pattern that doesn't match the knob (made by
+  hand, or changed since the knob was turned) the knob first jumps to the pattern's own %, then moves
+  from there. Turned back, it comes back to
   where it started, the same hits (something new: a new pattern). **Bars** takes effect at once;
   longer, the pattern repeats into the new bars (1 bar to 2: bar 1 twice). Evolve now and then moves a hit when the
   loop comes round. **Rnd len** (Rhythm page) gives that % of a track's new patterns a length of

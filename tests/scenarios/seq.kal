@@ -106,6 +106,25 @@ expect hits 8
 spin K2 25
 wait 20
 expect hits 16
+# by hand: Fill first jumps to the pattern's own % (4 of 32: 13), then turns from there
+spin K2 -50
+wait 20
+expect hits 0
+tapkey w0
+tapkey w4
+tapkey w8
+tapkey w12
+wait 20
+expect hits 4
+expect tpar3 0
+spin K2 1
+wait 20
+expect tpar3 14
+expect hits 4
+spin K2 -1
+wait 20
+expect tpar3 13
+expect hits 4
 # black 11: a new sound, same kind
 tapkey b10
 wait 20
