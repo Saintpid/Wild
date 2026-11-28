@@ -5,6 +5,14 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.56
+
+Firmware identity FM-1_890. Fill and Notes start from the pattern you have.
+
+- Turning Fill or Notes on a pattern you made by hand (or one changed since you last turned it), the
+  knob first jumps to that pattern's own %, then moves from there: a kick on every quarter of one bar
+  shows 25, whatever Fill said before. Turned back, it still comes back to where you started.
+
 ## 0.3.55
 
 Firmware identity FM-1_889. Fill and Notes turned back come back to where you started.

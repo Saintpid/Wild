@@ -144,6 +144,11 @@ void ne_clear(void);                                 /* every pattern empty, the
 void ne_clear_track(int track);                      /* ...one track's (NE_ACID: the 303's) */
 /* Fill (a drum track) or Notes (NE_ACID) turned to v: the pattern's hits follow, live (see density()) */
 void ne_density(int track, int v);
+/* the pattern's own % (its hits of its length) if no turn left it as it is (made anew, by hand, ...),
+ * else -1: where the knob jumps to as a turn starts; read when ne_density_done() has taken every turn
+ * sent (main loop) */
+int ne_density_fresh(int track);
+int ne_density_done(int track);
 /* every track and the acid line back in line with track 1 from global step `at` (nseq_sync): track 1 goes
  * on, the others as if they had started with its current loop */
 void ne_sync(uint32_t at);

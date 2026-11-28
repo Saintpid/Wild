@@ -253,6 +253,7 @@ static int view_knob(int i)
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
 }
 
+static uint16_t dn_sent[UI_TRACKS];               /* Fill / Notes turns sent (ne_density_done) */
 static void tpar_set(int t, int p, int v)
 {
     const ne_param_t *i = ne_tparam_info(p);
@@ -263,12 +264,27 @@ static void tpar_set(int t, int p, int v)
     if (p == T_GRID)                                 /* the pattern moves along into the grid */
         ne_regrid(t, v);
     else if (p == T_HITFILL)                         /* its hits follow (a restore: ne_tset itself) */
-        ne_density(t, v);
+        ne_density(t, v), dn_sent[t]++;
     else
         ne_tset(t, p, v);
     mark_dirty();
 }
 
+/* Fill / Notes turned on a pattern no turn left as it is (made anew, by hand): the knob first jumps to the
+ * pattern's own %, then it moves from there (as a restore sets it: the hits stay) */
+static void density_jump(int t)
+{
+    int p;
+    if ((unsigned)t >= UI_TRACKS || (uint16_t)ne_density_done(t) != dn_sent[t] || (p = ne_density_fresh(t)) < 0)
+        return;
+    if (t == NE_ACID) {
+        proj.a[A_NOTES] = (int16_t)p;
+        ne_aset(A_NOTES, p);
+    } else {
+        proj.t[t][T_HITFILL] = (int16_t)p;
+        ne_tset(t, T_HITFILL, p);
+    }
+}
 static void sel_forget(void);
 static void knob_set(int k, int v)
 {
@@ -285,7 +301,7 @@ static void knob_set(int k, int v)
         if ((k & ~KA) == A_GRID)
             ne_regrid(NE_ACID, v);
         else if ((k & ~KA) == A_NOTES)
-            ne_density(NE_ACID, v);
+            ne_density(NE_ACID, v), dn_sent[NE_ACID]++;
         else
             ne_aset(k & ~KA, v);
     } else {
@@ -536,6 +552,8 @@ static void turn(int role, int k, int32_t e)
         e /= 2;
     } else
         e = accel(role, e, p->hi - p->lo);
+    if (e && (k == (KT | T_HITFILL) || k == (KA | A_NOTES)))
+        density_jump(k == (KA | A_NOTES) ? NE_ACID : dtrack());
     if (e)
         knob_set(k, kval(k) + e);
     s_cpy(ui.pop[0], kname(k));
