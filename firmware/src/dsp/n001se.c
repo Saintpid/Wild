@@ -70,7 +70,7 @@ static const ne_param_t GP[G_NPARAMS] = {
 static const ne_param_t TP[T_NPARAMS] = {
     [T_BARS] = {"Bars", 1, 8, 2},
     [T_RANDLEN] = {"Rnd len", 0, 100, 0},           /* % of new patterns with a length by chance */
-    [T_HITLESS] = {"Less", 0, 100, 50},
+    [T_HITLESS] = {"Less", 0, 100, 0},             /* (retired 0.3.54: Fill alone, live) */
     [T_HITFILL] = {"Fill", 0, 100, 13},
     [T_PITCH] = {"Pitch", 0, 24, 0},
     [T_EVOLVE] = {"Evolve", 0, 100, 10},
@@ -103,6 +103,15 @@ static const ne_param_t TP[T_NPARAMS] = {
     [T_RMOTION] = {"Movement", 0, 100, 25},
     [T_RSEED] = {"Shape", 0, 127, 0},
     [T_RMUTE] = {"Mute", 0, 1, 0},
+    [T_GCOMPLEX] = {"Complex", 0, 100, 70},
+    [T_GMOVE] = {"Movement", 0, 100, 60},
+    [T_GSPREAD] = {"Spread", 0, 100, 75},
+    [T_GNOISE] = {"Noise", 0, 100, 50},
+    [T_GINERTIA] = {"Inertia", 0, 100, 40},
+    [T_GDECAY] = {"Decay", 0, 100, 10},
+    [T_GSEED] = {"DNA", 0, 255, 0},
+    [T_LPF] = {"Low-pass", 0, 100, 0},
+    [T_GCHORDS] = {"Chords", 0, 3, 1},
 };
 static const ne_param_t AP[A_NPARAMS] = {
     [A_BARS] = {"Bars", 1, 4, 1},
@@ -138,17 +147,17 @@ const ne_param_t *ne_aparam_info(int i) { return &AP[(unsigned)i < A_NPARAMS ? i
 
 /* the starting set: kick, snare, hat, perc; kick and snare 2 bars, hat 1, perc 2 */
 static const int8_t T_DEF[NE_TRACKS][T_NPARAMS] = {
-    {2, 0, 40, 16, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
-    {2, 0, 50, 13, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
-    {1, 0, 50, 38, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
-    {2, 0, 50, 13, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 13, 0, 10, NFM_KIND_KICK, 0, 40, 50, 50, 50, 50, 80, 0, 0, 0, 0, 25, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 11, 0, 0, NFM_KIND_SNARE, 0, 40, 50, 50, 50, 50, 75, 0, 25, 10, 20, 20, 0, 50, 30, 60, 0, 1, 50},
+    {1, 0, 0, 28, 0, 20, NFM_KIND_HAT, 0, 40, 50, 50, 50, 50, 70, 0, 10, 30, 30, 0, 0, 50, 30, 60, 0, 1, 50},
+    {2, 0, 0, 11, 5, 25, NFM_KIND_PERC, 0, 40, 50, 50, 50, 50, 75, 0, 30, 35, 40, 10, 0, 50, 30, 60, 0, 1, 50},
 };
 
 /* the PRESETS encoder: any knob's value (Glue first, the default) */
 static const uint8_t PKNOB[] = {
     G_GLUE, G_TEMPO, G_SWING, G_LOOSE, G_POLY, G_CHAOS, G_MOTION, G_MUTATE, G_REVERB, G_DELAY, G_FILTER, G_DRIVE, G_LEVEL,
     G_HICUT, G_LOCUT, G_RESO,
-    NE_PK_TRACK | T_HITLESS, NE_PK_TRACK | T_HITFILL, NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
+    NE_PK_ACID | A_NOTES, NE_PK_TRACK | T_HITFILL,     /* (Notes in Less's old place) */ NE_PK_TRACK | T_PITCH, NE_PK_TRACK | T_EVOLVE,
     NE_PK_TRACK | T_DEV, NE_PK_TRACK | T_STRESS, NE_PK_TRACK | T_SPIKE, NE_PK_TRACK | T_BLEED,
     NE_PK_TRACK | T_FLUID, NE_PK_TRACK | T_LEVEL, NE_PK_TRACK | T_TUNE,
     NE_PK_TRACK | T_MODAMT, NE_PK_TRACK | T_MODRATE, NE_PK_TRACK | T_MODCHANCE,
@@ -175,7 +184,7 @@ const ne_param_t *ne_param_info(int i)
 const ne_param_t *ne_tparam_info(int i) { return &TP[(unsigned)i < T_NPARAMS ? i : 0]; }
 int ne_tparam_def(int t, int i) { return i >= T_RLEVEL && i < T_NPARAMS ? TP[i].def : T_DEF[t & 3][(unsigned)i < T_NPARAMS ? i : 0]; }
 
-static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap", "Rumble"};
+static const char *const KIND_NAME[NFM_KINDS] = {"Kick", "Snare", "Hat", "Perc", "Click", "Metal", "Clap", "Rumble", "Gen"};
 const char *ne_kind_name(int k) { return (unsigned)k < NFM_KINDS ? KIND_NAME[k] : "?"; }
 
 static void itoa_s(int v, char *b)
@@ -249,6 +258,7 @@ void ne_tparam_text(int i, int v, char *b)
     case T_MOD: cpy(b, MOD_NAME[(unsigned)v < NFM_MODS ? v : 0]); return;
     case T_GRID: cpy(b, v ? "Triplets" : "16ths"); return;
     case T_DRIFT: cpy(b, v ? "In" : "Bypass"); return;
+    case T_GCHORDS: cpy(b, v == 1 ? "Stab" : v == 2 ? "Pop" : v == 3 ? "Dub" : "Hold"); return;
     }
     itoa_s(v, b);
 }
@@ -278,7 +288,7 @@ void ne_aparam_text(int i, int v, char *b)
 }
 
 /* ------------------------------------------------------------ commands --- */
-enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR, C_SYNC };
+enum { C_SET, C_TSET, C_PLAY, C_STEP, C_GEN, C_SOUND, C_HIT, C_NOTE, C_CLOCK, C_VOICES, C_PANIC, C_ASET, C_ASTEP, C_SPACE, C_REGRID, C_CLEAR, C_SYNC, C_DENS };
 typedef struct {
     uint8_t op;
     int8_t t;
@@ -318,6 +328,7 @@ void ne_aset(int p, int v) { post(C_ASET, 0, p, v, 0, 0); }
 void ne_astep(int s, int flags, int note) { post(C_ASTEP, 0, s, flags, note, 0); }
 void ne_regrid(int t, int on) { post(C_REGRID, t, on, 0, 0, 0); }
 void ne_clear(void) { post(C_CLEAR, -1, 0, 0, 0, 0); }
+void ne_density(int t, int v) { post(C_DENS, t, v, 0, 0, 0); }
 void ne_clear_track(int t) { post(C_CLEAR, t, 0, 0, 0, 0); }
 void ne_sync(uint32_t at) { post(C_SYNC, 0, (int16_t)(at & 0xffffu), (int16_t)(at >> 16), 0, 0); }
 
@@ -366,9 +377,178 @@ NFM_HOT static float exp2_(float x)                      /* (nfx.c's) */
 #include "nrumble.h"
 static nrumble rumble[NE_TRACKS];
 static float rumble_input[NE_TRACKS][64];
-static void rumble_stop(void)
+/* GEN: one track (the first of kind Gen) plays ngen instead of an FM voice, its steps as energy. Its
+ * tables and state in the pool (33 kB); its material made in the main loop (ne_work). */
+#include "ngen.h"
+static ngen gen NE_POOL;
+static int16_t gen_mem[NGEN_MEM_WORDS] NE_POOL;
+static volatile int8_t gen_t = -1;               /* the track playing it, -1 none */
+static float gen_buf[2][64], gen_gain, gen_peak;
+/* LOW-PASS per track (T_LPF): two soft poles, 0 open .. 100 at ~140 Hz, gliding; open, out of the way.
+ * The drums' in each voice (nfm_engine.lp_k), the Gen track's after everything (tones and noise). */
+static float lp_x[NE_TRACKS] = {0.3f, 0.3f, 0.3f, 0.3f}, gen_lp[2][2];
+static float tan_pi(float x);
+static void lp_follow(void)
+{
+    int t;
+    for (t = 0; t < NE_TRACKS; t++) {
+        int v = tpar[t][T_LPF];
+        float xt = v ? 13000.0f / NE_SR * exp2_(-6.5f * pct(v)) : 0.3f, w;
+        lp_x[t] += (xt - lp_x[t]) * 0.1f;           /* (a block of 256: ~25 ms) */
+        if (!v && lp_x[t] > 0.295f)
+            lp_x[t] = 0.3f;
+        w = tan_pi(lp_x[t]);
+        fm.lp_k[t] = lp_x[t] < 0.3f ? w / (1.0f + w) : 0.0f;
+    }
+}
+static float tan_pi(float x);
+#define GEN_LEVEL 2.5f                           /* ngen's level to a drum's */
+static void rumble_stop(void)                    /* (the tails: the rumbles and the Gen track, which rings out) */
 {
     for (int t=0;t<NE_TRACKS;++t) nr_stop(&rumble[t]);
+    ngen_release(&gen);
+}
+int ne_gen_track(void) { return gen_t; }
+void ne_work(void)
+{
+    int i;
+    if (gen_t < 0)
+        return;
+    for (i = 0; i < 4 && ngen_work(&gen); i++)
+        ;
+}
+static uint32_t gen_seed(int v) { return 0x9e3779b9u * (uint32_t)(v + 1) ^ 0x67656e21u; }
+/* its way out, frozen when its track goes (another bank, another kind): level, sends, low-pass, bus */
+static struct { float lvl, rev, dly, lpk; uint8_t dir, on; } gen_out;
+/* the 303's scales as sets of the twelve (nacid's order) */
+static const uint16_t gen_masks[NACID_SCALES] = {0x5ADu, 0x5ABu, 0x6ADu, 0x4A9u, 0x4E9u, 0x9ADu, 0xAB5u};
+/* each block: which track, its knobs, the 303's key (its root, Tune, its scale) */
+static void gen_follow(void)
+{
+    int t, g = -1;
+    if (gen_t >= 0 && fm.slot[gen_t].kind == NFM_KIND_GEN)
+        g = gen_t;                               /* (it stays where it is; the UI allows one) */
+    for (t = 0; t < NE_TRACKS && g < 0; t++)
+        if (fm.slot[t].kind == NFM_KIND_GEN)
+            g = t;
+    if (g != gen_t) {                            /* gone: it rings out as it was; another: it plays on */
+        if (g < 0)
+            ngen_release(&gen);
+        gen_t = (int8_t)g;
+    }
+    if (g < 0)
+        return;
+    gen_out.on = 1;
+    gen_out.lvl = GEN_LEVEL * pct(tpar[g][T_LEVEL]);
+    gen_out.rev = pct(tpar[g][T_REVERB]) * 0.5f;
+    gen_out.dly = pct(tpar[g][T_DELAY]) * 0.5f;
+    gen_out.lpk = fm.lp_k[g];
+    gen_out.dir = (uint8_t)(fm.direct >> g & 1u);
+    ngen_set_param(&gen, NGEN_COMPLEXITY, tpar[g][T_GCOMPLEX]);
+    ngen_set_param(&gen, NGEN_MOVEMENT, tpar[g][T_GMOVE]);
+    ngen_set_param(&gen, NGEN_SPREAD, tpar[g][T_GSPREAD]);
+    ngen_set_param(&gen, NGEN_NOISE, tpar[g][T_GNOISE]);
+    ngen_set_param(&gen, NGEN_INERTIA, tpar[g][T_GINERTIA]);
+    ngen_set_param(&gen, NGEN_DECAY, tpar[g][T_GDECAY]);
+    ngen_set_param(&gen, NGEN_DEVIANCE, tpar[g][T_DEV]);
+    ngen_set_param(&gen, NGEN_CHORDS, tpar[g][T_GCHORDS]);
+    ngen_new_sound(&gen, gen_seed(tpar[g][T_GSEED]));
+    {
+        float tu = acid.tune;
+        int k = 36 + seq.root + (int)(tu < 0.0f ? tu - 0.5f : tu + 0.5f);
+        ngen_set_key(&gen, k, gen_masks[acid.scale < NACID_SCALES ? acid.scale : 0]);
+    }
+}
+/* at each of its steps: the pattern as it is now (replanned if it moved), then the step's energy */
+static void gen_step(uint32_t step, float step_len)
+{
+    nseq_track *tr;
+    int i, ch;
+    if (gen_t < 0)
+        return;
+    tr = &seq.track[gen_t];
+    if ((tr->triplet && step % 4u == 3u) || tr->last < 0 || !tr->length)
+        return;
+    ch = tr->length != gen.len;
+    for (i = 0; i < tr->length; i++) {
+        uint8_t v = tr->step[i].on ? tr->step[i].vel : 0u;
+        if (gen.vel[i] != v) {
+            gen.vel[i] = v;
+            ch = 1;
+        }
+    }
+    if (ch)
+        ngen_pattern(&gen, gen.vel, tr->length);
+    if (!tr->mute)
+        ngen_step(&gen, tr->last, (uint32_t)(tr->triplet ? step_len * (4.0f / 3.0f) : step_len));
+}
+/* into the effects' source: its level, its sends; the direct bus at Bypass. Muted it rings out (~0.4 s
+ * down, a fifth of that up again); its track gone (another bank, another kind) it lets go as after its
+ * last step, on the level and sends it had. */
+#define GEN_DOWN 0.0036f                         /* (1 - e^(-64 / (0.4 s))) */
+#define GEN_UP 0.018f
+static void gen_render(float *l, float *r, float *rev, float *dly, int n)
+{
+    int t = gen_t, i;
+    float to, g, dg, *ol = l, *or_ = r, pk = 0.0f;
+    if (!gen_out.on || n > 64)
+        return;
+    to = t < 0 || !seq.track[t].mute ? gen_out.lvl * fm.master : 0.0f;   /* (gone: its own release) */
+    if (t < 0 && !ngen_active(&gen)) {           /* rung out: away */
+        ngen_stop(&gen);
+        gen_out.on = 0;
+        gen_gain = 0.0f;
+        return;
+    }
+    if (to <= 0.0f && (gen_gain < 1e-4f || !ngen_active(&gen))) {
+        gen_gain = 0.0f;
+        gen_peak *= 0.9f;
+        if (!ngen_active(&gen))
+            return;
+    }
+    nfm_zero(gen_buf, sizeof gen_buf);
+    ngen_render(&gen, gen_buf[0], gen_buf[1], n);
+    g = gen_gain;
+    dg = (to - g) * (to > g ? GEN_UP : GEN_DOWN) * (float)n * (1.0f / 64.0f);
+    dg /= (float)n;
+    if (fm.dir_l && gen_out.dir) {
+        ol = fm.dir_l;
+        or_ = fm.dir_r;
+    }
+    if (gen_out.lpk > 0.0f) {                        /* (the trapezoid's one-poles, twice) */
+        float k = gen_out.lpk;
+        int c;
+        for (c = 0; c < 2; c++)
+            for (i = 0; i < n; i++) {
+                float x = gen_buf[c][i], y;
+                y = (x - gen_lp[c][0]) * k;
+                x = y + gen_lp[c][0];
+                gen_lp[c][0] = x + y;
+                y = (x - gen_lp[c][1]) * k;
+                x = y + gen_lp[c][1];
+                gen_lp[c][1] = x + y;
+                gen_buf[c][i] = x;
+            }
+    } else {                                         /* open: the poles follow, so closing it is smooth */
+        gen_lp[0][0] = gen_lp[0][1] = gen_buf[0][n - 1];
+        gen_lp[1][0] = gen_lp[1][1] = gen_buf[1][n - 1];
+    }
+    for (i = 0; i < n; i++) {
+        float a, b;
+        g += dg;
+        a = gen_buf[0][i] * g;
+        b = gen_buf[1][i] * g;
+        ol[i] += a;
+        or_[i] += b;
+        if (rev) rev[i] += (a + b) * gen_out.rev;
+        if (dly) dly[i] += (a + b) * gen_out.dly;
+        a = a < 0.0f ? -a : a;
+        b = b < 0.0f ? -b : b;
+        if (a > pk) pk = a;
+        if (b > pk) pk = b;
+    }
+    gen_gain = g < 0.0f ? 0.0f : g;
+    gen_peak = pk > gen_peak ? pk : gen_peak * 0.9f;
 }
 static void rumble_hit(int slot, float velocity)
 {
@@ -845,12 +1025,13 @@ static void tset_k(int t, int p, int v, int keep)
     tpar[t][p] = (int16_t)v;
     tr = &seq.track[t];
     switch (p) {
-    case T_BARS: if (!keep) nseq_set_length(&seq, t, v * nseq_bar(tr)); break;
+    case T_BARS: if (!keep) nseq_resize(&seq, t, v * nseq_bar(tr)); break;   /* (now: longer repeats it) */
     case T_RANDLEN:                    /* back to 0: the length is Bars again, not the last draw */
         nseq_set_flag(&seq, t, NSEQ_FLAG_LEN_RANDOM, v);
-        if (!v && !keep) nseq_set_length(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
+        if (!v && !keep) nseq_resize(&seq, t, tpar[t][T_BARS] * nseq_bar(tr));
         break;
-    case T_HITLESS: case T_HITFILL: nseq_set_hits(&seq, t, tpar[t][T_HITLESS], tpar[t][T_HITFILL]); break;
+    case T_HITFILL: nseq_set_fill(&seq, t, v); break;   /* (a new pattern's; turned: ne_density) */
+    case T_HITLESS: break;             /* retired: kept in projects */
     case T_PITCH: nseq_set_flag(&seq, t, NSEQ_FLAG_PITCH_RANGE, v); break;
     case T_EVOLVE: nseq_set_flag(&seq, t, NSEQ_FLAG_EVOLVE, v); break;
     case T_MUTE: nseq_set_flag(&seq, t, NSEQ_FLAG_MUTE, v); break;
@@ -905,7 +1086,7 @@ static void aset(int p, int v)
     v = v < AP[p].lo ? AP[p].lo : v > AP[p].hi ? AP[p].hi : v;
     apar[p] = (int16_t)v;
     switch (p) {
-    case A_BARS: nacid_set_length(&acid, v * acid.bar); break;
+    case A_BARS: nacid_resize(&acid, v * acid.bar); break;
     case A_NOTES: acid.p[NACID_P_DENSITY] = pct(v); break;
     case A_SLIDES: acid.p[NACID_P_SLIDES] = pct(v); break;
     case A_ACCENTS: acid.p[NACID_P_ACCENTS] = pct(v); break;
@@ -1066,13 +1247,14 @@ static void on_step(void *ctx, uint32_t step, float delay, float step_len)
     if (apar[A_DEV] > 0 && step % 4u == 0u)
         acid_mood = drum_mood();
     nacid_feel(&acid, acid_mood, (int)(step % (8u * NE_BAR)));
+    gen_step(step, step_len);
     glitch_step(step, delay, step_len);
     mutate_step(step);
     wander_step();
     if (step % NE_BAR == 0u)
         nfx_bar(&fx, step_len * (float)NE_BAR);
 }
-static uint32_t sp_acid, sp_seq, sp_all, sp_frames;   /* Audio Load's split (ne_take_split) */
+static uint32_t sp_acid, sp_gen, sp_seq, sp_all, sp_frames;   /* Audio Load's split (ne_take_split) */
 NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float *dly, int n)
 {
     uint32_t t0 = nfm_clock ? nfm_clock() : 0u;
@@ -1092,6 +1274,9 @@ NFM_HOT static void acid_render(void *ctx, float *l, float *r, float *rev, float
         nr_render(&rumble[t],rumble_input[t],ol,or_,n,fm.master*pct(tpar[t][T_LEVEL]));
         nfm_zero(rumble_input[t],sizeof rumble_input[t]);
     }
+    t0 = nfm_clock ? nfm_clock() : 0u;
+    gen_render(l, r, rev, dly, n);
+    if (nfm_clock) sp_gen += nfm_clock() - t0;
 }
 
 static void new_sound(int t, int kind)
@@ -1120,6 +1305,14 @@ void ne_init(void)
     nfx_init(&fx, NE_SR, 0x6e736521u);
     for (int t=0;t<NE_TRACKS;++t) nr_init(&rumble[t]);
     nfm_zero(rumble_input,sizeof rumble_input);
+    ngen_init(&gen, gen_mem, NE_SR, gen_seed(0));
+    gen_t = -1;
+    gen_gain = gen_peak = 0.0f;
+    gen_out.on = 0;
+    for (t = 0; t < NE_TRACKS; t++) {
+        lp_x[t] = 0.3f;
+        fm.lp_k[t] = 0.0f;
+    }
     fx.on_hit = rumble_hit;
     fm.tap = rumble_tap;
     nseq_init(&seq, &fm, 0x73657121u);
@@ -1153,6 +1346,122 @@ void ne_init(void)
 
 /* ------------------------------------------------------------ save, load --- */
 static uint16_t u16(float x) { return (uint16_t)(x <= 0.0f ? 0 : x >= 1.0f ? 65535 : (int)(x * 65535.0f + 0.5f)); }
+
+/* ---------------------------------------------- Fill and Notes, turned: the intensity, live --- */
+/* The knob moves the hits there are, towards its % of the length, by chance. A pattern that does not
+ * match the knob (made by hand, or the knob turned meanwhile; a knob turned on the panel first jumps to its
+ * %, ne_density_fresh, so this is for the rest: PRESETS, MIDI) counts as if it did: from where it stands
+ * the knob's way away from the pattern's own % moves it at once, in proportion (4 hits of 16 at 80:
+ * turned up, 81..100 fill the other 12 step by step), its way towards that % does nothing until it gets
+ * there (turned down, nothing goes before 25). Each track keeps that point (its anchor: the knob and the
+ * hits) and an order of its steps for as long as the pattern is the one it left: the pattern's own
+ * first, the hits it gains after them in the order they came, so a count is always the order's first so
+ * many. Turned back, it is where it was: up then down the hits that came go again, last first; down then
+ * up the ones that went come back. Drawn only when first reached (dn_up, dn_dn). Something new: a new
+ * pattern. */
+static int16_t dn_k[NE_TRACKS + 1];
+static uint8_t dn_h[NE_TRACKS + 1], dn_up[NE_TRACKS + 1], dn_dn[NE_TRACKS + 1];
+static uint8_t dn_ord[NE_TRACKS + 1][NE_STEPS];
+static uint32_t dn_sig[NE_TRACKS + 1];
+static volatile uint16_t dn_done[NE_TRACKS + 1];   /* turns taken (the UI's: none still on the way) */
+static int dens_on(int t, int s)
+{
+    return t == NE_ACID ? !!(acid.step[s].flags & NACID_ON) : seq.track[t].step[s].on;
+}
+static uint32_t dens_sig(int t, int *len, int *hits)
+{
+    uint32_t h = 2166136261u;
+    int s, n = 0, l = t == NE_ACID ? acid.length : seq.track[t].length;
+    for (s = 0; s < l; s++) {
+        int on = dens_on(t, s);
+        n += on;
+        h = (h ^ (uint32_t)(on ? s + 1 : 0)) * 16777619u;
+    }
+    *len = l;
+    *hits = n;
+    return (h ^ (uint32_t)l) * 16777619u;
+}
+/* the hits for knob v, the anchor at knob ak with ah hits (of len) */
+static int dens_map(int len, int ak, int ah, int v)
+{
+    int abs_ = (len * v + 50) / 100;
+    if (ah * 100 <= ak * len) {                      /* as sparse as the knob says, or sparser */
+        if (v <= ak) return abs_ < ah ? abs_ : ah;
+        return ah + ((len - ah) * (v - ak) * 2 + (100 - ak)) / (2 * (100 - ak));
+    }
+    if (v >= ak) return abs_ > ah ? abs_ : ah;      /* busier: the mirror */
+    return (ah * v * 2 + ak) / (2 * ak);
+}
+/* the order's first n on, the rest off */
+static void dens_apply(int t, int len, int n)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        int s = dn_ord[t][i];
+        if (dens_on(t, s) == (i < n))
+            continue;
+        if (t == NE_ACID)
+            acid.step[s].flags ^= NACID_ON;          /* (a rest keeps its pitch, accent, slide) */
+        else
+            nseq_turn(&seq, t, s, i < n);
+    }
+}
+/* the order's step s to place i (swapped with the one there) */
+static void dens_place(int t, int len, int s, int i)
+{
+    int j;
+    for (j = 0; j < len; j++)
+        if (dn_ord[t][j] == s) {
+            dn_ord[t][j] = dn_ord[t][i];
+            dn_ord[t][i] = (uint8_t)s;
+            return;
+        }
+}
+static void density(int t, int v)
+{
+    int len, hits, was, n, s, i, j;
+    uint32_t sig;
+    if ((unsigned)t > NE_TRACKS)
+        return;
+    was = t == NE_ACID ? apar[A_NOTES] : tpar[t][T_HITFILL];
+    if (t == NE_ACID)
+        aset(A_NOTES, v), v = apar[A_NOTES];
+    else
+        tset(t, T_HITFILL, v), v = tpar[t][T_HITFILL];
+    sig = dens_sig(t, &len, &hits);
+    if (sig != dn_sig[t]) {                          /* a pattern it has not moved: its anchor here */
+        dn_k[t] = (int16_t)was;
+        dn_h[t] = dn_up[t] = dn_dn[t] = (uint8_t)hits;
+        for (s = i = 0, j = hits; s < len; s++)      /* (its hits first) */
+            dn_ord[t][dens_on(t, s) ? i++ : j++] = (uint8_t)s;
+    }
+    n = dens_map(len, dn_k[t], dn_h[t], v);
+    while (n > dn_up[t]) {                           /* further up than before: one more drawn */
+        dens_apply(t, len, dn_up[t]);
+        s = t == NE_ACID ? nacid_pick(&acid, 1) : nseq_pick(&seq, t, 1);
+        if (s < 0)
+            break;
+        dens_place(t, len, s, dn_up[t]++);
+    }
+    while (n < dn_dn[t]) {                           /* further down: one more of its own drawn to go */
+        dens_apply(t, len, dn_dn[t]);
+        s = t == NE_ACID ? nacid_pick(&acid, 0) : nseq_pick(&seq, t, 0);
+        if (s < 0)
+            break;
+        dens_place(t, len, s, --dn_dn[t]);
+    }
+    dens_apply(t, len, n);
+    dn_sig[t] = dens_sig(t, &len, &hits);
+    dn_done[t]++;
+}
+int ne_density_done(int t) { return (unsigned)t <= NE_TRACKS ? dn_done[t] : 0; }
+int ne_density_fresh(int t)
+{
+    int len, hits;
+    if ((unsigned)t > NE_TRACKS || dens_sig(t, &len, &hits) == dn_sig[t] || len < 1)
+        return -1;
+    return (hits * 100 + len / 2) / len;
+}
 
 void ne_snapshot(ne_state_t *s)
 {
@@ -1194,6 +1503,7 @@ void ne_restore(const ne_state_t *s)
             tr->step[i].on = v != 0;
             tr->step[i].vel = (uint8_t)(v & 127u ? v & 127u : 1u);
             tr->step[i].note = (int8_t)(v ? (note < -24 ? -24 : note > 24 ? 24 : note) : 0);
+            tr->step[i].reserved = 0;
         }
         for (i = 0; i < NFM_PARAMS; i++) {
             float x = (float)s->patch[t][i] * (1.0f / 65535.0f);
@@ -1310,6 +1620,7 @@ static void drain(void)
             }
             break;
         case C_ASET: aset(c.a, c.b); break;
+        case C_DENS: density(c.t, c.a); break;
         case C_ASTEP: nacid_set_step(&acid, c.a, c.b, c.c); break;
         case C_SOUND: new_sound(c.t, c.a); break;
         case C_HIT:
@@ -1327,13 +1638,16 @@ static void drain(void)
             break;
         case C_CLOCK: clock_msg(c.a, seq.now); break;
         case C_VOICES: fm.voice_limit = c.a < 2 ? 2 : c.a > NFM_VOICES ? NFM_VOICES : c.a; break;
-        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); rumble_stop(); break;
+        case C_PANIC: nseq_stop(&seq); nfm_stop_all(&fm); nacid_stop(&acid); rumble_stop(); ngen_stop(&gen); gen_gain = 0.0f; break;
         case C_SPACE: nfx_space_shift(&fx); break;
         case C_CLEAR: {                /* CLEAR ALL (-1), CLEAR TRACK (the one): no hits, no notes */
             if (c.t < 0)
                 rumble_stop();
-            else if (c.t < NE_TRACKS)
+            else if (c.t < NE_TRACKS) {
                 nr_stop(&rumble[c.t]);
+                if (c.t == gen_t)
+                    ngen_release(&gen);
+            }
             int t, s;
             for (t = 0; t < NE_TRACKS; t++)
                 if (c.t < 0 || c.t == t)
@@ -1375,6 +1689,8 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         return;
     }
     drain();
+    gen_follow();
+    lp_follow();
     if (!seq.playing && acid.last >= 0)            /* stopped (by a command, MIDI or its clock) */
         nacid_stop(&acid);
     if (!seq.playing) {
@@ -1479,6 +1795,8 @@ NFM_HOT void ne_render(int32_t *out, uint32_t n, uint32_t gain_q12)
         for (v = 0; v < NFM_VOICES; v++)
             if (fm.voice[v].slot == t && fm.voice[v].peak > lv)
                 lv = fm.voice[v].peak;
+        if (t == gen_t)
+            lv = gen_peak;
         ne_track_level[t] = lv;
         if (lv > mixer_peaks[t]) mixer_peaks[t] = lv;
     }
@@ -1501,10 +1819,11 @@ uint32_t ne_take_split(uint32_t ticks[NE_SPLITS])
     __asm__ volatile("" ::: "memory");
     ticks[NE_SPLIT_DRUMS] = v;
     ticks[NE_SPLIT_ACID] = sp_acid;
-    ticks[NE_SPLIT_FX] = sp_seq - v - sp_acid;   /* the sequencer, the hits, the reverb and delay */
+    ticks[NE_SPLIT_FX] = sp_seq - v - sp_acid - sp_gen;   /* the sequencer, the hits, the reverb and delay */
+    ticks[NE_SPLIT_GEN] = sp_gen;
     ticks[NE_SPLIT_MASTER] = sp_all - sp_seq;    /* glitches, master filter, Glue, limiter */
     f = sp_frames;
-    nfm_voice_ticks = sp_acid = sp_seq = sp_all = sp_frames = 0u;
+    nfm_voice_ticks = sp_acid = sp_gen = sp_seq = sp_all = sp_frames = 0u;
     __asm__ volatile("" ::: "memory");
     hold = 0;
     return f;

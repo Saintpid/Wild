@@ -1,8 +1,8 @@
-# Deviance 90..100 (the drums' Sound page, KNOB 1): the sound itself wanders, never back; below 90 it stays
+# Deviance 90..100 (the Track page, EDIT, KNOB 1): the sound itself wanders, never back; below 90 it stays
 # as drawn (the hits vary around it as ever); a muted track waits
 wait 200
-tap ENV
-expect view 3
+tap EDIT
+expect view 2
 expect tpar8 40
 spin K1 49
 expect tpar8 89

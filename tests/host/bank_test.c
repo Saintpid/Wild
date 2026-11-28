@@ -141,7 +141,7 @@ int main(void)
     {
         struct {
             uint32_t magic, format;
-            int16_t g[32], t[NE_TRACKS][T_NPARAMS];
+            int16_t g[32], t[NE_TRACKS][35];
             ne_state_t st;
             uint8_t preset, bank, rsv[18];
             ne_acid_t acid;
@@ -160,6 +160,80 @@ int main(void)
     assert(proj.format == PROJ_FORMAT && proj.t[1][T_RANDLEN] == 100 && proj.t[2][T_RANDLEN] == 0);
     assert(proj.g[G_SYNC] == 1 && proj.g[G_SWITCH] == NE_SWITCH_NOW && proj.g[G_TEMPO] == saved.g[G_TEMPO]);
     assert(proj.a[A_LEVEL] == saved.a[A_LEVEL]);
+    assert(project_preset_load(2) == 0);
+    /* Format 20 twice, told apart by size: the banks' (34 globals, 35 per track, 14 reserved bytes) and the
+     * Gen test builds' (32, 43, 18): each keeps its own values */
+    saved = proj;
+    {
+        struct {
+            uint32_t magic, format;
+            int16_t g[34], t[NE_TRACKS][35];
+            ne_state_t st;
+            uint8_t preset, bank, rsv[14];
+            ne_acid_t acid;
+            int16_t a[A_NPARAMS];
+        } old;
+        memset(&old, 0, sizeof old);
+        old.magic=saved.magic; old.format=20;
+        memcpy(old.g,saved.g,sizeof old.g);
+        old.g[G_SWITCH] = NE_SWITCH_4;
+        for (int tr=0;tr<NE_TRACKS;++tr) memcpy(old.t[tr],saved.t[tr],sizeof old.t[tr]);
+        old.t[1][T_RANDLEN] = 40;
+        old.st=saved.st; old.preset=saved.preset; old.bank=saved.bank;
+        old.acid=saved.acid; memcpy(old.a,saved.a,sizeof old.a);
+        assert(plat_preset_save(4, &old, sizeof old) == 0);
+    }
+    assert(project_preset_load(4) == 0);
+    assert(proj.format == PROJ_FORMAT && proj.g[G_SWITCH] == NE_SWITCH_4 && proj.t[1][T_RANDLEN] == 40);
+    assert(proj.t[1][T_LPF] == 0 && proj.t[1][T_GNOISE] == ne_tparam_def(1, T_GNOISE));
+    assert(project_preset_load(2) == 0);
+    {
+        struct {
+            uint32_t magic, format;
+            int16_t g[32], t[NE_TRACKS][43];
+            ne_state_t st;
+            uint8_t preset, bank, rsv[18];
+            ne_acid_t acid;
+            int16_t a[A_NPARAMS];
+        } old;
+        memset(&old, 0, sizeof old);
+        old.magic=saved.magic; old.format=20;
+        memcpy(old.g,saved.g,sizeof old.g);
+        for (int tr=0;tr<NE_TRACKS;++tr) memcpy(old.t[tr],saved.t[tr],sizeof old.t[tr]);
+        old.t[1][T_RANDLEN] = 3; old.t[2][T_RANDLEN] = 0;
+        old.t[3][T_GSEED] = 77; old.t[2][T_LPF] = 33;
+        old.st=saved.st; old.preset=saved.preset; old.bank=saved.bank;
+        old.acid=saved.acid; memcpy(old.a,saved.a,sizeof old.a);
+        assert(plat_preset_save(4, &old, sizeof old) == 0);
+    }
+    assert(project_preset_load(4) == 0);
+    assert(proj.format == PROJ_FORMAT && proj.t[3][T_GSEED] == 77 && proj.t[2][T_LPF] == 33);
+    assert(proj.t[1][T_RANDLEN] == 100 && proj.t[2][T_RANDLEN] == 0 && proj.g[G_SWITCH] == NE_SWITCH_NOW);
+    assert(proj.g[G_TEMPO] == saved.g[G_TEMPO] && proj.a[A_LEVEL] == saved.a[A_LEVEL]);
+    assert(project_preset_load(2) == 0);
+    /* Format 21 (Gen's seven and the low-pass, 43 per track): its values kept, Chords at its default */
+    saved = proj;
+    {
+        struct {
+            uint32_t magic, format;
+            int16_t g[34], t[NE_TRACKS][43];
+            ne_state_t st;
+            uint8_t preset, bank, rsv[14];
+            ne_acid_t acid;
+            int16_t a[A_NPARAMS];
+        } old;
+        memset(&old, 0, sizeof old);
+        old.magic=saved.magic; old.format=21;
+        memcpy(old.g,saved.g,sizeof old.g);
+        for (int tr=0;tr<NE_TRACKS;++tr) memcpy(old.t[tr],saved.t[tr],sizeof old.t[tr]);
+        old.t[3][T_GSEED] = 91; old.t[0][T_LPF] = 12;
+        old.st=saved.st; old.preset=saved.preset; old.bank=saved.bank;
+        old.acid=saved.acid; memcpy(old.a,saved.a,sizeof old.a);
+        assert(plat_preset_save(4, &old, sizeof old) == 0);
+    }
+    assert(project_preset_load(4) == 0);
+    assert(proj.format == PROJ_FORMAT && proj.t[3][T_GSEED] == 91 && proj.t[0][T_LPF] == 12);
+    assert(proj.t[3][T_GCHORDS] == 1 && proj.a[A_LEVEL] == saved.a[A_LEVEL]);
     assert(project_preset_load(2) == 0);
     /* A legacy song containing banks 9-12 is rejected before ANY state changes or writes. */
     legacy[0] = proj; legacy[1] = proj;

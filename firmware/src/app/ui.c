@@ -12,7 +12,7 @@
  *   black 1 / 2    the bar shown (and edited): one down / up, and it stays; both: follow the playhead
  *   black 3        the Master page (hi cut, lo cut, resonance, glue); again: back
  *   black 4        the preset list to load: a slot (SELECT, OCT-/+, PRESETS, a white key), black 4 again
- *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); unmuted, it is selected
+ *   black 5-9      mute track 1-5 (dim = on, flashing with its hits; dark = muted); SEL + the key selects it
  *   black 10 / 11  a new pattern / a new sound for the selected track; with GLO held: for every track
  *   PLAY start / stop    SEQ the mode
  *   REC            automation: the knobs turned while it plays are recorded, REC again ends it, and they
@@ -22,6 +22,7 @@
  *   SEL            tap/release then white 1-8: select (empty: copy); held + white 1-8: overwrite/copy
  *   SEL + white 16 Chance: new scene each time; selecting the current bank leaves Chance
  *                  bank selection lights: playing bright, occupied dim; tempo shared
+ *   SEL + black 5-9  the track (a quick jump), tapped SEL or held
  *                  EDIT again (Banks): Sync, every track in line with track 1 at a change; Switch, the
  *                  change at once or on the 1 of the phrase's next 1 / 4 / 8 bars (SEL blinks meanwhile)
  *   HOME EDIT ENV FX LFO GLO   the pages (pressed again: the button's next page)
@@ -37,8 +38,8 @@
  *   FX             the selected track's effects (reverb, delay, filter, drive); again: its modulation
  *                  effect (phaser, flanger, chorus, ring modulator, tremolo); again: the bus (returns)
  *
- * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: ENV's third page
- * is only its own, KNOB 1 its Deviance, as the drums' is on their Sound page); a step key sets a note (with an accent),
+ * Track 5 is the acid line: its pages are its own (pattern, track, sound, tone, Deviance, FX: EDIT's second page
+ * is only its own, KNOB 1 its Deviance, as every other track's is on its Track page); a step key sets a note (with an accent),
  * held, KNOB 1 is its note, KNOB 2 its accent, KNOB 3 its slide (into the next step). CC 74 / 71: its
  * cutoff / resonance. Its Chaos (the Tone page, KNOB 4): how far its new patterns leave the rules.
  *
@@ -48,7 +49,7 @@
 enum { V_PATTERN, V_RHYTHM, V_TRACK, V_SOUND, V_TONE, V_ADEV, V_TFX, V_TMOD, V_FX, V_DRIFT, V_ROUTE, V_MASTER, V_GLUE, V_GROOVE, V_SETUP, V_SCENE, V_RUMBLE, V_CONTROLS, V_RDETAIL, V_RMIX, V_BANKS, NVIEWS };
 static const char *const VIEW_NAME[NVIEWS] = {"Pattern", "Rhythm", "Track", "Sound", "Tone", "Deviance", "Track FX", "Mod", "FX bus", "Drift",
                                               "Routing", "Master", "Glue", "Groove", "Setup", "Scene", "Rumble", "Controls", "Texture", "Layer", "Banks"};
-static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_ENV, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV, B_EDIT};
+static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_HOME, B_EDIT, B_ENV, B_ENV, B_EDIT, B_FX, B_FX, B_GLO, B_LFO, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_GLO, B_ENV, B_GLO, B_ENV, B_ENV, B_EDIT};
 #define K_NONE 255                     /* a knob with nothing on it */
 #define KT 0x80                        /* a track parameter (T_*), else global (G_*) */
 #define KA 0x40                        /* an acid line parameter (A_*) */
@@ -64,12 +65,12 @@ static const uint8_t ACID_KNOB[V_TMOD + 1][4] = {    /* the track pages, for the
     {KA | A_MOD, KA | A_MODAMT, KA | A_MODRATE, KA | A_MODCHANCE},
 };
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
-    {KT | T_BARS, KT | T_HITLESS, KT | T_HITFILL, KT | T_EVOLVE},
+    {KT | T_BARS, KT | T_HITFILL, K_NONE, KT | T_EVOLVE},   /* (Fill where the 303's Notes is: both live) */
     {KT | T_GRID, KT | T_DYN, KT | T_RANDLEN, K_NONE},   /* HOME again: the steps, sixteenths or triplets; how soft;
                                                          * how many new patterns draw their own length */
-    {K_NONE, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},
-    {KT | T_DEV, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
-    {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, K_NONE},
+    {KT | T_DEV, KT | T_PITCH, KT | T_LEVEL, KT | T_MUTE},   /* (Deviance here for every track: the 303's on EDIT's next page) */
+    {K_NONE, KT | T_STRESS, KT | T_SPIKE, KT | T_BLEED},
+    {KT | T_KIND, KT | T_FLUID, KT | T_TUNE, KT | T_LPF},
     {K_NONE, K_NONE, K_NONE, K_NONE},                /* (the acid line's only) */
     {KT | T_REVERB, KT | T_DELAY, KT | T_FILTER, KT | T_DRIVE},
     {KT | T_MOD, KT | T_MODAMT, KT | T_MODRATE, KT | T_MODCHANCE},
@@ -224,7 +225,7 @@ static void ktext(int k, int v, char *t)
     else
         ne_param_text(k, v, t);
 }
-/* the pages a track has: the Deviance page under ENV is the acid line's (the drums' is on Sound) */
+/* the pages a track has: the Deviance page (EDIT's second) is the acid line's (the drums' is on the Track page) */
 static int has_rumble(int t) { return t<NE_TRACKS && ne_fm()->slot[t].kind==NFM_KIND_KICK; }
 static int rumble_view(int v) { return v==V_RUMBLE || v==V_RDETAIL || v==V_RMIX; }
 static int rumble_editing(void) { return has_rumble(ui.track) && rumble_view(ui.view); }
@@ -233,13 +234,26 @@ static int view_here(int v)
     if (rumble_view(v)) return has_rumble(ui.track);
     return v!=V_ADEV || ui.track==NE_ACID;
 }
+/* a Gen track: its own knobs on the Sound and Tone pages (it has no FM voice to shape) */
+static int is_gen(int t) { return t < NE_TRACKS && ne_fm()->slot[t].kind == NFM_KIND_GEN; }
+static const uint8_t GEN_KNOB[2][4] = {
+    {KT | T_GCOMPLEX, KT | T_GMOVE, KT | T_GSPREAD, KT | T_GNOISE},
+    {KT | T_KIND, KT | T_GINERTIA, KT | T_GDECAY, KT | T_GSEED},
+};
 static int view_knob(int i)
 {
+    if ((ui.view == V_SOUND || ui.view == V_TONE) && is_gen(ui.track))
+        return GEN_KNOB[ui.view == V_TONE][i];
+    if (ui.view == V_TRACK && i == 1 && is_gen(ui.track))
+        return KT | T_GCHORDS;                       /* (Pitch's place: it has no hits to tune) */
+    if (ui.view == V_TFX && i == 2 && is_gen(ui.track))
+        return KT | T_LPF;                           /* (its Filter share has no hits to take: its low-pass) */
     if (ui.track == NE_ACID && ui.view == V_ROUTE)
         return i ? K_NONE : KA | A_DRIFT;
     return ui.track == NE_ACID && ui.view <= V_TMOD ? ACID_KNOB[ui.view][i] : VIEW_KNOB[ui.view][i];
 }
 
+static uint16_t dn_sent[UI_TRACKS];               /* Fill / Notes turns sent (ne_density_done) */
 static void tpar_set(int t, int p, int v)
 {
     const ne_param_t *i = ne_tparam_info(p);
@@ -249,11 +263,28 @@ static void tpar_set(int t, int p, int v)
     proj.t[t][p] = (int16_t)v;
     if (p == T_GRID)                                 /* the pattern moves along into the grid */
         ne_regrid(t, v);
+    else if (p == T_HITFILL)                         /* its hits follow (a restore: ne_tset itself) */
+        ne_density(t, v), dn_sent[t]++;
     else
         ne_tset(t, p, v);
     mark_dirty();
 }
 
+/* Fill / Notes turned on a pattern no turn left as it is (made anew, by hand): the knob first jumps to the
+ * pattern's own %, then it moves from there (as a restore sets it: the hits stay) */
+static void density_jump(int t)
+{
+    int p;
+    if ((unsigned)t >= UI_TRACKS || (uint16_t)ne_density_done(t) != dn_sent[t] || (p = ne_density_fresh(t)) < 0)
+        return;
+    if (t == NE_ACID) {
+        proj.a[A_NOTES] = (int16_t)p;
+        ne_aset(A_NOTES, p);
+    } else {
+        proj.t[t][T_HITFILL] = (int16_t)p;
+        ne_tset(t, T_HITFILL, p);
+    }
+}
 static void sel_forget(void);
 static void knob_set(int k, int v)
 {
@@ -269,6 +300,8 @@ static void knob_set(int k, int v)
         proj.a[k & ~KA] = (int16_t)v;
         if ((k & ~KA) == A_GRID)
             ne_regrid(NE_ACID, v);
+        else if ((k & ~KA) == A_NOTES)
+            ne_density(NE_ACID, v), dn_sent[NE_ACID]++;
         else
             ne_aset(k & ~KA, v);
     } else {
@@ -306,7 +339,7 @@ static int16_t sc_was[UI_TRACKS][SC_N];
 #define UNDO_JOIN 1500u
 /* Fixed budget, independent of project format growth: two bank operations with their automation, seven
  * edits, or two once a track has automation. 2.8 KB of it went to the generative sounds. */
-#define UNDO_BYTES 14980u
+#define UNDO_BYTES 15268u
 static uint32_t undo_mem[UNDO_BYTES / 4u];
 typedef struct {
     project_t state;
@@ -519,6 +552,8 @@ static void turn(int role, int k, int32_t e)
         e /= 2;
     } else
         e = accel(role, e, p->hi - p->lo);
+    if (e && (k == (KT | T_HITFILL) || k == (KA | A_NOTES)))
+        density_jump(k == (KA | A_NOTES) ? NE_ACID : dtrack());
     if (e)
         knob_set(k, kval(k) + e);
     s_cpy(ui.pop[0], kname(k));
@@ -566,7 +601,7 @@ static void select_track(int t)
     ui.track = (uint8_t)((t + UI_TRACKS) % UI_TRACKS);
     if (rumble_view(ui.view) && !has_rumble(ui.track)) ui.view=V_SOUND;
     if (!view_here(ui.view))
-        ui.view = V_SOUND;
+        ui.view = ui.view == V_ADEV ? V_TRACK : V_SOUND;   /* (the 303's Deviance: a drum's is on its Track page) */
     if (ui.bar_lock && ui.view_bar >= track_bars(ui.track))
         ui.bar_lock = 0;
     {
@@ -729,8 +764,25 @@ static void new_rumble(int t)
     tpar_set(t,T_RSEED,(proj.t[t][T_RSEED]+rnd_in(1,127))&127);
     if (!proj.t[t][T_RLEVEL]) tpar_set(t,T_RLEVEL,55);
 }
-static void new_sound(int t)
+static const char *const TRACK_NO[NE_TRACKS] = {"TRACK 1", "TRACK 2", "TRACK 3", "TRACK 4"};
+/* 0: refused (one Gen track at a time) */
+static int new_sound(int t)
 {
+    if (t < NE_TRACKS && proj.t[t][T_KIND] == NFM_KIND_GEN) {
+        int g = ne_gen_track(), u;
+        for (u = 0; u < NE_TRACKS; u++)              /* (the engine's, or one just asked for) */
+            if (u != t && (u == g || (ne_fm()->slot[u].kind == NFM_KIND_GEN)))
+                break;
+        if (u < NE_TRACKS) {
+            say("ONE GEN TRACK", TRACK_NO[u]);
+            return 0;
+        }
+        ne_new_sound(t, NFM_KIND_GEN);
+        ui_rng ^= plat_ms();
+        tpar_set(t, T_GSEED, (proj.t[t][T_GSEED] + rnd_in(1, 255)) & 255);
+        proj.t[t][T_TUNE] = 0;
+        return 1;
+    }
     if (t == NE_ACID) {
         ui_rng ^= plat_ms();
         knob_set(KA | A_CUTOFF, rnd_in(10, 55));
@@ -740,7 +792,7 @@ static void new_sound(int t)
         knob_set(KA | A_ACCENT, rnd_in(30, 90));
         knob_set(KA | A_WAVE, rnd_in(NACID_SAW, proj.g[G_ACIDWAVES] ? NACID_WAVES - 1 : NACID_SQUARE));
         knob_set(KA | A_TUNE, 12 * rnd_in(-2, 2));
-        return;
+        return 1;
     }
     ne_new_sound(t, proj.t[t][T_KIND]);              /* (the engine's Tune: 0) */
     proj.t[t][T_TUNE] = 0;
@@ -751,6 +803,7 @@ static void new_sound(int t)
             tpar_set(t, T_TUNE, 12 * rnd_in(-2, 2));
         }
     }
+    return 1;
 }
 
 /* a new sound on every track that plays (GLO + black 11, CC 117) */
@@ -846,7 +899,7 @@ static void sel_forget(void) { ui.chance = 0; }
 static void sel_press(void)
 {
     ui.bank_select ^= 1u;
-    say(ui.bank_select ? "SELECT BANK" : "CANCELLED", ui.bank_select ? "WHITE 1-8 / 16 CHANCE" : 0);
+    say(ui.bank_select ? "SELECT BANK" : "CANCELLED", ui.bank_select ? "WHITE 1-8 / 16 CHANCE" : 0);   /* (black 5-9: a track) */
     if (ui.bank_select) ui.held_step = -1;
 }
 #define BANK_CHANCE 15
@@ -1007,19 +1060,27 @@ static void black_down(int b)
     if (b >= BK_MUTE1 && b <= BK_MUTE5) {
         int m = b - BK_MUTE1;
         char a[8] = {'T', 'R', 'A', 'C', 'K', ' ', (char)('1' + m), 0};
+        if ((ui.bank_select || sel_held()) && !ui.list) {   /* SEL (tapped or held): the track, a quick jump */
+            ui.bank_select = 0;
+            ui.btn_used |= 1u << B_SEL;
+            select_track(m);
+            return;
+        }
         if (sc_chance()) {                           /* in a scene by chance: the original's mutes */
             sc_was[m][0] = (int16_t)!sc_was[m][0];
             say(a, sc_was[m][0] ? "MUTED AFTER" : "ON AFTER");
             return;
         }
+        /* (recorded like its knob: REC on and playing, a lane of its mutes; REC held, that lane erased) */
+        if (auto_touch(m == NE_ACID ? KA | A_MUTE : KT | T_MUTE, m == NE_ACID ? 0 : m))
+            return;
         undo_mark(0);
         if (m == NE_ACID)
             knob_set(KA | A_MUTE, !proj.a[A_MUTE]);
         else
             tpar_set(m, T_MUTE, !proj.t[m][T_MUTE]);
         if (!(m == NE_ACID ? proj.a[A_MUTE] : proj.t[m][T_MUTE])) {
-            select_track(m);                         /* back on: it is the one to edit */
-            say(a, "ON");
+            say(a, "ON");                            /* (the track stays: SEL + the key selects) */
         } else {
             say(a, "MUTED");
         }
@@ -1041,7 +1102,8 @@ static void black_down(int b)
         say("NEW PATTERN", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
     } else if (b == BK_SOUND) {
         undo_mark(0);
-        if (rumble_editing()) new_rumble(t); else new_sound(t);
+        if (rumble_editing()) new_rumble(t);
+        else if (!new_sound(t)) return;
         mark_dirty();
         if (rumble_editing()) { say("NEW RUMBLE", "KICK UNCHANGED"); return; }
         say("NEW SOUND", t == NE_ACID ? "Acid" : ne_kind_name(proj.t[t][T_KIND]));
@@ -1753,7 +1815,7 @@ static int recording_active(void) { return rec_n != 0; }
 static int rec_held(void) { return (ui.btn >> B_REC & 1u) != 0; }
 static int auto_ok(int k)
 {
-    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID},
+    static const uint8_t NOT_T[] = {T_BARS, T_RANDLEN, T_KIND, T_GRID, T_HITLESS, T_HITFILL, T_RSEED}, NOT_A[] = {A_BARS, A_GRID, A_NOTES},
                          NOT_G[] = {G_TEMPO, G_MIDICH, G_PKNOB, G_USBAUDIO, G_SELMODE, G_ACIDWAVES, G_SKNOB, G_AKNOB,
                                            G_SYNC, G_SWITCH};
     const uint8_t *no = k & KT ? NOT_T : k & KA ? NOT_A : NOT_G;
@@ -1802,6 +1864,9 @@ static float auto_frac(void)
     return f < 0.0f ? 0.0f : f > 0.999f ? 0.999f : f;
 }
 
+/* a knob that is a switch (Mute: off, on): its lane steps, never glides between its values */
+static int auto_switch(int k) { const ne_param_t *p = kinfo(k); return p->hi - p->lo <= 1; }
+
 /* a recording done: its sixteenths into a lane of 1, 2, 4 or 8 bars, AUTO_PTS values over it */
 static void auto_finish(int r)
 {
@@ -1831,7 +1896,8 @@ static void auto_finish(int r)
     for (i = 0; i < AUTO_PTS; i++) {                 /* over AUTO_PTS, between the sixteenths in a line */
         uint32_t x = (uint32_t)i * (uint32_t)n, a = x / AUTO_PTS, f = x % AUTO_PTS;
         int v0 = out[a], v1 = out[(a + 1u) % (uint32_t)n];
-        l->v[i] = (uint8_t)(v0 + ((v1 - v0) * (int)f + (v1 > v0 ? AUTO_PTS / 2 : -AUTO_PTS / 2)) / AUTO_PTS);
+        l->v[i] = auto_switch(l->k) ? (uint8_t)v0     /* (a switch: held to the next sixteenth, on its step) */
+                                    : (uint8_t)(v0 + ((v1 - v0) * (int)f + (v1 > v0 ? AUTO_PTS / 2 : -AUTO_PTS / 2)) / AUTO_PTS);
     }
     l->bars = (uint8_t)bars;
     proj_auto_dirty = 1;
@@ -1985,7 +2051,10 @@ static void auto_frame(void)
         a = (int)x;
         f = x - (float)a;
         p = kinfo(l->k);
-        v = p->lo + (int)((float)l->v[a % AUTO_PTS] + ((float)l->v[(a + 1) % AUTO_PTS] - (float)l->v[a % AUTO_PTS]) * f + 0.5f);
+        if (p->hi - p->lo <= 1)                      /* (a switch: as it was at this point, no midway) */
+            v = p->lo + l->v[a % AUTO_PTS];
+        else
+            v = p->lo + (int)((float)l->v[a % AUTO_PTS] + ((float)l->v[(a + 1) % AUTO_PTS] - (float)l->v[a % AUTO_PTS]) * f + 0.5f);
         v = v < p->lo ? p->lo : v > p->hi ? p->hi : v;
         if (v != auto_value(l))
             auto_set(l, v);
@@ -2624,15 +2693,15 @@ static void draw_diagnostics(void)
     diagnostic_row(2, "Render peak", d.render_peak, "%");
     {   /* the output's and the screen's peaks on one row; the render's split (% of the budget, since
          * the last read: the drum voices, the 303, the sequencer with the hits and the reverb and delay,
-         * the master's chain) on the next */
-        static const char *const part[] = {"D ", "  A ", "  F ", "  M "};
+         * the master's chain, the Gen track) on the next */
+        static const char *const part[] = {"D ", " A ", " F ", " M ", " G "};
         char t[40];
         int w = 0, i;
         w = diag_put(t, w, (int32_t)d.irq_peak_us, " us  ");
         diag_put(t, w, (int32_t)(d.ui_peak_us / 1000u), " ms");
         diagnostic_text(3, "IRQ / screen", t);
         w = 0;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 5; i++) {
             w = diag_put(t, w, -1, part[i]);
             w = diag_put(t, w, (int32_t)d.split[i], "");
         }
@@ -2712,6 +2781,7 @@ void ui_frame(void)
 {
     int t;
     input();
+    ne_work();
     for (t = 0; t < UI_TRACKS; t++) {               /* the meters: up at once, down slowly */
         float l = (t == NE_ACID ? ne_acid_level : ne_track_level[t]) * 2.0f;
         ui.meter[t] = l > ui.meter[t] ? (l > 1.0f ? 1.0f : l) : ui.meter[t] * 0.82f;
@@ -2741,4 +2811,5 @@ void ui_frame(void)
     ui.frame++;
 }
 
-void ui_input_only(void) { input(); }
+/* (the Gen track's material is made between frames, a little each time: ne_work) */
+void ui_input_only(void) { input(); ne_work(); }

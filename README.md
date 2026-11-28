@@ -1,5 +1,26 @@
-# Wild 0.3.49 - experimental FM-1 firmware
+# Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.57:** Unmuting a track no longer selects it; SEL + its mute key does.
+
+**0.3.56: Fill and Notes start where your pattern is.** On a pattern made by hand the knob first jumps to its real % (a kick on every quarter: 25), then turns from there.
+
+**0.3.55: Fill and Notes come back.** Turned up and down again (or down and up), the pattern is exactly the one you started with: the hits that came go again, the ones that went come back.
+
+**0.3.54: Fill and Notes play the intensity, live.** Less is gone. Turning Fill (drums, now KNOB 2 on the Pattern page, where the 303's Notes is) or Notes adds or takes away hits at once, by chance, towards that %. A pattern made by hand counts as if it matched the knob: four quarters at Fill 80 fill slowly as you turn up, and nothing goes as you turn down until Fill reaches 25. A longer Bars repeats the pattern into the new bars at once.
+
+**0.3.53: Gen, the first generative sound, now with Deviance and chords.** **Deviance is on the Track page (EDIT, KNOB 1) for every track**, and the 303's own Deviance page is EDIT's second (Banks the third). **SEL + black 5-9** selects that track. Gen's Noise is much quieter at its low end, and **Chords** (Gen's Track page, KNOB 2) moves its chords: Stab (techno stabs: another chord of the scale on a chosen offbeat for a sixteenth or an eighth, straight back), Pop (another chord for a bar or two now and then), Dub (the two traded on the steps) or Hold. On a Gen track up to 89 each
+step moves the sound around its own, from 90 it wanders on from step to step. Its chords follow the
+303's scale, from a single note to a ninth, and the intense side may move to another chord. Muted,
+stopped or gone with a bank switch, it rings out instead of stopping short.
+(From the Gen test builds:) **REC records the mute keys** (black 5 to 9), played back on their sixteenths. **A low-pass on every track** (the Tone page's KNOB 4; on a Gen track the Track FX page's
+third knob): soft, 0 open, 100 at about 140 Hz. **And a new kind, Gen, the first generative sound.** On any one drum track (Tone page, Kind: Gen,
+then NEW SOUND) a stereo sound that is made, not played: a chord in the 303's key, nothing below
+~95 Hz. Each DNA is its own sound: saws, squares, organ, vowels, soft, buzz or glass; a full chord,
+fifths, a drone or a ninth; held like a pad or struck like a stab. Its steps are energy, not hits: a step adds (by its strength), time takes
+away, and it never goes silent until a bar has passed without one. It looks ahead in its pattern and
+grows brighter before a busy part. Sound page: Complex, Movement, Spread, Noise; Tone page: Kind,
+Inertia, Decay, DNA (NEW SOUND draws one). Noise 100 is 10 % of the sound, and it falls off steeply below. One Gen track
+at a time. Audio Load's split has a G for it.
 **0.3.49: banks that change in time.** Tracks of the same length can no longer drift apart (a length
 turned, a pattern restored or a bank changed mid-bar used to put one off by some sixteenths): every
 track counts its place from one clock. EDIT twice, the new Banks page: **Sync** (on) puts every track in
@@ -181,8 +202,13 @@ command.
   ones back, with slow sweeps of each knob's own speed, quick twists there and back on the beat and
   now and then a move against the rules; after playing hard a while it rests for about eight bars.
 - **Patterns drawn at random:** each track loops over its own length (drums 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ8 bars, acid 1ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4), so
-  the tracks drift against each other. Fill requests a percentage of the available steps, and Less lets
-  the generator remove up to a percentage of those hits. Evolve now and then moves a hit when the
+  the tracks drift against each other. **Fill** (drums) and **Notes** (the 303), KNOB 2 on the
+  Pattern page, are how busy: a new pattern fills that % of the steps, and turned they add or take away
+  hits at once, by chance, so you play the intensity. On a pattern that doesn't match the knob (made by
+  hand, or changed since the knob was turned) the knob first jumps to the pattern's own %, then moves
+  from there. Turned back, it comes back to
+  where it started, the same hits (something new: a new pattern). **Bars** takes effect at once;
+  longer, the pattern repeats into the new bars (1 bar to 2: bar 1 twice). Evolve now and then moves a hit when the
   loop comes round. **Rnd len** (Rhythm page) gives that % of a track's new patterns a length of
   their own (1-8 bars, now and then a bar short), else they play Bars. Every track counts its place
   from one shared clock, so tracks of one length stay together whatever you turn. Any track, the 303 too, can run in
@@ -225,6 +251,7 @@ command.
 | **SEL** | Alone: back to bank 1 (in bank 1 with a scene by chance playing: out of the scene) |
 | **SEL + white 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12** | The banks: each a whole setup (patterns, sounds, effects, settings), the tempo shared. An empty one starts as a copy of the one playing. While SEL is held the keys show them: lit = playing, dim = holds one |
 | **Banks page (EDIT twice)** | **Sync**: at a change of bank every track in line with track 1 (which goes on as it is). **Switch**: Now, or wait for the 1 of the phrase's next 1, 4 or 8 bars (SEL and the waiting bank's key blink) |
+| **SEL + black 5-9** | Select that track, a quick jump (SEL tapped first or held); nothing is muted |
 | **SEL + white 16** | Chance: a new scene by chance at every press (the bank keeps its original) |
 | **HOME EDIT ENV FX LFO GLOBAL** | The pages. Press again for the button's next page |
 

@@ -6,7 +6,7 @@
  * triplets, three steps a quarter, 12 a bar (1..96 steps), on the first,
  * second and third sixteenth of each quarter, the second and third played a
  * third and two thirds of a sixteenth late (the fourth plays none). A generator places a random number of hits,
- * drawn from a min..max range for the whole track, weighted towards the
+ * a share of the track's steps (fill), weighted towards the
  * positions that suit the slot's kind of sound. Each hit is strong or soft
  * (strong likelier on the quarters), then spread down from there (dyn). Swing and loose timing
  * delay hits within their step.
@@ -48,8 +48,7 @@ typedef struct {
 typedef struct {
     nseq_step step[NSEQ_MAX_STEPS];
     uint8_t length;      /* steps, 1..128 */
-    uint8_t hits_less;   /* maximum reduction as a percentage of requested hits */
-    uint8_t hits_fill;   /* percentage of the generated track length to fill */
+    uint8_t hits_fill;   /* percentage of the track length a new pattern fills (turned: ne_density) */
     uint8_t pitch_range; /* semitones up and down, 0 = always the root */
     uint8_t evolve;      /* 0..100: % chance per loop that one hit moves */
     uint8_t mute;
@@ -106,7 +105,15 @@ void nseq_generate_all(nseq *q);   /* unlocked tracks only */
 
 /* Live edits. Length changes keep the steps beyond the new end. */
 void nseq_set_length(nseq *q, int track, int steps);
-void nseq_set_hits(nseq *q, int track, int less, int fill);
+/* ...the same, but longer the track repeats what it had into its new steps (1 bar to 2: bar 1 twice) */
+void nseq_resize(nseq *q, int track, int steps);
+void nseq_set_fill(nseq *q, int track, int fill);
+/* The step a hit would come to (add) or go from, by chance: new ones where its kind likes to play, apart
+ * from the others, a latent one likeliest; taken ones from the weak places first. -1: none. */
+int nseq_pick(nseq *q, int track, int add);
+/* A step on or off; off it stays latent (reserved 1: its strength and note kept for its return) */
+void nseq_turn(nseq *q, int track, int step, int on);
+int nseq_hits(const nseq *q, int track);           /* hits within its length */
 void nseq_set_step(nseq *q, int track, int step, int on, int vel, int note);
 void nseq_set_flag(nseq *q, int track, int which, int value); /* NSEQ_FLAG_* */
 enum { NSEQ_FLAG_MUTE, NSEQ_FLAG_LOCK, NSEQ_FLAG_EVOLVE, NSEQ_FLAG_PITCH_RANGE, NSEQ_FLAG_LEN_RANDOM,

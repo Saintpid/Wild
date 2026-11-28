@@ -41,8 +41,8 @@ int main(int argc, char **argv)
     int t, k, i;
     static ne_state_t a, b;
     ne_init();
-    /* every kind, many times: a sound that blows up or stays silent fails */
-    for (k = 0; k < NFM_KINDS; k++)
+    /* every kind, many times: a sound that blows up or stays silent fails (Gen: below) */
+    for (k = 0; k < NFM_KIND_GEN; k++)
         for (i = 0; i < 20; i++) {
             ne_new_sound(0, k);
             ne_hit(0, 127, 0);
@@ -190,22 +190,132 @@ int main(int argc, char **argv)
         ne_tset(0, T_RANDLEN, random ? 100 : 0);
         for (int bars = 1; bars <= 2; bars++) {
             ne_tset(0, T_BARS, bars);
-            for (int fill = 0; fill <= 100; fill += 50)
-                for (int less = 0; less <= 25; less += 25) {
-                    ne_tset(0, T_HITFILL, fill);
-                    ne_tset(0, T_HITLESS, less);
-                    for (int draw = 0; draw < 16; draw++) {
-                        int n = 0;
-                        ne_generate(0);
+            for (int fill = 0; fill <= 100; fill += 50) {
+                ne_tset(0, T_HITFILL, fill);
+                for (int draw = 0; draw < 16; draw++) {
+                    int n = 0;
+                    ne_generate(0);
+                    render(1, 0);
+                    for (i = 0; i < tr->length; i++) n += tr->step[i].on;
+                    int hi = (tr->length * fill + 50) / 100;
+                    CHECK(random || tr->length == bars * NE_BAR, "fixed length %d steps", tr->length);
+                    CHECK(n == hi, "fill %d: %d hits in %d steps, expected %d", fill, n, tr->length, hi);
+                }
+            }
+        }
+    }
+    /* Fill turned: the hits follow, live. A pattern by hand that does not match the knob counts as if it
+     * did: four quarters at Fill 80, turned up, fill the other twelve in proportion (81..100), turned
+     * down nothing goes before 25 %; one busier than the knob the mirror. Set as a restore sets it
+     * (ne_tset), the hits stay. */
+    {
+        const nseq_track *tr = &ne_seq()->track[0];
+        static const struct { int fill, hits, to, want; } L[] = {
+            {80, 4, 81, 5}, {80, 4, 90, 10}, {80, 4, 100, 16}, {80, 4, 79, 4}, {80, 4, 30, 4}, {80, 4, 25, 4},
+            {80, 4, 20, 3}, {80, 4, 0, 0}, {20, 12, 50, 12}, {20, 12, 78, 12}, {20, 12, 79, 13}, {20, 12, 19, 11},
+            {20, 12, 10, 6}, {25, 4, 75, 12}, {25, 4, 0, 0},
+        };
+        for (unsigned l = 0; l < sizeof L / sizeof L[0]; l++) {
+            int n = 0, quarters = 0;
+            ne_init();
+            ne_tset(0, T_RANDLEN, 0);
+            ne_tset(0, T_BARS, 1);
+            ne_tset(0, T_HITFILL, L[l].fill);
+            for (i = 0; i < NE_BAR; i++)
+                ne_step(0, i, L[l].hits == 4 ? i % 4 == 0 : i % 4 != 3, 100, 0);
+            render(1, 0);
+            ne_density(0, L[l].to);
+            render(1, 0);
+            for (i = 0; i < tr->length; i++) n += tr->step[i].on, quarters += tr->step[i].on && i % 4 == 0;
+            CHECK(n == L[l].want && tr->hits_fill == L[l].to, "Fill %d with %d hits by hand, turned to %d: %d hits, expected %d",
+                  L[l].fill, L[l].hits, L[l].to, n, L[l].want);
+            CHECK(L[l].hits != 4 || L[l].want < 4 || quarters == 4, "Fill turned: the hand's quarters went (%d left)", quarters);
+            /* ...and back: exactly the hand's pattern again, whichever way it went */
+            ne_density(0, L[l].fill);
+            render(1, 0);
+            for (i = n = quarters = 0; i < tr->length; i++)
+                n += tr->step[i].on, quarters += tr->step[i].on != (L[l].hits == 4 ? i % 4 == 0 : i % 4 != 3);
+            CHECK(n == L[l].hits && quarters == 0, "Fill %d -> %d -> back: %d hits, %d not the hand's", L[l].fill, L[l].to, n,
+                  quarters);
+            ne_tset(0, T_HITFILL, 100);
+            render(1, 0);
+            for (i = 0, quarters = n; i < tr->length; i++) quarters -= tr->step[i].on;
+            CHECK(quarters == 0, "Fill set as a restore moved the hits (%d)", quarters);
+        }
+        /* a generated pattern matches its Fill: turned, it follows the % exactly, both ways */
+        ne_init();
+        ne_tset(0, T_RANDLEN, 0);
+        ne_tset(0, T_BARS, 2);
+        ne_tset(0, T_HITFILL, 50);
+        ne_generate(0);
+        for (int k = 0; k < 6; k++) {
+            int n = 0;
+            int f = (int[]){75, 60, 25, 0, 100, 40}[k];
+            ne_density(0, f);
+            render(1, 0);
+            for (i = 0; i < tr->length; i++) n += tr->step[i].on;
+            CHECK(n == (32 * f + 50) / 100, "a generated pattern turned to Fill %d: %d hits", f, n);
+        }
+        /* up and down, down and up, any way round: back at the start, the start's pattern */
+        {
+            static const int R[3][5] = {{75, 60, 90, 55, 50}, {20, 35, 10, 45, 50}, {80, 5, 100, 0, 50}};
+            uint8_t was[NE_STEPS];
+            ne_tset(0, T_HITFILL, 50);
+            ne_generate(0);
+            render(1, 0);
+            for (i = 0; i < NE_STEPS; i++) was[i] = tr->step[i].on;
+            for (int r = 0; r < 3; r++) {
+                int diff = 0, mid = 0;
+                for (int k = 0; k < 5; k++) {
+                    ne_density(0, R[r][k]);
+                    render(1, 0);
+                    if (k == 2) {                   /* (and the same on the way, at the same knob) */
+                        ne_density(0, R[r][1]);
                         render(1, 0);
-                        for (i = 0; i < tr->length; i++) n += tr->step[i].on;
-                        int hi = (tr->length * fill + 50) / 100;
-                        int lo = hi - hi * less / 100;
-                        CHECK(random || tr->length == bars * NE_BAR, "fixed length %d steps", tr->length);
-                        CHECK(n >= lo && n <= hi, "fill %d less %d: %d hits in %d steps, expected %d-%d",
-                              fill, less, n, tr->length, lo, hi);
+                        for (i = 0; i < tr->length; i++) mid += tr->step[i].on;
+                        ne_density(0, R[r][2]);
+                        render(1, 0);
                     }
                 }
+                for (i = 0; i < tr->length; i++) diff += tr->step[i].on != was[i];
+                CHECK(diff == 0 && mid == (32 * R[r][1] + 50) / 100, "Fill turned %d %d %d %d back to 50: %d steps not the start's",
+                      R[r][0], R[r][1], R[r][2], R[r][3], diff);
+            }
+        }
+        /* longer at once, the new bars copies of the first: 1 bar to 3 */
+        ne_tset(0, T_BARS, 1);
+        ne_generate(0);
+        render(1, 0);
+        ne_tset(0, T_BARS, 3);
+        render(1, 0);
+        {
+            int same = 1;
+            for (i = NE_BAR; i < 3 * NE_BAR; i++)
+                same &= tr->step[i].on == tr->step[i % NE_BAR].on && (!tr->step[i].on || tr->step[i].vel == tr->step[i % NE_BAR].vel);
+            CHECK(tr->length == 48 && same, "Bars 1 to 3: %d steps, the new bars %s", tr->length, same ? "copies" : "not copies");
+        }
+        /* the 303: Notes turned, the notes follow (the rests keep their pitches); longer, bar 1 again */
+        {
+            const nacid *a = ne_acid();
+            int n, want;
+            ne_aset(A_BARS, 1);
+            ne_aset(A_NOTES, 60);
+            ne_generate(NE_ACID);
+            render(1, 0);
+            for (int k = 0; k < 4; k++) {
+                int f = (int[]){80, 100, 30, 0}[k];
+                ne_density(NE_ACID, f);
+                render(1, 0);
+                for (i = n = 0; i < a->length; i++) n += !!(a->step[i].flags & NACID_ON);
+                want = (16 * f + 50) / 100;
+                CHECK(n == want, "303 Notes turned to %d: %d notes, expected %d", f, n, want);
+            }
+            ne_density(NE_ACID, 50);
+            ne_aset(A_BARS, 2);
+            render(1, 0);
+            for (i = 16, n = 1; i < 32; i++)
+                n &= a->step[i].flags == a->step[i - 16].flags && a->step[i].note == a->step[i - 16].note;
+            CHECK(a->length == 32 && n, "303 Bars 1 to 2: %d steps, %s", a->length, n ? "bar 1 twice" : "not a copy");
         }
     }
     /* Chaos and swing at full: glitches come, a beat repeat never longer than an eighth */
@@ -277,7 +387,6 @@ int main(int argc, char **argv)
             ne_tset(t, T_DRIVE, 100);
             ne_tset(t, T_BARS, 1);
             ne_tset(t, T_HITFILL, 50);
-            ne_tset(t, T_HITLESS, 0);
             ne_generate(t);
         }
         pk = render(bars, 0);
@@ -400,7 +509,6 @@ int main(int argc, char **argv)
               (unsigned)first);
         CHECK(asteps == 24 && abad == 0, "acid triplets: %d steps, %d off the grid", asteps, abad);
         /* a new pattern in triplets: its hits within its length, on the grid's steps */
-        ne_tset(0, T_HITLESS, 0);
         ne_tset(0, T_HITFILL, 50);
         ne_tset(0, T_BARS, 3);
         ne_generate(0);
@@ -423,7 +531,6 @@ int main(int argc, char **argv)
         ne_tset(1, T_RANDLEN, 0);
         ne_tset(1, T_BARS, 8);
         ne_tset(1, T_HITFILL, 50);
-        ne_tset(1, T_HITLESS, 0);
         for (d = 0; d < 2; d++) {
             ne_tset(1, T_DYN, d ? 100 : 0);
             for (i = 0; i < 60; i++) {
@@ -530,6 +637,129 @@ int main(int argc, char **argv)
         gen = tr->length;
         CHECK(odd && back == 16 && keep == 29 && gen == 32, "Fixed: drew odd %d, back %d, kept %d, new pattern %d",
               odd, back, keep, gen);
+    }
+    /* LOW-PASS on a drum track: a hat through it at 100 keeps little of its peak; open again, all */
+    {
+        float open, shut, back;
+        ne_init();
+        ne_new_sound(2, NFM_KIND_HAT);
+        ne_tset(2, T_DEV, 0);                    /* (every hit the same, dry) */
+        ne_tset(2, T_REVERB, 0);
+        ne_tset(2, T_DELAY, 0);
+        ne_tset(2, T_FILTER, 0);
+        ne_tset(2, T_MODCHANCE, 0);
+        render(20, 0);
+        ne_hit(2, 127, 0);
+        open = render(20, 0);
+        ne_tset(2, T_LPF, 100);
+        render(40, 0);
+        ne_hit(2, 127, 0);
+        shut = render(20, 0);
+        ne_tset(2, T_LPF, 0);
+        render(40, 0);
+        ne_hit(2, 127, 0);
+        back = render(20, 0);
+        printf("low-pass: a hat's peak %.3f open, %.3f at 100, %.3f open again\n", (double)open, (double)shut, (double)back);
+        CHECK(shut < 0.3f * open && back > 0.8f * open, "low-pass: %f %f %f", (double)open, (double)shut, (double)back);
+    }
+    /* GEN: a track of kind Gen plays ngen, its steps as energy; one at a time; muted, it rings out; a bar
+     * and more without steps, it goes quiet; its material made by ne_work */
+    {
+        int s, b, made = 0;
+        float lv_on = 0.0f, lv_pre = 0.0f, lv_mute = 0.0f, lv_gone = 1.0f, lv_quiet = 1.0f, lv_back = 0.0f;
+        ne_init();
+        ne_set(G_TEMPO, 120);
+        ne_new_sound(3, NFM_KIND_GEN);
+        ne_tset(3, T_BARS, 1);
+        for (s = 0; s < 16; s++)
+            ne_step(3, s, s % 4 == 0 || s == 14, s % 8 ? 70 : 120, 0);
+        ne_play(1);
+        for (b = 0; b < 500; b++) {              /* (~2.9 s, a bar is 2 s: 344 blocks) */
+            render(1, 0);
+            ne_work();
+            if (b > 300 && ne_track_level[3] > lv_on)
+                lv_on = ne_track_level[3];
+        }
+        made = ne_gen_track();
+        {   /* its low-pass (T_LPF): at 100 most of it is gone */
+            float lv_f = 0.0f;
+            ne_tset(3, T_LPF, 100);
+            render(40, 0);
+            for (b = 0; b < 300; b++) {
+                render(1, 0);
+                ne_work();
+                if (ne_track_level[3] > lv_f)
+                    lv_f = ne_track_level[3];
+            }
+            printf("Gen: its low-pass at 100, level %.3f (open %.3f)\n", (double)lv_f, (double)lv_on);
+            CHECK(lv_f < 0.4f * lv_on, "Gen: low-pass %f, open %f", (double)lv_f, (double)lv_on);
+            ne_tset(3, T_LPF, 0);
+        }
+        ne_new_sound(1, NFM_KIND_GEN);           /* a second one: the first plays on */
+        render(4, 0);
+        CHECK(made == 3 && ne_gen_track() == 3, "Gen: on track %d, then %d", made, ne_gen_track());
+        ne_new_sound(1, NFM_KIND_SNARE);
+        for (b = 0; b < 20; b++) {
+            render(1, 0);
+            if (ne_track_level[3] > lv_pre) lv_pre = ne_track_level[3];
+        }
+        ne_tset(3, T_MUTE, 1);                   /* muted it rings out: there a moment after, then gone */
+        render(10, 0);
+        for (b = 0; b < 20; b++) {               /* 60 .. 170 ms */
+            render(1, 0);
+            if (ne_track_level[3] > lv_mute) lv_mute = ne_track_level[3];
+        }
+        render(700, 0);                          /* 4 s */
+        lv_gone = ne_track_level[3];
+        ne_tset(3, T_MUTE, 0);
+        for (b = 0; b < 200; b++) {
+            render(1, 0);
+            if (ne_track_level[3] > lv_back) lv_back = ne_track_level[3];
+        }
+        {   /* its track becomes a snare (as at another bank without it): what it plays rings out */
+            float pkb, pk0, pk1;
+            for (b = 0; b < 3; b++)              /* (the others silent, Gen dry: what is heard is Gen's own) */
+                ne_tset(b, T_MUTE, 1);
+            ne_aset(A_MUTE, 1);
+            ne_tset(3, T_REVERB, 0);
+            ne_tset(3, T_DELAY, 0);
+            render(400, 0);
+            pkb = render(16, 0);
+            ne_new_sound(3, NFM_KIND_SNARE);
+            ne_tset(3, T_MUTE, 1);
+            render(40, 0);
+            pk0 = render(16, 0);                 /* (0.23 .. 0.33 s) */
+            render(1000, 0);
+            pk1 = render(16, 0);
+            printf("Gen: its track gone, %.4f before, %.4f 0.3 s after, %.5f 6 s on\n", (double)pkb, (double)pk0, (double)pk1);
+            CHECK(ne_gen_track() == -1 && pk0 > 0.25f * pkb && pk1 < 0.0005f, "Gen: tail %f, then %f (track %d)",
+                  (double)pk0, (double)pk1, ne_gen_track());
+            for (b = 0; b < NE_TRACKS; b++)
+                ne_tset(b, T_MUTE, 0);
+            ne_aset(A_MUTE, 0);
+            ne_new_sound(3, NFM_KIND_GEN);
+            ne_tset(3, T_BARS, 1);
+            for (s = 0; s < 16; s++)
+                ne_step(3, s, s % 4 == 0 || s == 14, s % 8 ? 70 : 120, 0);
+            for (b = 0; b < 400; b++) {
+                render(1, 0);
+                ne_work();
+            }
+        }
+        ne_clear_track(3);
+        for (b = 0; b < 1400; b++) {             /* 4 bars without a step */
+            render(1, 0);
+            ne_work();
+        }
+        lv_quiet = ne_track_level[3];
+        printf("Gen: level %.3f playing, %.3f before the mute, %.3f muted 0.1 s, %.5f 4 s, %.3f back, %.5f after 4 empty bars\n",
+               (double)lv_on, (double)lv_pre, (double)lv_mute, (double)lv_gone, (double)lv_back, (double)lv_quiet);
+        CHECK(lv_on > 0.03f && lv_on < 1.0f, "Gen: level %f", (double)lv_on);
+        CHECK(lv_mute > 0.4f * lv_pre && lv_gone < 0.002f && lv_back > 0.03f, "Gen: muted %f, then %f, back %f",
+              (double)lv_mute, (double)lv_gone, (double)lv_back);
+        CHECK(lv_quiet < 0.002f, "Gen: no steps %f", (double)lv_quiet);
+        ne_play(0);
+        ne_init();
     }
     /* Rnd len %: 0, every new pattern its Bars; 100, by chance (1..8 bars, sometimes a bar cut short);
      * 50, about half of them (some draws come out as the Bars anyway) */

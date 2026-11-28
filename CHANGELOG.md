@@ -5,6 +5,116 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.57
+
+Firmware identity FM-1_891.
+
+- A track you unmute (black 5 to 9) no longer becomes the selected one: you stay on the track you are
+  editing. SEL + a mute key selects a track, as before.
+
+## 0.3.56
+
+Firmware identity FM-1_890. Fill and Notes start from the pattern you have.
+
+- Turning Fill or Notes on a pattern you made by hand (or one changed since you last turned it), the
+  knob first jumps to that pattern's own %, then moves from there: a kick on every quarter of one bar
+  shows 25, whatever Fill said before. Turned back, it still comes back to where you started.
+
+## 0.3.55
+
+Firmware identity FM-1_889. Fill and Notes turned back come back to where you started.
+
+- Turn Fill or Notes up and then down again, and you are back at exactly the pattern you started
+  with: the hits that came go again, the last one first. Turned down and up again, the hits that went
+  come back, the same ones. Any way round, at the same knob you hear the same pattern. Something new
+  is a new pattern (black 10), as before.
+
+## 0.3.54
+
+Firmware identity FM-1_888. Fill and Notes play the intensity, live; Less is gone. (Built on the Gen line
+of 0.3.53.)
+
+- Fill (drums) and Notes (the 303) now change the pattern as you turn them: up, hits come in at once,
+  by chance, where the sound likes to play; down, they go, the weakest places first (a kick keeps its
+  first step longest). Hits taken away are remembered and likeliest to come back when you turn up
+  again, and the 303's rests keep their notes, accents and slides, so a line comes back as it was.
+- A pattern that doesn't match the knob, made by hand or after the knob was turned, counts as if it
+  did. Four quarters with Fill at 80: turn up and the other twelve steps fill gradually from 81 to
+  100; turn down and nothing goes until Fill reaches 25 (four of sixteen), then it follows the knob.
+  A pattern busier than the knob is the mirror. A calm pattern never jumps to full because of where
+  the knob happened to be.
+- Less is gone: a new pattern has exactly Fill's % of its steps (before it was up to Less % fewer).
+  The drum tracks' starting Fill is lower to match (kick 13, snare 11, hat 28, perc 11). Fill moved
+  to KNOB 2 on the Pattern page (HOME), where the 303's Notes is; KNOB 3 is empty. On the PRESETS
+  encoder's list, Less's place is the 303's Notes.
+- Bars takes effect at once, and a longer pattern repeats what it had into the new bars (1 bar to 2:
+  bar 1 twice; 2 to 4: bars 1-2 twice), drums and the 303 alike. Shorter, the steps past the end wait.
+- Notes can no longer be recorded with REC (as Fill), since it now changes the pattern itself.
+
+## 0.3.53
+
+Firmware identity FM-1_887. The first generative sound: a new kind, Gen, with Deviance, chords in the
+303's scale, and a ring-out instead of a sudden stop; a low-pass on every track; and the mutes recorded.
+(0.3.45 to 0.3.48, ids 879 to 882, a 0.3.49 with id 883, 0.3.50 to 0.3.52 (ids 884 to 886) were test builds of it;
+the 0.3.49 below is the banks' release.)
+
+- REC records the mute keys (black 5 to 9) too, like a knob: with REC on and playing, each press goes
+  into a lane of that track's mutes, which plays back on the sixteenth it was pressed. REC held and the
+  mute key: that lane is erased.
+- Low-pass, on every drum track: a soft filter (12 dB an octave, no peak), the Tone page's KNOB 4.
+  0 is open, as before; up from there the track grows duller, to about 140 Hz at 100. On a Gen track
+  it is the Track FX page's third knob (its filter share has no hits to take) and sits after
+  everything, tones and noise. It glides as you turn it and can be recorded with REC.
+- Set a drum track's Kind (Tone page, KNOB 1) to Gen and press NEW SOUND (black 11). The track now plays
+  a stereo sound made in the background: a chord in the 303's key with a little noise beside it,
+  nothing below ~95 Hz, so it leaves the room to the kick and the rumble.
+- Every sound is different: its DNA picks a family (saws, squares, organ, vowels, soft, buzz, and now
+  and then glass bells), a voicing (a full chord, fifths, a drone in octaves, a ninth chord, the upper
+  notes), the register, its filter (smooth or resonant, low or open), vibrato and pulse, and whether
+  each step is held (a pad, a drone) or struck (a stab). About a third are dull and dark.
+- Its steps are energy, not hits. A step adds energy (a strong one more), time takes it away, and the
+  sound never goes silent until a bar has passed without a step. It looks ahead: before a busy part of
+  the pattern it grows brighter.
+- Its own knobs: Sound page Complex, Movement, Spread, Noise; Tone page Kind, Inertia, Decay and DNA.
+  NEW SOUND draws a new DNA. Noise at 100 is 10 % of the sound.
+- One Gen track at a time: a second is refused with "ONE GEN TRACK".
+- Its Reverb and Delay sends, Level, Mute, Low-pass and Bypass work as on other tracks; the hit effects
+  (filter share, drive, modulation) do not reach it yet. The master filter (GLO, Master) does.
+- Audio Load's split shows G, the Gen track's share of the time. Projects gain the Gen track's seven values
+  and the low-pass (format 21); older ones load as before.
+- Deviance is now on the Track page (EDIT, KNOB 1) for every track: drums, Rumble and Gen alike (it
+  was the Sound page's KNOB 1, which is now empty). The 303's own Deviance page moved from ENV to EDIT:
+  EDIT twice on the 303, and Banks is EDIT's third page there.
+- **Chords**, a Gen track's way of moving its chords: the Track page (EDIT), KNOB 2, in Pitch's place.
+  - **Stab** (to start): techno stabs. The main chord plays almost all the time; on one or two chosen
+    offbeats of the pattern (an offbeat sixteenth most, louder steps and the end of a bar more often,
+    never a bar's one) another chord of the scale comes in for a sixteenth, an eighth if the next step
+    is empty, and straight back. The places repeat with the pattern like a riff, most times round
+    (more with Movement), and now and then on another offbeat. The change takes 5 ms, no click.
+  - **Pop**: now and then at the start of a bar another chord of the scale for a bar or two, mostly
+    home again, gliding over a quarter (as in the test build 0.3.52). More with Movement.
+  - **Dub**: the main chord and the other traded on the played steps by chance, home on each bar's one.
+  - **Hold**: one chord (the energy still takes it to its intense side).
+  The other chord is mostly the fourth or the fifth, sometimes a third or a sixth away, often with
+  another size (a single note up to a ninth).
+- SEL, then a black mute key (5 to 9), or a mute key with SEL held: that track is selected, a quick
+  jump to it. Nothing is muted, and the bank choice ends.
+- Gen's Noise falls off steeply: 100 is as before (10 % of the sound), 50 about 1 %, and the first
+  steps up from 0 barely heard (it was half of the top at 25).
+- Deviance on a Gen track: Up to
+  89 each step moves the sound around its own (its filter, brightness, vibrato, pulse, noise, place in
+  the stereo, detune), further the higher you turn it, and never far from where it began. From 90 it
+  no longer comes back: each step goes on from where the last one left off, further the nearer 100,
+  and once a bar the sound's material wanders too. A new sound (NEW SOUND, DNA) starts from its own
+  again. The default is 40.
+- Its chords follow the 303's scale (all seven, not just minor and major), and the intense side of a
+  sound may move to another chord that fits, mostly the fourth or the fifth. How full a chord is
+  differs from sound to sound: sometimes a single note, mostly three or four, now and then a seventh
+  or a ninth. Complex lets the intense side grow fuller.
+- Mute rings out: Gen fades over a second or two instead of cutting off, and comes back quickly when
+  unmuted. Stopping, clearing it, and switching to a bank or kind without Gen let it ring out the same
+  way, with the level and sends it had. Panic still stops it at once.
+
 ## 0.3.49
 
 Firmware identity FM-1_883. Tracks that stay together, and banks that change in time.

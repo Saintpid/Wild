@@ -501,6 +501,10 @@ static int expect(const char *what, const char *val)
         got = ne_seq()->playing;
     else if (!strcmp(what, "rumble"))
         got = rumble_editing();
+    else if (!strcmp(what, "gen"))               /* the track playing Gen, -1 none */
+        got = ne_gen_track();
+    else if (!strcmp(what, "glevel"))            /* ...its level now, x 1000 */
+        got = ne_gen_track() < 0 ? 0 : (int)(ne_track_level[ne_gen_track()] * 1000.0f);
     else if (!strcmp(what, "track"))
         got = ui.track;
     else if (!strcmp(what, "bar"))               /* the bar the keys show */

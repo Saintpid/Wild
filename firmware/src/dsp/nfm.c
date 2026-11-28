@@ -168,7 +168,7 @@ NFM_CODE static float param_unmap(int i, float v)
 }
 
 static const char *const macro_names[NFM_MACROS] = { "deviance", "stress", "spike", "bleed", "fluid" };
-static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap", "rumble" };
+static const char *const kind_names[NFM_KINDS] = { "kick", "snare", "hat", "perc", "click", "metal", "clap", "rumble", "gen" };
 
 /* Carriers per algorithm, bit k = op k+1 (see nfm.h). */
 NFM_DATA static const uint8_t algo_carriers[NFM_ALGOS] = { 1, 1, 1 | 4, 1 | 2 | 4, 1, 1, 1 | 2, 15 };
@@ -345,13 +345,13 @@ NFM_CODE void nfm_randomize(nfm_engine *e, int s, int kind)
     uint32_t *r = &e->rng;
     if (kind < 0 || kind >= NFM_KINDS) {
         /* Rhythm first: drums are drawn more often than the tonal kinds. */
-        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1 };
+        NFM_DATA static const uint8_t weights[NFM_KINDS] = { 3, 3, 3, 4, 3, 2, 2, 1, 0 };
         unsigned total = 0, pick;
         for (int k = 0; k < NFM_KINDS; ++k) total += weights[k];
         pick = rng_next(r) % total;
         for (kind = 0; pick >= weights[kind]; ++kind) pick -= weights[kind];
     }
-    const recipe *rc = &recipes[kind];
+    const recipe *rc = &recipes[kind == NFM_KIND_GEN ? NFM_KIND_PERC : kind];   /* (a patch kept, unheard) */
     for (int i = 0; i < NFM_PARAMS; ++i) sl->walk[i] = 0.0f;
 
     /* Algorithm: one of the kind's, evenly. */
@@ -562,7 +562,7 @@ NFM_CODE static float svf_g(nfm_engine *e, float f) /* tan(pi f / sr) */
 
 NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
 {
-    if (!slot_ok(s)) return -1;
+    if (!slot_ok(s) || e->slot[s].kind == NFM_KIND_GEN) return -1;   /* (ngen plays it) */
     nfm_slot *sl = &e->slot[s];
     float n[NFM_PARAMS], val[NFM_PARAMS];
     velocity = clamp01(velocity);
@@ -726,6 +726,7 @@ NFM_CODE int nfm_trigger(nfm_engine *e, int s, float velocity, float transpose)
     v->ins = 0;
     v->send_rev = v->send_dly = 0.0f;
     v->ins_s1 = v->ins_s2 = 0.0f;
+    v->lp_s[0] = v->lp_s[1] = 0.0f;
     nfm_sat_set(&v->sat, 0.0f);
     {   /* the sound's modulation effect, on a share of its hits */
         const nfm_mod *m = &e->mod[s];
@@ -1131,6 +1132,22 @@ NFM_CODE NFM_HOT static inline float voice_tick(const nfm_engine *e, nfm_voice *
         } else
             v->r_duck += (1.0f - v->r_duck) * v->r_duck_k;
         x = (lp - v->r_dc) * v->r_duck * v->r_duck;
+    }
+
+    /* The slot's soft low-pass (Low-pass on the Tone page), two poles; off, its poles follow, so it
+     * comes in without a step */
+    {
+        float k = e->lp_k[v->slot];
+        if (k > 0.0f) {
+            float y = (x - v->lp_s[0]) * k;
+            x = y + v->lp_s[0];
+            v->lp_s[0] = x + y;
+            y = (x - v->lp_s[1]) * k;
+            x = y + v->lp_s[1];
+            v->lp_s[1] = x + y;
+        } else {
+            v->lp_s[0] = v->lp_s[1] = x;
+        }
     }
 
     /* Inserts for this hit: drive, then a filter whose settings move slowly. */

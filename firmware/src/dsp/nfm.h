@@ -106,6 +106,7 @@ enum nfm_kind {
     NFM_KIND_METAL,   /* bells, cowbells, clangs: the tonal end */
     NFM_KIND_CLAP,    /* hand claps: a few quick bursts of noise, then its tail */
     NFM_KIND_RUMBLE,  /* techno rumble: a kick's tail, smeared, driven and kept low, ducked by the kicks */
+    NFM_KIND_GEN,     /* not an FM voice: the track plays ngen (n001se.c), its steps as energy; never drawn */
     NFM_KINDS
 };
 
@@ -239,6 +240,7 @@ typedef struct {
     uint8_t ins;             /* NFM_INS_* bits */
     float send_rev, send_dly;
     float ins_s1, ins_s2;    /* insert filter state */
+    float lp_s[2];           /* the slot's low-pass (nfm_engine.lp_k): its two poles */
     nfm_sat sat;             /* the drive: warm, even, loudness-matched (nfm_sat_*) */
     uint8_t mod_on;          /* the sound's modulation effect plays on this hit */
     nfm_mod_state ms;
@@ -256,6 +258,9 @@ typedef struct {
     float ins_g, ins_k, ins_morph;
     float ins_g0, ins_k0, ins_morph0;   /* ...and the same at rest, for the slots in direct */
     float ins_kg, ins_h, ins_kg0, ins_h0;   /* k + g and 1 / (1 + g (g + k)) of both (nfm_ins_set) */
+    /* each slot's soft low-pass on its hits (two trapezoid one-poles): g / (1 + g), g = tan(pi fc / sr);
+     * 0: off. Written per block by the instrument. */
+    float lp_k[NFM_SLOTS];
     /* The DIRECT bus: the slots whose bits are set here play into dir_l / dir_r (n frames from there,
      * overwritten like out_l) instead of the main bus, their insert filter at rest; their sends as
      * ever. NULL: everything on the main bus. */

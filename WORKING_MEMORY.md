@@ -139,7 +139,7 @@
 
 # Wild 0.3.37 / 871 - 2026-11-10
 
-- Drum HOME page: K2 Less and K3 Fill replace the old absolute min/max.
+- Drum HOME page: K2 Fill (live, as the 303's Notes; 0.3.54 retired Less), K3 empty.
   Round the requested fill to the nearest hit, then draw uniformly from that
   count down to the maximum whole-hit reduction. Use the generated length
   after random length selection, including triplets and shortened bars.

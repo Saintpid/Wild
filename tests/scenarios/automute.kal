@@ -1,0 +1,30 @@
+# AUTOMATION of the mutes: with REC on and playing, a mute key (black 5..9) is recorded like a knob, and
+# plays back on its sixteenths (no midway); REC held and the mute key: its lane erased
+wait 200
+tap PLAY
+tap REC
+wait 300
+tapkey b4
+expect tpar7 1
+wait 1000
+tapkey b4
+expect tpar7 0
+wait 400
+tap REC
+expect lanes 1
+expect lanebars0 1
+# a bar is 2143 ms: muted from ~300 to ~1300 of it
+wait 1243
+expect tpar7 1
+wait 900
+expect tpar7 0
+shot automute.png
+# REC held and the mute key: erased, the mute the key's
+press REC
+tapkey b4
+release REC
+expect lanes 0
+expect tpar7 0
+wait 2500
+expect tpar7 0
+tap PLAY

@@ -1,4 +1,4 @@
-# the 303's Deviance (ENV's third page, the acid line's own, KNOB 1): 0 by default, up to 100, saved;
+# the 303's Deviance (EDIT's second page, the acid line's own, KNOB 1, as the drums' is on their Track page): 0 by default, up to 100, saved;
 # Level back on its Track page (KNOB 4); the major scale (KNOB 3, the last one)
 wait 200
 tap OCT-
@@ -11,11 +11,7 @@ spin K4 10
 expect apar15 70
 spin K3 10
 expect apar5 6
-tap ENV
-expect view 3
-tap ENV
-expect view 4
-tap ENV
+tap EDIT
 expect view 5
 expect apar25 0
 expect adev 0
@@ -23,6 +19,8 @@ spin K1 70
 expect apar25 70
 wait 100
 shot acid_deviance.png
+tap EDIT
+expect view 20
 tap ENV
 expect view 3
 # it plays: the knobs move on their own, the pattern stays as it was
@@ -31,12 +29,14 @@ wait 6000
 expect playing 1
 expect apar25 70
 expect adev >20
-# a drum track has no Deviance page: from it, to Sound (its own Deviance, KNOB 1)
-tap ENV
-tap ENV
+# a drum track has no Deviance page: from it, to its Track page (its own Deviance, KNOB 1)
+tap EDIT
+tap EDIT
 expect view 5
 tap OCT+
 expect track 0
+expect view 2
+tap ENV
 expect view 3
 tap ENV
 expect view 4
@@ -45,9 +45,8 @@ expect view 16
 expect rumble 1
 tap HOME
 tap OCT-
-tap ENV
-tap ENV
-tap ENV
+tap EDIT
+tap EDIT
 expect view 5
 spin K1 -100
 expect apar25 0

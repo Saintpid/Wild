@@ -12,6 +12,9 @@ static uint8_t project_legacy, project_legacy_cleanup;
 auto_lane_t proj_auto[AUTO_LANES] OM_POOL;
 uint8_t proj_auto_dirty;
 static project_t proj_tmp;               /* an older project's layout, as it moves into this one */
+/* format 20 twice: the Gen test builds' (0.3.45-0.3.49 with Gen: 32 globals, 43 per track, 20 reserved
+ * bytes; as large as format 21) and the banks' Sync/Switch (34, 35, 16); told apart by the size */
+static uint8_t proj_gen20;
 
 void project_defaults(void)
 {
@@ -35,7 +38,7 @@ static void project_upgrade(void)
 {
     project_t *old = &proj_tmp;
     uint32_t f = proj.format;
-    int ng = PROJ_G_OF(f), nt = PROJ_T_OF(f), na = PROJ_A_OF(f), i, t;
+    int ng = proj_gen20 ? 32 : PROJ_G_OF(f), nt = proj_gen20 ? 43 : PROJ_T_OF(f), na = PROJ_A_OF(f), i, t;
     const uint8_t *p;
     proj_has_acid = f >= 3u;
     if (f == PROJ_FORMAT)
@@ -53,7 +56,7 @@ static void project_upgrade(void)
     if (f >= 2u) {
         proj.preset = p[0];
         proj.bank = p[1];
-        p += f >= 20u ? 16 : f >= 18u ? 20 : 32;
+        p += f >= 20u && !proj_gen20 ? 16 : f >= 18u ? 20 : 32;
     }
     if (f >= 3u) {
         memcpy(&proj.acid, p, sizeof proj.acid);
@@ -89,7 +92,7 @@ static void project_upgrade(void)
             tp[T_HITLESS] = (int16_t)(((hi - lo) * 100 + hi - 1) / hi);
         }
     }
-    if (f < 20u)                                     /* Rnd len 1..8 bars: every new pattern by chance */
+    if (f < 20u || proj_gen20)                       /* Rnd len 1..8 bars: every new pattern by chance */
         for (t = 0; t < NE_TRACKS; t++)
             if (proj.t[t][T_RANDLEN])
                 proj.t[t][T_RANDLEN] = 100;
@@ -113,6 +116,7 @@ static int project_valid(int bytes)
     if (proj.magic != PROJ_MAGIC || proj.format < 1u || proj.format > PROJ_FORMAT ||
         (uint32_t)bytes < project_size(proj.format))
         return 0;
+    proj_gen20 = proj.format == 20u && (uint32_t)bytes >= project_size(21u);
     project_upgrade();
     for (i = 0; i < G_NPARAMS; i++) {
         const ne_param_t *p = ne_param_info(i);

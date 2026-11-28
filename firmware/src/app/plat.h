@@ -79,6 +79,6 @@ typedef struct {
     uint32_t ready, slots, underruns, late, recoveries, render_blocks;   /* ready of slots: PCM blocks queued */
     uint32_t ram_used, ram_total, pool_used, pool_total;
     uint32_t hardware;
-    uint32_t split[4];                 /* drums, 303, sequencer + FX, master: % of the budget since the last read */
+    uint32_t split[5];                 /* drums, 303, sequencer + FX, master, Gen: % of the budget since the last read */
 } plat_audio_diag;
 void plat_audio_diag_read(plat_audio_diag *d);

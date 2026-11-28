@@ -30,11 +30,11 @@ run flash-ok sh -c "$CC -O2 -std=c99 -Wall -Wextra -Werror -Ifirmware/hal -o $OU
 # no -lm: a libm call that crept into the engine fails to link here, as it would on the device
 run n001se sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/n001se_test tests/host/n001se_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
-    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/n001se_test $OUT"
+    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c && $OUT/n001se_test $OUT"
 # again with the sanitizer: an unaligned store or an index out of bounds traps on the FM-1's CPU
 run n001se-ubsan sh -c "$CC -O1 -g -std=c99 -fsanitize=alignment,undefined -fno-sanitize-recover=all -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/n001se_ubsan tests/host/n001se_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
-    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/n001se_ubsan"
+    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c && $OUT/n001se_ubsan"
 # the acid line against a 303's rules: gate, slide, accent, the filter, the generator by Chaos
 run nacid sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/nacid_test tests/host/nacid_test.c firmware/src/dsp/nacid.c firmware/src/dsp/nfm.c -lm && $OUT/nacid_test"
@@ -44,17 +44,21 @@ run space sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_
 # the GLUE as a mastering chain: matched loudness, its ceiling, width and the lows in mono, the EQ's lean
 run glue sh -c "$CC -O2 -std=c99 -Wall -Wextra -Wdouble-promotion -Werror -DOM_HOST -Ifirmware/src/dsp \
     -o $OUT/glue_test tests/host/glue_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c \
-    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/glue_test $OUT"
+    firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c && $OUT/glue_test $OUT"
 run wild-stream sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
-    -o $OUT/wild_stream_test tests/host/wild_stream_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/wild_stream_test $OUT/wild-reference.pcm reference && $OUT/wild_stream_test $OUT/wild-reference.pcm"
+    -o $OUT/wild_stream_test tests/host/wild_stream_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c && $OUT/wild_stream_test $OUT/wild-reference.pcm reference && $OUT/wild_stream_test $OUT/wild-reference.pcm"
 run limiter sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
-    -o $OUT/limiter_test tests/host/limiter_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c && $OUT/limiter_test"
+    -o $OUT/limiter_test tests/host/limiter_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c && $OUT/limiter_test"
 run rumble sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
-    -o $OUT/rumble_test tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_test"
+    -o $OUT/rumble_test tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c -lm && $OUT/rumble_test"
 run rumble-ubsan sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src/dsp \
-    -o $OUT/rumble_ubsan tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/rumble_ubsan"
+    -o $OUT/rumble_ubsan tests/host/rumble_test.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c -lm && $OUT/rumble_ubsan"
+run ngen sh -c "$CC -O2 -ffp-contract=off -std=c99 -Wall -Wextra -Werror -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/ngen_test tests/host/ngen_test.c firmware/src/dsp/ngen.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/ngen_test"
+run ngen-ubsan sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src/dsp \
+    -o $OUT/ngen_ubsan tests/host/ngen_test.c firmware/src/dsp/ngen.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/ngen_ubsan"
 run controls sh -c "mkdir -p build/gen && { [ -f build/gen/felucca_font.h ] || ${PYTHON:-python3} tools/gen_font.py build/gen/felucca_font.h >/dev/null; } && $CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen \
-    -o $OUT/controls_test tests/host/controls_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/controls_test"
+    -o $OUT/controls_test tests/host/controls_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c -lm && $OUT/controls_test"
 run switch python3 tests/switch_test.py
 run rescue python3 tests/rescue_test.py
 run storage sh -c "$CC -O2 -o $OUT/storage_test tests/storage_test.c && $OUT/storage_test"
@@ -78,7 +82,7 @@ else
     echo "  skip update-path tests (no build/Wild.fwsc: run ./build.sh)"
 fi
 run host-build sh host/build_host.sh
-run bank-undo sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen -o $OUT/bank_test tests/host/bank_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c -lm && $OUT/bank_test"
+run bank-undo sh -c "$CC -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -ffp-contract=off -std=c99 -DOM_HOST -Ifirmware/src -Ifirmware/src/dsp -Ibuild/gen -o $OUT/bank_test tests/host/bank_test.c firmware/src/dsp/n001se.c firmware/src/dsp/nfm.c firmware/src/dsp/nseq.c firmware/src/dsp/nfx.c firmware/src/dsp/nacid.c firmware/src/dsp/ngen.c -lm && $OUT/bank_test"
 if false && command -v emcc >/dev/null 2>&1; then   # the web emulator is not ported to n001se yet
     run emu sh -c "sh web/emu/build.sh >/dev/null 2>&1 && node tests/host/emu_test.mjs build/emu/kalimba.wasm"
     CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"

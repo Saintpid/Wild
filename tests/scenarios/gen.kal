@@ -1,0 +1,100 @@
+# the last kind: Gen (the Tone page's KNOB 1), on track 4: NEW SOUND makes it the Gen track, a
+# generative stereo sound whose steps are energy. Its Sound and Tone pages turn its own knobs; a second
+# Gen track is refused; it plays, its Deviance on the Track page; muted it rings out; it goes quiet a
+# bar after its last step
+wait 200
+tap OCT+
+tap OCT+
+tap OCT+
+expect track 3
+tap ENV
+tap ENV
+expect view 4
+spin K1 5
+expect tpar6 8
+expect gen -1
+tapkey b10
+wait 50
+expect kind3 8
+expect gen 3
+spin K2 -10
+expect tpar39 30
+wait 100
+shot gen-tone.png
+tap ENV
+expect view 3
+spin K1 -20
+expect tpar35 50
+wait 100
+shot gen-sound.png
+# its low-pass: the Track FX page's third knob (the Filter share has no hits to take)
+tap FX
+expect view 6
+spin K3 30
+expect tpar42 30
+spin K3 -30
+expect tpar42 0
+# a dense pattern of one bar, so it always plays (every hit, none fewer)
+tap HOME
+expect view 0
+spin K1 -8
+spin K2 100
+expect tpar0 1
+expect tpar2 0
+expect tpar3 100
+tapkey b9
+wait 50
+wav gen.wav
+tap PLAY
+wait 6000
+expect glevel >20
+# Deviance: on its Track page (EDIT, KNOB 1) as for every track
+tap EDIT
+expect view 2
+spin K1 30
+expect tpar8 70
+wait 100
+shot gen-track.png
+# muted it rings out: there a moment after, gone in a few seconds; back when unmuted
+tapkey b7
+expect tpar7 1
+wait 100
+expect glevel >5
+wait 4000
+expect glevel <2
+tapkey b7
+expect tpar7 0
+wait 3000
+expect glevel >20
+# a second Gen track: refused, the first plays on
+tap OCT-
+expect track 2
+tap ENV
+tap ENV
+expect view 4
+spin K1 6
+expect tpar6 8
+tapkey b10
+wait 50
+expect kind2 2
+expect gen 3
+# a drum's low-pass: the Tone page's fourth knob
+spin K4 25
+expect tpar42 25
+wait 100
+shot hat-lowpass.png
+spin K4 -25
+wait 100
+shot gen-refused.png
+# its steps cleared (GLO + EDIT twice): a bar's hold, then it fades
+tap OCT+
+press GLO
+tap EDIT
+release GLO
+press GLO
+tap EDIT
+release GLO
+wait 5000
+expect glevel <2
+tap PLAY
+wavstop

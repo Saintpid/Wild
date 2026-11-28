@@ -272,15 +272,20 @@ NFM_CODE static void draw_slide(nacid *a, int s)
     if (roll_slide(a, s)) st->flags |= NACID_SLIDE;
 }
 
+NFM_CODE int nacid_notes(const nacid *a)
+{
+    int n = 0;
+    for (int s = 0; s < a->length; ++s) n += !!(a->step[s].flags & NACID_ON);
+    return n;
+}
+
 /* The motif supplies candidates; Notes sets the exact rounded count in the
  * playing length. Weighted corrections keep musical positions at low Chaos. */
-NFM_CODE static void fit_density(nacid *a)
+NFM_CODE void nacid_fit(nacid *a, int target)
 {
-    int count = 0, len = a->length;
-    int target = (int)(a->p[NACID_P_DENSITY] * (float)len + 0.5f);
+    int count = nacid_notes(a), len = a->length;
     if (target < 0) target = 0;
     if (target > len) target = len;
-    for (int s = 0; s < len; ++s) count += !!(a->step[s].flags & NACID_ON);
     while (count != target) {
         int add = count < target, chosen = -1;
         float sum = 0.0f;
@@ -351,7 +356,7 @@ NFM_CODE void nacid_generate(nacid *a)
             draw_slide(a, s - 1);
             draw_slide(a, s);
         }
-    fit_density(a);
+    nacid_fit(a, (int)(a->p[NACID_P_DENSITY] * (float)a->length + 0.5f));
 }
 
 /* one step changes: a new note mostly, else a note comes or goes, an accent or a slide flips; by the
@@ -380,6 +385,34 @@ NFM_CODE void nacid_set_length(nacid *a, int n)
     int max = a->bar * NACID_MAX_BARS;
     a->length = (uint8_t)(n < 1 ? 1 : n > max ? max : n);
     if (a->pos >= a->length) a->pos = 0;
+}
+
+NFM_CODE int nacid_pick(nacid *a, int add)
+{
+    int len = a->length, chosen = -1;
+    float sum = 0.0f, r;
+    add = add ? 1 : 0;
+    for (int s = 0; s < len; ++s)
+        if (!!(a->step[s].flags & NACID_ON) != add) sum += add ? pos_w(a, s) : 1.0f / pos_w(a, s);
+    r = rndf(&a->rng) * sum;
+    for (int s = 0; s < len; ++s) {
+        if (!!(a->step[s].flags & NACID_ON) == add) continue;
+        chosen = s;
+        if ((r -= add ? pos_w(a, s) : 1.0f / pos_w(a, s)) < 0.0f) break;
+    }
+    return chosen;
+}
+
+NFM_CODE void nacid_resize(nacid *a, int n)
+{
+    int old = a->length, loop = old / a->bar * a->bar;
+    nacid_set_length(a, n);
+    if (loop < a->bar) loop = a->bar;             /* (shorter than a bar: its tail rests) */
+    for (int s = old; s < a->length; ++s) {
+        int from = s % loop;
+        if (from < old && from != s) a->step[s] = a->step[from];
+        else a->step[s].flags &= (uint8_t)~NACID_ON;
+    }
 }
 
 NFM_CODE void nacid_set_grid(nacid *a, int triplet)

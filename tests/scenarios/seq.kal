@@ -78,10 +78,8 @@ tapkey b5
 wait 20
 expect mute 0
 tap OCT-
-# black 10: Fill 50% and Less 0% yield an exact count at each length
-spin K2 -40
-spin K3 34
-expect tpar2 0
+# black 10: Fill 50% yields an exact count at each length
+spin K2 37
 expect tpar3 50
 tapkey b9
 wait 20
@@ -91,13 +89,42 @@ tapkey b9
 wait 20
 expect len 16
 expect hits 8
+# Fill turned: the hits follow at once, by chance, both ways
 spin K2 25
-tapkey b9
 wait 20
-expect tpar2 25
-expect tpar3 50
-expect hits >5
-expect hits <9
+expect tpar3 75
+expect hits 12
+spin K2 -50
+wait 20
+expect tpar3 25
+expect hits 4
+# longer at once: the new bar a copy of the first
+spin K1 1
+wait 20
+expect len 32
+expect hits 8
+spin K2 25
+wait 20
+expect hits 16
+# by hand: Fill first jumps to the pattern's own % (4 of 32: 13), then turns from there
+spin K2 -50
+wait 20
+expect hits 0
+tapkey w0
+tapkey w4
+tapkey w8
+tapkey w12
+wait 20
+expect hits 4
+expect tpar3 0
+spin K2 1
+wait 20
+expect tpar3 14
+expect hits 4
+spin K2 -1
+wait 20
+expect tpar3 13
+expect hits 4
 # black 11: a new sound, same kind
 tapkey b10
 wait 20

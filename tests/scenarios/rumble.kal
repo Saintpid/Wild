@@ -9,7 +9,7 @@ expect kind3 3
 tap ENV
 tap ENV
 expect view 4
-spin K1 9
+spin K1 4
 expect tpar6 7
 # the kind changes with the next new sound
 expect kind3 3
