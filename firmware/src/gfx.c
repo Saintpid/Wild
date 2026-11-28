@@ -18,11 +18,14 @@ typedef struct {               /* proportional, see tools/gen_font.py */
  * which leaves 34 KB of the pool to the generative sounds. */
 #define CV_MAX (240u * 72u)
 static uint16_t cv_px[CV_MAX] __attribute__((section(".pool")));
+static uint16_t *cv_at = cv_px;  /* the canvas drawn now: cv_px, or one half of it (cv_begin_half) */
+static const uint16_t *cv_sent = cv_px;   /* the last blit's pixels: its DMA may still read them */
+static uint32_t cv_sent_n;
 static uint32_t cv_w, cv_h;
 static int32_t cv_oy;            /* y offset for graph drawing */
 static int32_t cv_y0, cv_y1;     /* the rows the strip holds, of the whole canvas */
 static uint16_t cv_bg;
-#define CV_AT(x, y) cv_px[(uint32_t)((y) - cv_y0) * cv_w + (uint32_t)(x)]
+#define CV_AT(x, y) cv_at[(uint32_t)((y) - cv_y0) * cv_w + (uint32_t)(x)]
 
 #define RGB(r, g, b) ((uint16_t)((((r) >> 3) << 11) | (((g) >> 2) << 5) | ((b) >> 3)))
 #define C_BLACK 0x0000u
@@ -65,7 +68,7 @@ static void cv_fill(void)
     uint32_t i, n = cv_w * (uint32_t)(cv_y1 - cv_y0);
     uint16_t c = swap16(cv_bg);
     for (i = 0; i < n; i++)
-        cv_px[i] = c;
+        cv_at[i] = c;
 }
 
 /* a canvas w x h: drawing goes to its first strip; cv_pass sends it and moves on */
@@ -73,6 +76,7 @@ static void cv_begin(uint32_t w, uint32_t h, uint16_t bg)
 {
     uint32_t rows = CV_MAX / w;
     lcd_sync();                     /* the last blit may still read cv_px */
+    cv_at = cv_px;
     cv_w = w;
     cv_h = h;
     cv_bg = bg;
@@ -85,7 +89,9 @@ static void cv_begin(uint32_t w, uint32_t h, uint16_t bg)
 static int cv_pass(uint32_t x, uint32_t y)
 {
     uint32_t rows = CV_MAX / cv_w;
-    lcd_blit(x, y + (uint32_t)cv_y0, cv_w, (uint32_t)(cv_y1 - cv_y0), cv_px);
+    lcd_blit(x, y + (uint32_t)cv_y0, cv_w, (uint32_t)(cv_y1 - cv_y0), cv_at);
+    cv_sent = cv_at;
+    cv_sent_n = cv_w * (uint32_t)(cv_y1 - cv_y0);
     if ((uint32_t)cv_y1 >= cv_h)
         return 0;
     lcd_sync();
@@ -93,6 +99,27 @@ static int cv_pass(uint32_t x, uint32_t y)
     cv_y1 = (int32_t)((uint32_t)cv_y0 + rows < cv_h ? (uint32_t)cv_y0 + rows : cv_h);
     cv_fill();
     return 1;
+}
+
+/* a small canvas (w x h at most half of CV_MAX) in the half the last blit is not sending: drawn while
+ * that one still goes out (cv_begin waits for it) */
+static void cv_begin_half(uint32_t w, uint32_t h, uint16_t bg)
+{
+    uint16_t *mid = cv_px + CV_MAX / 2u;
+    if (cv_sent >= mid)
+        cv_at = cv_px;
+    else if (cv_sent + cv_sent_n <= mid)
+        cv_at = mid;
+    else {
+        lcd_sync();                 /* (it reached into both halves) */
+        cv_at = cv_px;
+    }
+    cv_w = w;
+    cv_h = h;
+    cv_bg = bg;
+    cv_oy = cv_y0 = 0;
+    cv_y1 = (int32_t)h;
+    cv_fill();
 }
 
 /* a canvas of one strip */

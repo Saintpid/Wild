@@ -2219,6 +2219,36 @@ static int32_t cell_x(int bar, int s)
     return bar == NE_BAR ? GRID_X + s * CELL_W + s / 4 : GRID_X + s / 3 * (4 * CELL_W + 1) + s % 3 * 4 * CELL_W / 3;
 }
 
+/* a track's second line: "2b", or the steps when the length is not whole bars, "3" after in triplets; R / D:
+ * it owns the reverb / delay; B: past Drift's effects. (Its foot reaches a little into the row below.) */
+static void draw_marks(int t, int32_t y)
+{
+    char b[12];
+    int32_t x;
+    int len = tlen(t), nb = tbar(t);
+    if (len % nb) {
+        itoa_u((uint32_t)len, b);
+        s_cpy(b + s_len(b), "st");
+    } else {
+        itoa_u((uint32_t)track_bars(t), b);
+        s_cpy(b + s_len(b), "b");
+    }
+    if (nb != NE_BAR)
+        s_cpy(b + s_len(b), " 3");
+    x = cv_text(13, y + 10, &FONT_XS, b, K_DIM);
+    if (tsend(t, 0))
+        x = cv_text(x + 4, y + 10, &FONT_XS, "R", K_ACC);
+    if (tsend(t, 1))
+        x = cv_text(x + 4, y + 10, &FONT_XS, "D", K_ACC);
+    if (tbypass(t))
+        cv_text(x + 4, y + 10, &FONT_XS, "B", K_TEXT);
+}
+static uint32_t marks_hash(int t)
+{
+    return (uint32_t)tlen(t) | (uint32_t)tbar(t) << 16 | (uint32_t)tsend(t, 0) << 24 | (uint32_t)tsend(t, 1) << 25 |
+           (uint32_t)tbypass(t) << 26;
+}
+
 /* one track: its name, its bar of 16 steps (12 in triplets; the bar shown, for the selected track; the
  * bar it plays, for the others), the playhead */
 static void draw_track(int t, int32_t y)
@@ -2243,27 +2273,7 @@ static void draw_track(int t, int32_t y)
     name[1] = ' ';
     s_cpy(name + 2, tname(t));
     cv_text(13, y, &FONT_XS, name, muted ? K_DIM : sel ? K_TEXT : mix(K_TEXT, K_DIM, 8));
-    {   /* "2b", or the steps when the length is not whole bars, "3" after in triplets; R / D: it owns
-         * the reverb / delay */
-        char b[12];
-        int32_t x;
-        if (len % nb) {
-            itoa_u((uint32_t)len, b);
-            s_cpy(b + s_len(b), "st");
-        } else {
-            itoa_u((uint32_t)track_bars(t), b);
-            s_cpy(b + s_len(b), "b");
-        }
-        if (nb != NE_BAR)
-            s_cpy(b + s_len(b), " 3");
-        x = cv_text(13, y + 10, &FONT_XS, b, K_DIM);
-        if (tsend(t, 0))
-            x = cv_text(x + 4, y + 10, &FONT_XS, "R", K_ACC);
-        if (tsend(t, 1))
-            x = cv_text(x + 4, y + 10, &FONT_XS, "D", K_ACC);
-        if (tbypass(t))                              /* B: past Drift's effects */
-            cv_text(x + 4, y + 10, &FONT_XS, "B", K_TEXT);
-    }
+    draw_marks(t, y);
     for (s = 0; s < nb; s++) {
         int st = bar * nb + s;
         int32_t x = cell_x(nb, s);
@@ -2447,55 +2457,93 @@ static void draw_overlay(uint32_t ba, uint32_t pa)
     }
 }
 
-static void draw_grid(void)
+/* what a track's row shows, as a hash: its steps, the bar it shows, its playhead, its meter, its name and
+ * marks, selected or not */
+static uint32_t row_hash(int t)
 {
-    uint32_t ba = beat_alpha(), pa = pop_alpha();
-    uint32_t h = hash(2166136261u, ui.track | (uint32_t)shown_bar() << 4 | (uint32_t)playing() << 8 |
-                                       (uint32_t)phrase_step() << 9);
-    int t, s;
-    h = hash(h, ba >> 3 | (uint32_t)ui.beat << 8 | (pa >> 3) << 20);
-    if (pa)
-        for (s = 0; s < 16; s++)
-            h = hash(h, (uint32_t)(uint8_t)ui.pop[0][s] | (uint32_t)(uint8_t)ui.pop[1][s] << 8);
-    {
+    int s, sel = t == ui.track;
+    uint32_t h = hash(2166136261u, (uint32_t)t | (uint32_t)sel << 3 | (uint32_t)tmuted(t) << 4 |
+                                       (uint32_t)(uint8_t)(sel ? shown_bar() : play_bar(t)) << 8 |
+                                       (uint32_t)(uint16_t)play_step(t) << 16);
+    h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9 |
+                    (uint32_t)tbypass(t) << 10 | (uint32_t)tbar(t) << 11 | (uint32_t)tlen(t) << 16);
+    if (t == NE_ACID) {
         const nacid *ac = ne_acid();
-        h = hash(h, (uint32_t)(uint16_t)ac->last | (uint32_t)ac->length << 16 | (uint32_t)proj.a[A_MUTE] << 24 |
-                        (uint32_t)(ui.meter[NE_ACID] * 15.0f) << 25 | (uint32_t)(ac->bar != NE_BAR) << 31);
-        h = hash(h, (uint32_t)proj.a[A_DRIFT]);
         for (s = 0; s < ac->length; s++)
             if (ac->step[s].flags)
                 h = hash(h, (uint32_t)s | (uint32_t)ac->step[s].flags << 8 | (uint32_t)(uint8_t)ac->step[s].note << 16);
-    }
-    for (t = 0; t < NE_TRACKS; t++) {
+    } else {
         const nseq_track *tr = trk(t);
-        for (int p=T_RLEVEL;p<T_NPARAMS;++p) h=hash(h,(uint32_t)proj.t[t][p]);
-        h = hash(h, (uint32_t)tr->last | (uint32_t)tr->length << 16 | (uint32_t)tr->mute << 24 |
-                        (uint32_t)(ne_fm()->slot[t].kind & 7) << 25);
-        h = hash(h, (uint32_t)(ui.meter[t] * 15.0f) | (uint32_t)tsend(t, 0) << 8 | (uint32_t)tsend(t, 1) << 9 |
-                        (uint32_t)tr->triplet << 10 | (uint32_t)tbypass(t) << 11);
+        int p;
+        for (p = T_RLEVEL; p < T_NPARAMS; ++p)
+            h = hash(h, (uint32_t)proj.t[t][p]);
+        h = hash(h, (uint32_t)(ne_fm()->slot[t].kind & 7));
         for (s = 0; s < tr->length; s++)
             if (tr->step[s].on)
                 h = hash(h, (uint32_t)s | (uint32_t)tr->step[s].vel << 8 | (uint32_t)(uint8_t)tr->step[s].note << 16);
     }
+    return h;
+}
+
+/* the foot: the bar numbers (the one shown, locked or not) and the phrase */
+static void draw_foot(void)
+{
+    int b, bars = track_bars(ui.track), sb = shown_bar();
+    for (b = 0; b < 8; b++) {
+        char d[2] = {(char)('1' + b), 0};
+        int32_t x = PH_X + b * PH_W;
+        text_c(x + (PH_W - 3) / 2, 110, &FONT_XS, d, b >= bars ? K_LINE : b == sb ? K_TEXT : K_DIM);
+        if (b == sb && ui.bar_lock)
+            cv_rect(x + (PH_W - 3) / 2 - 5, 124, 10, 1, K_TEXT);
+    }
+    draw_phrase(130);
+}
+
+/* The tracks in bands, each its own small canvas, drawn and sent only when what it shows changed: a
+ * row of a track, its meter's fall, the playhead, the foot. A band is drawn once (no strips) into the
+ * half of the canvas the last band is not sending. The counted beat and a knob's box lie over all of
+ * them: while one shows, every band it covers is drawn with it. */
+#define GRID_BANDS (UI_TRACKS + 1)
+static const uint8_t BAND_Y[GRID_BANDS + 1] = {0, 23, 44, 65, 86, 108, MAIN_H};
+static uint32_t band_sig[GRID_BANDS], grid_sig;
+_Static_assert(240u * 36u <= CV_MAX / 2u, "a band fits half the canvas");
+static void draw_grid(void)
+{
+    uint32_t ba = beat_alpha() & ~7u, pa = pop_alpha() & ~7u, ov = 0, h, bh[GRID_BANDS];
+    int b, s;                                        /* (the fades in steps of 8: every band drawn alike) */
+    if (ba || pa) {                                  /* (the overlay: on every band) */
+        ov = hash(hash(hash(2166136261u, ba), pa), (uint32_t)(uint16_t)ui.beat);
+        if (pa)
+            for (s = 0; s < 16; s++)
+                ov = hash(ov, (uint32_t)(uint8_t)ui.pop[0][s] | (uint32_t)(uint8_t)ui.pop[1][s] << 8);
+    }
+    for (b = 0; b < UI_TRACKS; b++)
+        bh[b] = hash(hash(row_hash(b), ov), b ? marks_hash(b - 1) : 0u);
+    bh[UI_TRACKS] = hash(hash(hash(ov, (uint32_t)track_bars(ui.track) | (uint32_t)(uint8_t)shown_bar() << 8 |
+                                           (uint32_t)ui.bar_lock << 16), (uint32_t)phrase_step()), marks_hash(UI_TRACKS - 1));
+    for (h = 2166136261u, b = 0; b < GRID_BANDS; b++)
+        h = hash(h, bh[b]);
     if (h == ui.sig[1])
         return;
-    ui.sig[1] = h;
-    cv_begin(240, MAIN_H, K_BG);
-    do {
-        for (t=0;t<UI_TRACKS;++t) draw_track(t,2+t*ROW_H);
-        {   /* the bar numbers over the phrase, for the black keys: the one shown outlined */
-            int b, bars = track_bars(ui.track), sb = shown_bar();
-            for (b = 0; b < 8; b++) {
-                char d[2] = {(char)('1' + b), 0};
-                int32_t x = PH_X + b * PH_W;
-                text_c(x + (PH_W - 3) / 2, 110, &FONT_XS, d, b >= bars ? K_LINE : b == sb ? K_TEXT : K_DIM);
-                if (b == sb && ui.bar_lock)
-                    cv_rect(x + (PH_W - 3) / 2 - 5, 124, 10, 1, K_TEXT);
-            }
-        }
-        draw_phrase(130);
+    if (ui.sig[1] != grid_sig)                       /* (something else was there: all of it) */
+        memset(band_sig, 0, sizeof band_sig);
+    ui.sig[1] = grid_sig = h;
+    for (b = 0; b < GRID_BANDS; b++) {
+        int32_t y0 = BAND_Y[b];
+        if (bh[b] == band_sig[b])
+            continue;
+        band_sig[b] = bh[b];
+        cv_begin_half(240, (uint32_t)(BAND_Y[b + 1] - y0), K_BG);
+        cv_oy = -y0;                                 /* (drawn where it is on the whole) */
+        if (b)                                       /* (the foot of the row above, as before this one) */
+            draw_marks(b - 1, 2 + (b - 1) * ROW_H);
+        if (b < UI_TRACKS)
+            draw_track(b, 2 + b * ROW_H);
+        else
+            draw_foot();
         draw_overlay(ba, pa);
-    } while (cv_pass(0, MAIN_Y));
+        cv_blit(0, (uint32_t)(MAIN_Y + y0));
+    }
 }
 
 static void draw_main(void)

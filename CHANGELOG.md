@@ -5,6 +5,19 @@ files are not published here: the author hands them out. To build one yourself, 
 version's own build is `python3 tools/build.py --release X.Y.Z --id <BUILD_ID>` (M-UPGRADE takes only
 a short identity, higher than the one installed).
 
+## 0.3.58
+
+Firmware identity FM-1_892. A lighter screen.
+
+- The sound always comes first, and the screen gets the time left over. In a heavy passage little was
+  left, and the screen and the keys grew slow. The screen now costs much less (about 45 % less in the
+  simulator): each track's row and the bar numbers below are drawn only when they change, each just
+  once, and the next row is drawn while the last one is still being sent to the display. Before, the
+  whole middle of the screen was drawn twice on almost every frame. It looks exactly as before.
+- A knob's box over the tracks now fades out smoothly; before, it could hang a frame or two.
+- On battery, with no USB cable, the FM-1 checked for one every second and stopped the screen and the
+  keys for 25 ms each time. It still checks, without stopping them.
+
 ## 0.3.57
 
 Firmware identity FM-1_891.

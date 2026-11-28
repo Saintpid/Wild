@@ -505,6 +505,19 @@ static int expect(const char *what, const char *val)
         got = ne_gen_track();
     else if (!strcmp(what, "glevel"))            /* ...its level now, x 1000 */
         got = ne_gen_track() < 0 ? 0 : (int)(ne_track_level[ne_gen_track()] * 1000.0f);
+    else if (!strcmp(what, "fresh")) {           /* 1: the screen as the bands left it is what a whole redraw draws */
+        static uint16_t was[240 * 240];
+        int whole = !ui.list && !mixer_open && !diagnostics_open;
+        if (whole)
+            draw_main();                             /* (the bands brought up to this ms, as a frame would) */
+        memcpy(was, fb, sizeof fb);
+        if (whole) {
+            ui.sig[1] = 0;                           /* (not the grid's: every band drawn) */
+            draw_main();
+        }
+        got = !memcmp(was, fb, sizeof fb);
+    } else if (!strcmp(what, "blits"))           /* the blits since the last look */
+        got = (int)blits, blits = 0;
     else if (!strcmp(what, "track"))
         got = ui.track;
     else if (!strcmp(what, "bar"))               /* the bar the keys show */

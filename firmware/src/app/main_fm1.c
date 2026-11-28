@@ -173,6 +173,42 @@ void fm1_timer5_irq(void)
 }
 extern void isr_timer5(void);
 
+/* usb_retry without its wait: powered on without a cable, usb.c's retry resets the controller once a
+ * second and waits 25 ms in the main loop, a halt of the screen and the keys each second on battery.
+ * Here the reset's 25 ms pass between two calls. (usb.c stays as it is: the update loader builds it too,
+ * byte for byte Felucca's.) */
+static void usb_retry_soft(uint32_t now_ms)
+{
+    static uint32_t t;
+    static uint8_t resetting;
+    if (usb.up || usb.detached) {
+        resetting = 0;
+        return;
+    }
+    if (!resetting) {
+        if (now_ms - t < 1000u)
+            return;
+        t = now_ms;
+        usb.retries++;
+        fm1_usb_reset();
+        resetting = 1;
+        return;
+    }
+    if (now_ms - t < 25u)
+        return;
+    resetting = 0;                                  /* usb_start after its fm1_delay_ms(25) */
+    usb.timeouts = 0;
+    fm1_usb_attach(ep0buf);
+    sie_wr(S_POWER, 0x60);
+    sie_wr(S_INTRUSBE, 0x07);
+    sie_wr(S_INTRTX1E, 0x01);
+    sie_wr(S_INTRTX2E, 0);
+    sie_wr(S_INTRRX1E, 0);
+    sie_wr(S_INTRRX2E, 0);
+    fm1_usb_ep_enable(0x1Fu);
+    usb.up = usb.timeouts < 3u;
+}
+
 /* ------------------------------------------------------------- boot --- */
 #define BOOTGUARD_MAGIC 0x42475244u
 struct bootguard_s bootguard __attribute__((section(".noinit")));   /* declared in main.c (ota_commit) */
@@ -362,7 +398,7 @@ static void fm1_main(void)
 
     for (;;) {
         fm1_wdt_feed();
-        usb_retry(fm1_ms);
+        usb_retry_soft(fm1_ms);
         if (fm1_ms > 30000u && bootguard.pending) {     /* a crash or hang in the first 30 s counts */
             bootguard.pending = 0;
             bootguard.failed = 0;

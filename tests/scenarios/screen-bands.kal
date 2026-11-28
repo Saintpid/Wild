@@ -1,0 +1,47 @@
+# THE SCREEN IN BANDS: each track's row and the foot are drawn only when what they show changed, and
+# what they leave on the screen is what drawing it all anew draws: while it plays, over the counted
+# beats, through a knob's box and its fade, a mute, another track, another bar
+wait 200
+expect fresh 1
+expect blits >-1
+wait 1000
+expect blits 0
+tap PLAY
+wait 500
+expect fresh 1
+wait 1000
+
+expect fresh 1
+# the counted beats (bars 4 and 8), each a moment later
+wait 4300
+expect fresh 1
+wait 300
+expect fresh 1
+wait 300
+expect fresh 1
+wait 300
+expect fresh 1
+# a knob's box, held and fading
+tap HOME
+spin K3 2
+wait 100
+expect fresh 1
+wait 500
+expect fresh 1
+wait 150
+expect fresh 1
+wait 150
+expect fresh 1
+wait 400
+expect fresh 1
+# a mute, another track, another bar, locked
+tapkey b6
+expect fresh 1
+tapkey b6
+tap OCT+
+expect fresh 1
+tapkey b2
+expect fresh 1
+tap PLAY
+wait 200
+expect fresh 1

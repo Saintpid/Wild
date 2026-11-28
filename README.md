@@ -1,5 +1,7 @@
 # Wild 0.3.53 - experimental FM-1 firmware
 
+**0.3.58: A lighter screen.** The tracks are drawn row by row and only where something changed, so the screen keeps up in heavy passages; on battery the USB check no longer stops it for a moment each second.
+
 **0.3.57:** Unmuting a track no longer selects it; SEL + its mute key does.
 
 **0.3.56: Fill and Notes start where your pattern is.** On a pattern made by hand the knob first jumps to its real % (a kick on every quarter: 25), then turns from there.
